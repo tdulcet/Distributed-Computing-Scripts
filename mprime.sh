@@ -42,12 +42,15 @@ if ! command -v expect >/dev/null; then
 	sudo apt-get install expect -y
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
-mkdir "$DIR"
+if ! mkdir "$DIR"; then
+	echo "Error: Failed to create directory $DIR" >&2
+	exit 1
+fi
 cd "$DIR"
 DIR=$(pwd)
 echo -e "Downloading Prime95\n"
 wget https://www.mersenne.org/ftp_root/gimps/$FILE
-if [[ ! "$(sha256sum $FILE | head -c 64 | tr '[a-z]' '[A-Z]')" = "$SUM" ]]; then
+if [[ ! "$(sha256sum $FILE | head -c 64 | tr 'a-z' 'A-Z')" = "$SUM" ]]; then
     echo "Error: sha256sum does not match" >&2
     echo "Please run \"rm -r $DIR\" and try running this script again" >&2
 	exit 1
@@ -58,6 +61,6 @@ echo -e "\nSetting up Prime95\n"
 expect <(wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.exp -qO -) -- "$USERID" "$COMPUTER" "$TYPE"
 echo -e "\nStarting Prime95\n"
 nohup ./mprime &
-echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n" | fold -s -w $(tput cols)
+echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n" | fold -s -w "$(tput cols)"
 #crontab -l | { cat; echo "cd $DIR && nohup ./mprime &"; } | crontab -
 crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || (cd $DIR && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi"; } | crontab -

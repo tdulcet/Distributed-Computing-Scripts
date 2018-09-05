@@ -24,7 +24,7 @@ if ! [[ $TEAM =~ $RE ]]; then
 	echo "Usage: [Team number] must be a number" >&2
 	exit 1
 fi
-RE='^[a-fA-F0-9]{32}$'
+RE='^[[:xdigit:]]{32}$'
 if ! [[ -z "$PASSKEY" || $PASSKEY =~ $RE ]]; then
 	echo "Usage: [Passkey] must be blank or a 32 digit hexadecimal number" >&2
 	exit 1
@@ -42,7 +42,10 @@ if [[ -d "$DIR" ]] && command -v FAHClient >/dev/null; then
 	echo "Error: Folding@home is already downloaded and installed" >&2
 	exit 1
 fi
-mkdir "$DIR"
+if ! mkdir "$DIR"; then
+	echo "Error: Failed to create directory $DIR" >&2
+	exit 1
+fi
 cd "$DIR"
 echo -e "Downloading Folding@home\n"
 wget https://fah.stanford.edu/file-releases/public/release/fahclient/debian-testing-64bit/v7.4/fahclient_7.4.4_amd64.deb

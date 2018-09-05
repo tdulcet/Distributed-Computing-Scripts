@@ -125,7 +125,7 @@ echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take awhileâ
 # ./CUDALucas 6972593
 echo -e "\nStarting CUDALucas\n"
 nohup nice ./CUDALucas &
-echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n" | fold -s -w $(tput cols)
+echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n" | fold -s -w "$(tput cols)"
 #crontab -l | { cat; echo "cd $DIR && nohup nice ./CUDALucas &"; } | crontab -
 #crontab -l | { cat; echo "cd $DIR && nohup python primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &"; } | crontab -
 crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep CUDALucas > /dev/null || (cd $DIR && nohup nice ./CUDALucas &); pgrep \"python primenet.py\" > /dev/null || (cd $DIR && nohup python primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); else pgrep CUDALucas > /dev/null && killall CUDALucas; fi"; } | crontab -
