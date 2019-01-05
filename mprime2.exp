@@ -1,0 +1,37 @@
+#!/usr/bin/expect -f
+
+# Teal Dulcet
+# ./mprime2.exp <User ID> <Computer name> <Type of work> <Computer number>
+
+set timeout -1
+set USERID [lindex $argv 0]
+set COMPUTER [lindex $argv 1]
+set TYPE [lindex $argv 2]
+set N [lindex $argv 3]
+spawn ./mprime -m -A$N
+expect "Join Gimps?*:"
+sleep 1
+send -- "y\r"
+expect "Use PrimeNet to get work and report results*:"
+sleep 1
+send -- "y\r"
+expect "Your user ID or \"ANONYMOUS\"*:"
+sleep 1
+send -- "$USERID\r"
+expect "Optional computer name:"
+sleep 1
+send -- "$COMPUTER\r"
+expect {
+    "Type of work to get*:" { sleep 1; send -- "$TYPE\r"; exp_continue }
+	"Your choice:" { }
+	"Use the following values to select a work type:" { exp_continue }
+	"*: 1" { exp_continue }
+    "*:" { sleep 1; send -- "\r"; exp_continue }
+}
+expect "Done communicating with server."
+send \x03
+sleep 10
+expect "Choose Test/Continue to restart."
+sleep 1
+send -- "5\r"
+expect eof
