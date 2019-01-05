@@ -3,7 +3,7 @@
 # Teal Dulcet
 # wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh -qO - | bash -s --
 # ./mprime.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
-# ./mprime.sh $USER $HOSTNAME 100 10
+# ./mprime.sh "$USER" "$HOSTNAME" 100 10
 # ./mprime.sh ANONYMOUS
 
 DIR="mprime"
@@ -31,7 +31,7 @@ echo -e "PrimeNet User ID:\t$USERID"
 echo -e "Computer name:\t\t$COMPUTER"
 echo -e "Type of work:\t\t$TYPE"
 echo -e "Idle time to run:\t$TIME minutes\n"
-if [[ -d "$DIR" && -x "$DIR/mprime" ]]; then
+if [[ -d "$DIR" ]]; then
 	echo "Error: Prime95 is already downloaded" >&2
 	exit 1
 fi

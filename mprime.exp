@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 
 # Teal Dulcet
-# ./expect.exp <User ID> <Computer name> <Type of work>
+# ./mprime.exp <User ID> <Computer name> <Type of work>
 
 set timeout -1
 set USERID [lindex $argv 0]

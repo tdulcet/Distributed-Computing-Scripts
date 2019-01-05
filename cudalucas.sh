@@ -3,7 +3,7 @@
 # Teal Dulcet
 # wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh -qO - | bash -s --
 # ./cudalucas.sh <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]
-# ./cudalucas.sh <PrimeNet Password> $USER 100 10
+# ./cudalucas.sh <PrimeNet Password> "$USER" 100 10
 # ./cudalucas.sh <PrimeNet Password> ANONYMOUS
 
 DIR1="cudalucas"
@@ -32,16 +32,16 @@ echo -e "PrimeNet User ID:\t$USERID"
 echo -e "PrimeNet Password:\t$PASSWORD"
 echo -e "Type of work:\t\t$TYPE"
 echo -e "Idle time to run:\t$TIME minutes\n"
-if [[ -d "$DIR1" && -x "$DIR1/CUDALucas" ]]; then
+if [[ -d "$DIR1" ]]; then
 	echo "Error: CUDALucas is already downloaded" >&2
 	exit 1
 fi
 GPU=$(lspci | grep -i 'vga\|3d\|2d')
-if ! echo "$GPU" | grep -i 'nvidia' >/dev/null; then
+if ! echo "$GPU" | grep -iq 'nvidia'; then
 	echo -e "Please enter your password when prompted.\n"
 	sudo update-pciids
 	GPU=$(lspci | grep -i 'vga\|3d\|2d')
-	if ! echo "$GPU" | grep -i 'nvidia' >/dev/null; then
+	if ! echo "$GPU" | grep -iq 'nvidia'; then
 		echo "$GPU" | sed -n 's/^.*: //p'
 		echo "Error: This computer does not have an Nvidia GPU" >&2
 		exit 1

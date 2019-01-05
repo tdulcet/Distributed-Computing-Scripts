@@ -3,7 +3,7 @@
 # Teal Dulcet
 # wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh -qO - | bash -s --
 # ./folding.sh [Username] [Team number] [Passkey] [Power]
-# ./folding.sh $USER 0 "" medium
+# ./folding.sh "$USER" 0 "" medium
 # ./folding.sh anonymous
 
 # sudo dpkg -P fahclient
@@ -48,14 +48,14 @@ if ! mkdir "$DIR"; then
 fi
 cd "$DIR"
 echo -e "Downloading Folding@home\n"
-wget https://fah.stanford.edu/file-releases/public/release/fahclient/debian-testing-64bit/v7.4/fahclient_7.4.4_amd64.deb
-wget https://fah.stanford.edu/file-releases/public/release/fahcontrol/debian-testing-64bit/v7.4/fahcontrol_7.4.4-1_all.deb
-wget https://fah.stanford.edu/file-releases/public/release/fahviewer/debian-testing-64bit/v7.4/fahviewer_7.4.4_amd64.deb
+wget https://download.foldingathome.org/releases/public/release/fahclient/debian-stable-64bit/v7.5/fahclient_7.5.1_amd64.deb
+wget https://download.foldingathome.org/releases/public/release/fahcontrol/debian-stable-64bit/v7.5/fahcontrol_7.5.1-1_all.deb
+wget https://download.foldingathome.org/releases/public/release/fahviewer/debian-stable-64bit/v7.5/fahviewer_7.5.1_amd64.deb
 echo -e "\nInstalling Folding@home"
 echo -e "Please enter your password when prompted.\n"
 
 # Adapted from: https://www.linuxquestions.org/questions/blog/bittner-195120/howto-automate-interactive-debian-package-installations-debconf-preseeding-2879/
-# dpkg-deb -e fahclient_7.4.4_amd64.deb control_files/
+# dpkg-deb -e fahclient_7.5.1_amd64.deb control_files/
 # grep -e '^Template:' -e '^Type:' -e '^Default:' control_files/templates | xargs | sed -e 's/\s*Template: /\nFAHClient\t/g' -e 's/\s*Type: */\t/g' -e 's/\s*Default: */\t/g' > FAHClient.conf
 sudo debconf-set-selections <<< "FAHClient	fahclient/user	string	$USERID
 FAHClient	fahclient/team	string	$TEAM
@@ -63,7 +63,7 @@ FAHClient	fahclient/passkey	string	$PASSKEY
 FAHClient	fahclient/power	select	$POWER
 FAHClient	fahclient/autostart	boolean	true"
 
-sudo dpkg -i --force-depends fahclient_7.4.4_amd64.deb
-sudo dpkg -i --force-depends fahcontrol_7.4.4-1_all.deb
-sudo dpkg -i --force-depends fahviewer_7.4.4_amd64.deb
+sudo dpkg -i --force-depends fahclient_7.5.1_amd64.deb
+sudo dpkg -i --force-depends fahcontrol_7.5.1-1_all.deb
+sudo dpkg -i --force-depends fahviewer_7.5.1_amd64.deb
 # sudo apt-get install -f
