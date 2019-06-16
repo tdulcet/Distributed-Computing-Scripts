@@ -17,7 +17,7 @@ To run Prime95 for Stress/Torture Testing, see here: https://github.com/tdulcet/
 
 ### CUDALucas
 
-Downloads, sets up and runs [CUDALucas](https://sourceforge.net/p/cudalucas/code/HEAD/tree/trunk/). Downloads, sets up and runs the Python script from [Mlucas](http://www.mersenneforum.org/mayer/README.html#download) for automated PrimeNet assignments.
+Downloads, sets up and runs [CUDALucas](https://sourceforge.net/p/cudalucas/code/HEAD/tree/trunk/). Downloads, sets up and runs the Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download) for automated PrimeNet assignments.
 
 ```
 wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh -qO - | bash -s -- <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]
