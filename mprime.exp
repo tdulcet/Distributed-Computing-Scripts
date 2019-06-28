@@ -8,24 +8,24 @@ set USERID [lindex $argv 0]
 set COMPUTER [lindex $argv 1]
 set TYPE [lindex $argv 2]
 spawn ./mprime -m
-expect "Join Gimps?*:"
+expect "Join Gimps? (*):"
 sleep 1
 send -- "y\r"
-expect "Use PrimeNet to get work and report results*:"
+expect "Use PrimeNet to get work and report results (*):"
 sleep 1
 send -- "y\r"
-expect "Your user ID or \"ANONYMOUS\"*:"
+expect "Your user ID or \"ANONYMOUS\" (*):"
 sleep 1
 send -- "$USERID\r"
 expect "Optional computer name:"
 sleep 1
 send -- "$COMPUTER\r"
 expect {
-    "Type of work to get*:" { sleep 1; send -- "$TYPE\r"; exp_continue }
+    "Type of work to get (*):" { sleep 1; send -- "$TYPE\r"; exp_continue }
 	"Your choice:" { }
 	"Use the following values to select a work type:" { exp_continue }
 	"*: 1" { exp_continue }
-    "*:" { sleep 1; send -- "\r"; exp_continue }
+    " (*):" { sleep 1; send -- "\r"; exp_continue }
 }
 expect "Done communicating with server."
 send \x03
