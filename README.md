@@ -17,10 +17,19 @@ To run Prime95 for Stress/Torture Testing, see here: https://github.com/tdulcet/
 
 ### CUDALucas
 
-Downloads, sets up and runs [CUDALucas](https://sourceforge.net/p/cudalucas/code/HEAD/tree/trunk/). Downloads, sets up and runs the Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download) for automated PrimeNet assignments.
+Downloads, builds, sets up and runs [CUDALucas](https://sourceforge.net/p/cudalucas/code/HEAD/tree/trunk/). Downloads, sets up and runs the Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download) for automated PrimeNet assignments.
 
 ```
 wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh -qO - | bash -s -- <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]
+```
+
+### Mlucas
+
+Downloads, builds, sets up and runs [Mlucas](https://www.mersenneforum.org/mayer/README.html#download). Supports x86 Intel and AMD and ARM CPUs, but only recommended for ARM CPUs, which [Prime95/MPrime](#prime95mprime) does not support. Prime95/MPrime is faster than Mlucas on x86 CPUs. Run: `wget https://raw.github.com/tdulcet/Linux-System-Information/master/info.sh -qO - | bash -s --` to output your system information, including CPU and architecture.
+This script follows the recommended instructions on the [Mlucas README](https://www.mersenneforum.org/mayer/README.html) for each architecture and CPU and is currently for testing only.
+
+```
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s -- <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]
 ```
 
 ### Organizations
