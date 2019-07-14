@@ -12,13 +12,13 @@ matrix:
     - sed -i 's/^nohup /# nohup /' cudalucas.sh
     - sed -i 's/^crontab /# crontab /' cudalucas.sh
     script:
-    - ./cudalucas.sh password ANONYMOUS
+    - bash cudalucas.sh password ANONYMOUS
   - name: "Mlucas"
     before_script:
     - sed -i 's/^nohup /# nohup /' mlucas.sh
     - sed -i 's/^crontab /# crontab /' mlucas.sh
     script:
-    - ./mlucas.sh password ANONYMOUS
+    - bash mlucas.sh password ANONYMOUS
 
 after_script:
     - bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
