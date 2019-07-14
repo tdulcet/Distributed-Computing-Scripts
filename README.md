@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/tdulcet/Distributed-Computing-Scripts.svg?branch=master)](https://travis-ci.org/tdulcet/Distributed-Computing-Scripts)
+
 # Distributed Computing Scripts
 Linux Distributed Computing Scripts
 

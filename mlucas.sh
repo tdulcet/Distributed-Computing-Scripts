@@ -30,7 +30,7 @@ fi
 echo -e "PrimeNet User ID:\t$USERID"
 echo -e "PrimeNet Password:\t$PASSWORD"
 echo -e "Type of work:\t\t$TYPE"
-echo -e "Idle time to run:\t$TIME minutes"
+echo -e "Idle time to run:\t$TIME minutes\n"
 if [[ -d "$DIR2" ]]; then
 	echo "Error: Mlucas is already downloaded" >&2
 	exit 1
@@ -46,7 +46,7 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 # Adapted from: https://github.com/tdulcet/Linux-System-Information/blob/master/info.sh
 . /etc/os-release
 
-echo -e "\nLinux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
+echo -e "Linux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
 
 KERNEL=$(uname -r)
 echo -e "Linux Kernel:\t\t\t$KERNEL"
@@ -183,11 +183,13 @@ for i in "${!RUNS[@]}"; do
 	ln -s ../mlucas.cfg .
 	echo -e "\tStarting PrimeNet\n"
 	nohup python ../../src/primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" &
+	sleep 1
 	echo -e "\n\tStarting Mlucas\n"
 	nohup nice ../Mlucas -cpu "${RUNS[$i]}" &
+	sleep 1
 	popd > /dev/null
 done
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n" | fold -s -w "$(tput cols)"
 #crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done)"; } | crontab -
 #crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done)"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done) pgrep \"python primenet.py\" > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done) pgrep -f '^python \.\./\.\./src/primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -
