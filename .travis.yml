@@ -7,18 +7,18 @@ matrix:
     before_script:
     - sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
     - sed -i '/^if ! COMPUTE=/,/^fi/ s/^/# /' cudalucas.sh
-    - sed -i 's/^sed -i "s\/--generate-code/# sed -i "s\/--generate-code/' cudalucas.sh
-    - sed -i 's/^\.\/CUDALucas /# .\/CUDALucas /' cudalucas.sh
-    - sed -i 's/^nohup /# nohup /' cudalucas.sh
-    - sed -i 's/^crontab /# crontab /' cudalucas.sh
+    - sed -i 's/\/$COMPUTE/\/--generate-code arch=compute_35,code=sm_35/' cudalucas.sh
+    - sed -i '/^\.\/CUDALucas / s/^/# /' cudalucas.sh
+    - sed -i '/^nohup / s/^/# /' cudalucas.sh
+    - sed -i '/^crontab / s/^/# /' cudalucas.sh
     script:
-    - bash cudalucas.sh password ANONYMOUS
+    - bash -e cudalucas.sh -- password ANONYMOUS
   - name: "Mlucas"
     before_script:
-    - sed -i 's/^nohup /# nohup /' mlucas.sh
-    - sed -i 's/^crontab /# crontab /' mlucas.sh
+    - sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
+    - sed -i '/^crontab / s/^/# /' mlucas.sh
     script:
-    - bash mlucas.sh password ANONYMOUS
+    - bash -e mlucas.sh -- password ANONYMOUS
 
 after_script:
     - bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
