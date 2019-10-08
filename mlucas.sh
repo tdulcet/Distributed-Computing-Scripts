@@ -125,7 +125,7 @@ Mlucas: \$(OBJS)
 clean:
 	rm -f *.o
 EOF
-make -j "$(echo "HOSTTYPE" | grep -iq 'arm' && echo "1" || echo "$CPU_THREADS")"
+make -j "$CPU_THREADS"
 make clean
 echo -e "\nTesting Mlucas\n"
 ./Mlucas -fftlen 192 -iters 100 -radset 0

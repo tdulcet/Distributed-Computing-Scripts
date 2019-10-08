@@ -13,13 +13,16 @@ matrix:
     - sed -i '/^crontab / s/^/# /' cudalucas.sh
     script:
     - bash -e -- cudalucas.sh password ANONYMOUS
-  - name: "Mlucas"
-    before_script:
+  - name: "Mlucas (Intel)"
+    arch: amd64
+  - name: "Mlucas (ARM)"
+    arch: arm64
+
+before_script:
     - sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
     - sed -i '/^crontab / s/^/# /' mlucas.sh
-    script:
+script:
     - bash -e -- mlucas.sh password ANONYMOUS
-
 after_script:
     - bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
 
