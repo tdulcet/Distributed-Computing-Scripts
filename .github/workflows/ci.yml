@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  schedule:
+    - cron:  '0 0 1 * *'
+
+jobs:
+  CUDALucas:
+    name: CUDALucas
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Before
+      run: |
+        sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
+        sed -i '/^if ! COMPUTE=/,/^fi/ s/^/# /' cudalucas.sh
+        sed -i 's/\/$COMPUTE/\/--generate-code arch=compute_35,code=sm_35/' cudalucas.sh
+        sed -i '/^\.\/CUDALucas / s/^/# /' cudalucas.sh
+        sed -i '/^nohup / s/^/# /' cudalucas.sh
+        sed -i '/^crontab / s/^/# /' cudalucas.sh
+    - name: Script
+      run: bash -e -- cudalucas.sh password ANONYMOUS
+    - name: ShellCheck
+      run: bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
+
+  Mlucas:
+    name: Mlucas
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Before
+      run: |
+        sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
+        sed -i '/^crontab / s/^/# /' mlucas.sh
+    - name: Script
+      run: bash -e -- mlucas.sh password ANONYMOUS
+    - name: ShellCheck
+      run: bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
+
