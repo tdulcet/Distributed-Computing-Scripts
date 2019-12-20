@@ -7,9 +7,9 @@
 # ./cudalucas.sh <PrimeNet Password> ANONYMOUS
 
 DIR1="cudalucas"
-DIR2="mlucas_v18/src"
-FILE2="mlucas_v18.txz"
-SUM="a3ab997df7d7246b29e47a851088d2a5"
+DIR2="mlucas_v19/src"
+FILE2="mlucas_v19.txz"
+SUM="9b97f3956b7883be66adb3477b679dce"
 if [[ "$#" -lt 1 || "$#" -gt 4 ]]; then
 	echo "Usage: $0 <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
@@ -127,7 +127,7 @@ echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take awhileâ
 echo -e "\nStarting CUDALucas\n"
 nohup nice ./CUDALucas &
 sleep 1
-echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n" | fold -s -w "$(tput cols)"
+echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "cd $DIR && nohup nice ./CUDALucas &"; } | crontab -
 #crontab -l | { cat; echo "cd $DIR && nohup python primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &"; } | crontab -
 crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep CUDALucas > /dev/null || (cd $DIR && nohup nice ./CUDALucas &); pgrep -f '^python primenet\.py' > /dev/null || (cd $DIR && nohup python primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); else pgrep CUDALucas > /dev/null && killall CUDALucas; fi"; } | crontab -

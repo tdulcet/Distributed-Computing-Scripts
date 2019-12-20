@@ -6,9 +6,9 @@
 # ./mlucas.sh <PrimeNet Password> "$USER" 100 10
 # ./mlucas.sh <PrimeNet Password> ANONYMOUS
 
-DIR2="mlucas_v18"
-FILE2="mlucas_v18.txz"
-SUM="a3ab997df7d7246b29e47a851088d2a5"
+DIR2="mlucas_v19"
+FILE2="mlucas_v19.txz"
+SUM="9b97f3956b7883be66adb3477b679dce"
 if [[ "$#" -lt 1 || "$#" -gt 4 ]]; then
 	echo "Usage: $0 <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
@@ -189,7 +189,7 @@ for i in "${!RUNS[@]}"; do
 	sleep 1
 	popd > /dev/null
 done
-echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n" | fold -s -w "$(tput cols)"
+echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done)"; } | crontab -
 #crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done)"; } | crontab -
 crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done) pgrep -f '^python \.\./\.\./src/primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -
