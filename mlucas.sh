@@ -8,7 +8,7 @@
 
 DIR2="mlucas_v19"
 FILE2="mlucas_v19.txz"
-SUM="9b97f3956b7883be66adb3477b679dce"
+SUM="7c48048cb6d935638447e45e0528fe9c"
 if [[ "$#" -lt 1 || "$#" -gt 4 ]]; then
 	echo "Usage: $0 <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
@@ -100,7 +100,7 @@ echo -e "\nBuilding Mlucas\n"
 # done
 if grep -iq 'avx512' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX512 SIMD build mode.\n"
-	ARGS+=( "-DUSE_AVX512" )
+	ARGS+=( "-DUSE_AVX512" -march=skylake-avx512 )
 elif grep -iq 'avx2' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX2 SIMD build mode.\n"
 	ARGS+=( "-DUSE_AVX2" -mavx2 )
@@ -134,8 +134,7 @@ echo -e "\nOptimizing Mlucas for your computer\nThis may take awhile…\n"
 if echo "${CPU[0]}" | grep -iq 'intel'; then
 	echo -e "The CPU is Intel.\n"
 	if [[ $CPU_CORES -ne $CPU_THREADS && $CPU_CORES -gt 1 ]]; then
-		ARGS+=( -cpu "0:$(( CPU_CORES - 1 ))" )
-		# ARGS+=( -cpu "0$(for ((j=CPU_CORES; j<CPU_THREADS; j+=CPU_CORES)); do echo -n ",$j"; done)" )
+		ARGS+=( -cpu "0$(for ((j=CPU_CORES; j<CPU_THREADS; j+=CPU_CORES)); do echo -n ",$j"; done)" )
 	fi
 elif echo "${CPU[0]}" | grep -iq 'amd'; then
 	echo -e "The CPU is AMD.\n"

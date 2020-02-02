@@ -9,7 +9,7 @@
 DIR1="cudalucas"
 DIR2="mlucas_v19/src"
 FILE2="mlucas_v19.txz"
-SUM="9b97f3956b7883be66adb3477b679dce"
+SUM="7c48048cb6d935638447e45e0528fe9c"
 if [[ "$#" -lt 2 || "$#" -gt 5 ]]; then
 	echo "Usage: $0 <Computer number> <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
