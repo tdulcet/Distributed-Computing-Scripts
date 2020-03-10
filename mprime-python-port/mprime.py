@@ -40,6 +40,7 @@ subprocess.run(['tar', '-xzvf', os.environ["FILE"]])
 args = [os.environ["USERID"], os.environ["COMPUTER"], os.environ["TYPE"]]
 print("Configuring...")
 p = subprocess.Popen(['python3', "../exp.py"] + args,
+#p = subprocess.Popen(['python3', "../exp2.py"] + args,
   stdout=subprocess.PIPE,
   universal_newlines=True,
   bufsize=0)
