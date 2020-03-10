@@ -1,4 +1,4 @@
-# Daniel Connelly
+#Daniel Connelly
 # Usage: ./mprime.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 
 import sys
@@ -14,23 +14,23 @@ os.environ["USERID"], os.environ["COMPUTER"], os.environ["TYPE"]  = sys.argv[1],
 print("Asserting Python version is >= Python3.6")
 assert sys.version_info >= (3, 6) #Pyhon 3 required
 
-print("Installing wget dependency")
 try:
     import wget
 except ImportError as error:
+    print("Installing wget dependency")
     p = subprocess.run('pip install wget', shell=True)
     import wget
 #---------------------------------------#
 #---Directory/unzipping---#
-print("Making directory to house contents of prime95")
-os.mkdir("prime95")
+#print("Making directory to house contents of prime95")
+#os.mkdir("prime95")
 
 print("Changing to directory")
 os.chdir("prime95")
 
 os.environ["FILE"] = "p95v298b3.linux64.tar.gz"
-print("Downloading prime95...")
-wget.download('https://www.mersenne.org/ftp_root/gimps/'+os.environ["FILE"])
+#print("Downloading prime95...")
+#wget.download('https://www.mersenne.org/ftp_root/gimps/'+os.environ["FILE"])
 
 print("Unzipping folder here...")
 subprocess.run(['tar', '-xzvf', os.environ["FILE"]])

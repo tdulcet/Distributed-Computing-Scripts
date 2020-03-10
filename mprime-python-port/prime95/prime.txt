@@ -1,9 +1,0 @@
-V24OptionsConverted=1
-WGUID_version=2
-StressTester=0
-UsePrimenet=1
-V5UserID=ANONYMOUS
-WorkPreference=0
-
-[PrimeNet]
-Debug=0
