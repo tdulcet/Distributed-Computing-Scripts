@@ -5,6 +5,7 @@ import sys
 import subprocess
 import os
 import signal
+import re # regular expression matching
 #print(sys.argv[0])
 #sys.exit()
 
@@ -20,6 +21,11 @@ except ImportError as error:
     print("Installing wget dependency")
     p = subprocess.run('pip install wget', shell=True)
     import wget
+
+#TODO -- Regex
+RE='^([024568]|1(0[0124]|5[0124]|6[01])?)$'
+#if not os.environ["TYPE"] ==
+
 #---------------------------------------#
 #---Directory/unzipping---#
 #print("Making directory to house contents of prime95")
