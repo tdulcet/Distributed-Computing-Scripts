@@ -1,13 +1,12 @@
 #!/usr/bin/python3
 
 # Daniel Connelly
- # based off of Tdulcet's expect script
+# based off of Tdulcet's expect script
 # Python3 exp.py <User ID> <Computer name> <Type of work>
 
 # NOTE(s)
 '''
 * pexpect does not like nonempty ()s (e.g., (y)), *s, inline ''s, or +s. Try not to use them.
-* pexpect does not seem to be able to skip over queries with the default or "enter" key.
 * this pexpect script cannot handle skipping past prompts like regular expect (something to fix...).
 '''
 
