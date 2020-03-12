@@ -105,7 +105,7 @@ for line in p.stdout:
 
 #---Starting Program---#
 print("Starting up Prime95.")
-subprocess.Popen("./mprime") # daemon process
+subprocess.Popen("./mprime -d") # daemon process
 #subprocess.run("./mprime -d") # process # for Watson
 
 #print("\nSetting it to start if the computer has not been used in the specified idle time and stop it whe    n someone uses the computer\n")
