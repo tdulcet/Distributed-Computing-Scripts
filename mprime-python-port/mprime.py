@@ -2,7 +2,6 @@
 
 #Daniel Connelly
 # Usage: ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
-# ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 # ./mprime.py "$USER" "$HOSTNAME" 100 10
 # ./mprime.py ANONYMOUS
 
@@ -13,6 +12,16 @@ import re # regular expression matching
 import hashlib # sha256
 
 def regex_check(reg, var, err):
+    '''Checks cmdline args for proper bounds using regex
+
+    Parameters:
+    reg (string): regex string to check against
+    var (string): variable to check against regex string
+    err (string): output to put to STDERR if regex does not match
+
+    Returns:
+    None
+    '''
     if not re.match(reg, var):
         sys.stderr.write(err)
         sys.exit(1)
@@ -25,6 +34,14 @@ def misc_check(condition, err):
 # Source: https://stackoverflow.com/questions/22058048/hashing-a-file-in-python
 # There is no sha256sum in the hashlib library normally
 def sha256sum(filename):
+    '''Completes a checksum of the folder
+
+    Parameters:
+    filename (string): directory to be checked
+
+    Returns:
+    The hash sum string in hexidecimal digits
+    '''
     h  = hashlib.sha256()
     b  = bytearray(128*1024)
     mv = memoryview(b)
@@ -45,14 +62,6 @@ if len(sys.argv) == 5:
     regex_check(r'^([0-9]*[.])?[0-9]+$', TIME, "Usage: [Type of work] is not a valid number")
 else:
     TIME = "" # is this an okay value?
-
-# TODO/FIXME/NOTE - Teal, I cannot get this to work no matter what I try...
-# resource: https://stackoverflow.com/questions/37850357/why-does-this-valid-shell-command-throw-an-error-in-python-via-subprocess
-out = subprocess.check_output("bash -c crontab -l " + "echo \"* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || cd $DIR && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; | crontab -", shell=True)
-
-print(out)
-
-sys.exit(1) # TODO -- when fixed put above code at end of script
 
 print("PrimeNet User ID:\t"+ USERID)
 print("Computer name:\t\t"+ COMPUTER)
@@ -114,6 +123,8 @@ print("Starting up Prime95.")
 subprocess.Popen("./mprime") # daemon process
 
 print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
+
+out = subprocess.check_output("{ crontab -l; echo \"* * * * * if who -s | awk '{ print \$2 }' | cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"$(date +\%s)\"'-\$2<" + TIME + ") { print \$1\"\t\"'\"$(date +\%s)\"'-\$2; ++count }} END{if count>0} { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || cd " + os.getcwd() + " && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; } | crontab -", shell=True)
 
 '''
 # TODO -- delete this comment block
