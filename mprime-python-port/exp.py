@@ -23,9 +23,6 @@ except ImportError as error:
 
 # Prerequisites, gained from mprime.py
 USERID, COMPUTER, TYPE  = sys.argv[1], sys.argv[2], sys.argv[3]
-# FIXME -- Teal, should we use this?
-#if len(sys.argv) == 5:
-#    TIME = sys.argv[4]
 
 # Pexpect script
 child = pexpect.spawn('./mprime -m') # starts shell to interact with
