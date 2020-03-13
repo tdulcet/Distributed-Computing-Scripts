@@ -79,12 +79,15 @@ child.sendline(TYPE)
 child.expect("CPU cores to use ()") # Change for IBMs Watson machine
 time.sleep(1)
 child.sendline("56")
+'''
 child.expect("Use hyperthreading for trial factoring ()")
 time.sleep(1)
 child.sendline("Y")
 child.expect("Use hyperthreading for LL, P-1, ECM ()")
 time.sleep(1)
 child.sendline("N")
+'''
+print(child.before)
 child.expect("Accept the answers above?")
 time.sleep(1)
 child.sendline("Y")
