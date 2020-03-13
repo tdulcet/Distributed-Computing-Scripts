@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 #Daniel Connelly
-# wget https://raw.github.com/danc2050/Distributed-Computing-Scripts/master/mprime.sh/mprime-python-port
 # Usage: ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 # ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 # ./mprime.py "$USER" "$HOSTNAME" 100 10
@@ -12,7 +11,6 @@ import subprocess
 import os
 import re # regular expression matching
 import hashlib # sha256
-#import signal # debugging FIXME
 
 def regex_check(reg, var, err):
     if not re.match(reg, var):
@@ -41,15 +39,25 @@ DIR = "mprime"
 FILE = "p95v298b3.linux64.tar.gz"
 SUM = "66117E8C30752426471C7B4A7A64FFBFC53C84D0F3140ACF87C08D3FEC8E99AC"
 USERID, COMPUTER, TYPE  = sys.argv[1], sys.argv[2], sys.argv[3]
+
 if len(sys.argv) == 5:
     TIME = sys.argv[4]
     regex_check(r'^([0-9]*[.])?[0-9]+$', TIME, "Usage: [Type of work] is not a valid number")
+else:
+    TIME = "" # is this an okay value?
+
+# TODO/FIXME/NOTE - Teal, I cannot get this to work no matter what I try...
+# resource: https://stackoverflow.com/questions/37850357/why-does-this-valid-shell-command-throw-an-error-in-python-via-subprocess
+out = subprocess.check_output("bash -c crontab -l " + "echo \"* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || cd $DIR && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; | crontab -", shell=True)
+
+print(out)
+
+sys.exit(1) # TODO -- when fixed put above code at end of script
 
 print("PrimeNet User ID:\t"+ USERID)
 print("Computer name:\t\t"+ COMPUTER)
 print("Type of work:\t\t"+ TYPE)
-try: print("Idle time to run:\t"+ TIME + " minutes\n")
-except: print("")
+if TIME != "": print("Idle time to run:\t"+ TIME + " minutes\n")
 
 #---Dependencies/Downloads---#
 print("Asserting Python version is >= Python3.6")
@@ -103,14 +111,11 @@ for line in p.stdout:
 
 #---Starting Program---#
 print("Starting up Prime95.")
-#subprocess.Popen("./mprime") # daemon process
+subprocess.Popen("./mprime") # daemon process
 
-#print("\nSetting it to start if the computer has not been used in the specified idle time and stop it whe    n someone uses the computer\n")
-# FIXME  -- I need some explanation on what this is doing so I can port it, Teal
-'''
-#subprocess.run('crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X    ') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (    count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || (cd $DIR && nohup ./mprime &); else pgr    ep mprime > /dev/null && killall mprime; fi"; } | crontab -, shell=True)
-'''
+print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
 
+'''
 # TODO -- delete this comment block
  # this reads the output for my testing purposes
 print("Starting mprime")
@@ -120,6 +125,7 @@ p = subprocess.Popen(['./mprime', '-d'],
   bufsize=0)
 
 try:
+  import signal
   for line in p.stdout:
     line=line[:-1]
     print(line)
@@ -127,5 +133,4 @@ except KeyboardInterrupt:
   print("\nExiting...")
   os.kill(p, signal.SIGKILL)
   print("Done.")
-
-
+'''
