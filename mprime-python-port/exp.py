@@ -6,13 +6,12 @@
 
 # NOTE(s)
 '''
-* pexpect does not like nonempty ()s (e.g., (y)), *s, inline ''s, or +s. Try not to use them.
-* this pexpect script cannot handle skipping past prompts like regular expect (something to fix...).
+* pexpect has quirks about nonempty ()s (e.g., (y)), *s, inline ''s, or +s.
+* this pexpect script cannot handle skipping past prompts like regular expect (something to fix, if possible).
 '''
 
 import sys
 import time
-import os
 
 # Installing dependency
 try:
@@ -23,7 +22,10 @@ except ImportError as error:
     import pexpect
 
 # Prerequisites, gained from mprime.py
-os.environ["USERID"], os.environ["COMPUTER"], os.environ["TYPE"]  = sys.argv[1], sys.argv[2], sys.argv[3]
+USERID, COMPUTER, TYPE  = sys.argv[1], sys.argv[2], sys.argv[3]
+# FIXME -- Teal, should we use this?
+#if len(sys.argv) == 5:
+#    TIME = sys.argv[4]
 
 # Pexpect script
 child = pexpect.spawn('./mprime -m') # starts shell to interact with
@@ -37,10 +39,10 @@ time.sleep(1)
 child.sendline("y")
 child.expect("Your user ID or")
 time.sleep(1)
-child.sendline(os.environ["USERID"])
+child.sendline(USERID)
 child.expect("Optional computer name:")
 time.sleep(1)
-child.sendline(os.environ["COMPUTER"])
+child.sendline(COMPUTER)
 child.expect("Computer uses a dial-up connection")
 time.sleep(1)
 child.sendline("N")
@@ -73,7 +75,7 @@ time.sleep(1)
 child.sendline("10")
 child.expect("Type of work to get ()")
 time.sleep(1)
-child.sendline("100")
+child.sendline(TYPE)
 child.expect("CPU cores to use ()") # Change for IBMs Watson machine
 time.sleep(1)
 child.sendline("56")

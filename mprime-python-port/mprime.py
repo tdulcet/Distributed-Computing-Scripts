@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 #Daniel Connelly
+# wget https://raw.github.com/danc2050/Distributed-Computing-Scripts/master/mprime.sh/mprime-python-port
 # Usage: ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 # ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 # ./mprime.py "$USER" "$HOSTNAME" 100 10
@@ -69,12 +70,8 @@ misc_check(len(sys.argv) > 4, "Usage: " + sys.argv[0]+ " [PrimeNet User ID] [Com
 regex_check(r'^([024568]|1(0[0124]|5[0124]|6[01])?)$', TYPE, "Usage: [Type of work] is not a valid number")
 #----------------------------#
 
-#---File/Folder checks-------#
+#---Downloading/Directory Ops---#
 misc_check(os.path.exists(DIR), "Error: Prime95 is already downloaded")
-misc_check(sha256sum("./prime95/p95v298b3.linux64.tar.gz") == SUM, "Error: Prime95 is already downloaded")
-#----------------------------#
-
-#---Directory/unzipping---#
 print("Making directory to house contents of Prime95")
 os.mkdir(DIR)
 misc_check(not os.path.exists(DIR), "Error: Failed to create directory: " + DIR)
@@ -84,6 +81,7 @@ os.chdir(DIR)
 
 print("Downloading Prime95\n")
 wget.download('https://www.mersenne.org/ftp_root/gimps/'+FILE)
+misc_check(sha256sum("p95v298b3.linux64.tar.gz") == SUM, "Error: sha256sum does not match. Please run \"rm -r $DIR\" and try running this script again")
 
 print("Unzipping folder here...")
 subprocess.run(['tar', '-xzvf', FILE])
@@ -105,8 +103,7 @@ for line in p.stdout:
 
 #---Starting Program---#
 print("Starting up Prime95.")
-subprocess.Popen("./mprime -d") # daemon process
-#subprocess.run("./mprime -d") # process # for Watson
+#subprocess.Popen("./mprime") # daemon process
 
 #print("\nSetting it to start if the computer has not been used in the specified idle time and stop it whe    n someone uses the computer\n")
 # FIXME  -- I need some explanation on what this is doing so I can port it, Teal
@@ -115,7 +112,7 @@ subprocess.Popen("./mprime -d") # daemon process
 '''
 
 # TODO -- delete this comment block
-''' # this reads the output for my testing purposes
+ # this reads the output for my testing purposes
 print("Starting mprime")
 p = subprocess.Popen(['./mprime', '-d'],
   stdout=subprocess.PIPE,
@@ -130,5 +127,5 @@ except KeyboardInterrupt:
   print("\nExiting...")
   os.kill(p, signal.SIGKILL)
   print("Done.")
-'''
+
 
