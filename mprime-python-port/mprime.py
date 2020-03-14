@@ -124,23 +124,3 @@ subprocess.Popen("./mprime") # daemon process
 print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
 
 out = subprocess.check_output("{ crontab -l; echo \"* * * * * if who -s | awk '{ print \$2 }' | cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"$(date +\%s)\"'-\$2<" + TIME + ") { print \$1\"\t\"'\"$(date +\%s)\"'-\$2; ++count }} END{if count>0} { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || cd " + os.getcwd() + " && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; } | crontab -", shell=True)
-
-'''
-# TODO -- delete this comment block
- # this reads the output for my testing purposes
-print("Starting mprime")
-p = subprocess.Popen(['./mprime', '-d'],
-  stdout=subprocess.PIPE,
-  universal_newlines=True,
-  bufsize=0)
-
-try:
-  import signal
-  for line in p.stdout:
-    line=line[:-1]
-    print(line)
-except KeyboardInterrupt:
-  print("\nExiting...")
-  os.kill(p, signal.SIGKILL)
-  print("Done.")
-'''
