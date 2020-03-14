@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # Daniel Connelly
 # based off of Tdulcet's expect script
