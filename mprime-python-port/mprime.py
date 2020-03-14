@@ -61,10 +61,15 @@ COMPUTER = sys.argv[2] if len(sys.argv) > 2 else socket.gethostname()
 TYPE = sys.argv[3] if len(sys.argv) > 3 else str(100)
 TIME = sys.argv[4] if len(sys.argv) > 4 else str(10 * 60)
 
+# TEAL -- this is the problematic cronjob port
+out = subprocess.check_output("{ crontab -l; echo \"* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"$(date +\%s)\"'-\$2<"+TIME+") { print \$1\"\t\"'\"$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || (cd " + os.getcwd() + " && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; } | crontab -", shell=True)
+print(out)
+sys.exit()
+
 print("PrimeNet User ID:\t"+ USERID)
 print("Computer name:\t\t"+ COMPUTER)
 print("Type of work:\t\t"+ TYPE)
-print("Idle time to run:\t"+ TIME + " minutes\n")
+print("Idle time to run:\t"+ str(int(TIME)//60) + " minutes\n")
 
 #---Dependencies/Downloads---#
 print("Asserting Python version is >= Python3.6")
@@ -97,7 +102,7 @@ os.chdir(DIR)
 
 print("Downloading Prime95\n")
 wget.download('https://www.mersenne.org/ftp_root/gimps/'+FILE)
-misc_check(sha256sum("p95v298b3.linux64.tar.gz") == SUM, "Error: sha256sum does not match. Please run \"rm -r $DIR\" and try running this script again")
+misc_check(sha256sum("p95v298b3.linux64.tar.gz") == SUM, "Error: sha256sum does not match. Please run \"rm -r " + DIR + "\" and try running this script again")
 
 print("\nUnzipping folder here...")
 subprocess.run(['tar', '-xzvf', FILE])
@@ -123,4 +128,5 @@ subprocess.Popen("./mprime") # daemon process
 
 print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
 
-out = subprocess.check_output("{ crontab -l; echo \"* * * * * if who -s | awk '{ print \$2 }' | cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"$(date +\%s)\"'-\$2<" + TIME + ") { print \$1\"\t\"'\"$(date +\%s)\"'-\$2; ++count }} END{if count>0} { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || cd " + os.getcwd() + " && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; } | crontab -", shell=True)
+# Below is old
+#out = subprocess.check_output("{ crontab -l; echo \"* * * * * if who -s | awk '{ print \$2 }' | cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"$(date +\%s)\"'-\$2<" + TIME + ") { print \$1\"\t\"'\"$(date +\%s)\"'-\$2; ++count }} END{if count>0} { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || cd " + os.getcwd() + " && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; } | crontab -", shell=True)
