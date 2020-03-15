@@ -62,8 +62,17 @@ TYPE = sys.argv[3] if len(sys.argv) > 3 else str(100)
 TIME = sys.argv[4] if len(sys.argv) > 4 else str(10 * 60)
 
 # TEAL -- this is the problematic cronjob port
-out = subprocess.check_output("{ crontab -l; echo \"* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"$(date +\%s)\"'-\$2<"+TIME+") { print \$1\"\t\"'\"$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || (cd " + os.getcwd() + " && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; } | crontab -", shell=True)
-print(out)
+#out = subprocess.check_output("{ crontab -l; echo \"* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"$(date +\%s)\"'-\$2<"+TIME+") { print \$1\"\t\"'\"$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || (cd " + os.getcwd() + " && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; } | crontab -", shell=True)
+
+#print2 = "{ crontab -l; echo \"* * * * * if who -s | awk \'{ print \$2 }\'}"
+#newline = f"crontab -l; echo \"* * * * * if who -s | awk \'{{ print \$2 }}\' | (cd /dev && xargs -r stat -c \'\%U \%X')\""
+
+#newline = f"crontab -l | echo \"* * * * * if who -s | awk \'{{ print \$2 }}\' | (cd /dev && xargs -r stat -c \'\%U \%X') | awk \'{{if (\'\"\{date_string}\"\'-\$2<{TIME}) {{ print \$1\"\\t\"\'\"$(date +\%s)\"\'-\$2; ++count }}}} END{{if (count>0) {{ exit 1 }}}}\'\"" #> /dev/null; then pgrep mprime > /dev/null || (cd {os.getcwd()} && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi"
+
+# TEAL -- This works
+os.environ["TIME"] = TIME
+os.environ["DIR"] = os.getcwd()
+os.system("bash temp2.sh")
 sys.exit()
 
 print("PrimeNet User ID:\t"+ USERID)
