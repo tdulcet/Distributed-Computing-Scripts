@@ -59,7 +59,7 @@ def sha256sum(filename):
 USERID = sys.argv[1] if len(sys.argv) > 1 else os.environ["USER"]
 COMPUTER = sys.argv[2] if len(sys.argv) > 2 else socket.gethostname()
 TYPE = sys.argv[3] if len(sys.argv) > 3 else str(100)
-TIME = sys.argv[4] if len(sys.argv) > 4 else str(10 * 60)
+TIME = str(int(sys.argv[4]) * 60) if len(sys.argv) > 4 else str(10 * 60)
 
 print("PrimeNet User ID:\t"+ USERID)
 print("Computer name:\t\t"+ COMPUTER)
