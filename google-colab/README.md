@@ -14,20 +14,24 @@ The first (and most powerful) GPU that is offered should be labeled:
 Tesla T4
 ```
 
-However, there may be another GPU that Google will assign you when the
+However, there are other GPU models that Google will assign you when the
 12-hour period has been exhausted:
 
 ```
-Tesla P100-PCIE-16GB
+Tesla P4
 ```
 
 ```
 Tesla K80
 ```
 
-In the case of `Tesla P100-PCIE-16GB` CUDALucas will not run as the compilation has been done
-for the T4 GPU (in my case; it also pecularily ran with the Tesla K80 GPU). (It is not known why Tesla k80 seems to work with this)
+```
+Tesla P100-PCIE-16GB
+```
 
-At the moment, the tried-and-true solution is to simply wait 12-hours until the T4 GPU
+In the case of `Tesla P100-PCIE-16GB` CUDALucas will not run as the compilation has been done
+for the T4 GPU. The other GPUs still operate on the CUDALucas compiled for the T4 GPU.
+
+At the moment, the tried-and-true solution is to simply wait 12-hours until a compatible GPU
 becomes available to you, though future plans are in the works to re-work the CUDALucas script
 to allow for this variation in GPU assignment.
