@@ -32,6 +32,6 @@ Tesla P100-PCIE-16GB
 In the case of `Tesla P100-PCIE-16GB` CUDALucas will not run as the compilation has been done
 for the T4 GPU. The other GPUs still operate on the CUDALucas compiled for the T4 GPU.
 
-At the moment, the tried-and-true solution is to simply wait 12-hours until a compatible GPU
-becomes available to you, though future plans are in the works to re-work the CUDALucas script
+At the moment, the tried-and-true solution is disconnect the VM and reconnect it. Often, this method
+will assign a compatible GPU. Future plans are in the works to re-work the CUDALucas script
 to allow for this variation in GPU assignment.
