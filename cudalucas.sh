@@ -63,7 +63,7 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 echo -e "Downloading CUDALucas\n"
 svn checkout https://svn.code.sf.net/p/cudalucas/code/trunk "$DIR1"
 cd "$DIR1"
-DIR=$(pwd)
+DIR=$PWD
 echo -e "\nDownloading Mlucas\n"
 wget https://www.mersenneforum.org/mayer/src/C/$FILE2
 if [[ ! "$(md5sum $FILE2 | head -c 32)" = "$SUM" ]]; then

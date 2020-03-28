@@ -47,7 +47,7 @@ if ! mkdir "$DIR"; then
 	exit 1
 fi
 cd "$DIR"
-DIR=$(pwd)
+DIR=$PWD
 echo -e "Downloading Prime95\n"
 wget https://www.mersenne.org/ftp_root/gimps/$FILE
 if [[ ! "$(sha256sum $FILE | head -c 64 | tr 'a-z' 'A-Z')" = "$SUM" ]]; then

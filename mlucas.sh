@@ -88,7 +88,7 @@ tar -xvf $FILE2
 cd "$DIR2"
 mkdir obj
 cd obj
-DIR=$(pwd)
+DIR=$PWD
 ARGS=()
 echo -e "\nBuilding Mlucas\n"
 # for mode in avx512 avx2 avx sse2; do
@@ -100,7 +100,7 @@ echo -e "\nBuilding Mlucas\n"
 # done
 if grep -iq 'avx512' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX512 SIMD build mode.\n"
-	ARGS+=( "-DUSE_AVX512" -march=skylake-avx512 )
+	ARGS+=( "-DUSE_AVX512" )
 elif grep -iq 'avx2' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX2 SIMD build mode.\n"
 	ARGS+=( "-DUSE_AVX2" -mavx2 )
@@ -121,7 +121,7 @@ OBJS=\$(patsubst ../src/%.c, %.o, \$(wildcard ../src/*.c))
 Mlucas: \$(OBJS)
 	gcc -Wall -g -o \$@ \$(OBJS) -lm -lpthread -lrt
 %.o: ../src/%.c
-	gcc -Wall -g -c -O3 ${ARGS[@]} -DUSE_THREADS \$<
+	gcc -Wall -g -c -O3 -march=native ${ARGS[@]} -DUSE_THREADS \$<
 clean:
 	rm -f *.o
 EOF
@@ -184,11 +184,11 @@ for i in "${!RUNS[@]}"; do
 	nohup python ../../src/primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" &
 	sleep 1
 	echo -e "\n\tStarting Mlucas\n"
-	nohup nice ../Mlucas -cpu "${RUNS[$i]}" &
+	nohup nice ../Mlucas -cpu "${RUNS[i]}" &
 	sleep 1
 	popd > /dev/null
 done
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done)"; } | crontab -
+#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done)"; } | crontab -
 #crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done)"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done) pgrep -f '^python \.\./\.\./src/primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) pgrep -f '^python \.\./\.\./src/primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -

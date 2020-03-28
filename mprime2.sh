@@ -47,14 +47,14 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 if [[ -d "$DIR" && -x "$DIR/mprime" ]]; then
 	echo -e "Prime95 is already downloaded\n"
 	cd "$DIR"
-	DIR=$(pwd)
+	DIR=$PWD
 else
 	if ! mkdir "$DIR"; then
 		echo "Error: Failed to create directory $DIR" >&2
 		exit 1
 	fi
 	cd "$DIR"
-	DIR=$(pwd)
+	DIR=$PWD
 	echo -e "Downloading Prime95\n"
 	wget https://www.mersenne.org/ftp_root/gimps/$FILE
 	if [[ ! "$(sha256sum $FILE | head -c 64 | tr 'a-z' 'A-Z')" = "$SUM" ]]; then

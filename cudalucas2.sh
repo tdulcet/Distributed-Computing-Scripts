@@ -112,7 +112,7 @@ EOF
 	make
 	make clean
 fi
-DIR=$(pwd)
+DIR=$PWD
 if [[ -d "$DIR2" && -f "$DIR2/primenet.py" ]]; then
 	echo -e "Mlucas is already downloaded\n"
 else
