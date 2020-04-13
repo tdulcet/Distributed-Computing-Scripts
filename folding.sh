@@ -38,6 +38,7 @@ echo -e "Username:\t$USERID"
 echo -e "Team number:\t$TEAM"
 echo -e "Passkey:\t$PASSKEY"
 echo -e "Power:\t\t$POWER\n"
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
 if [[ -d "$DIR" ]] && command -v FAHClient >/dev/null; then
 	echo "Error: Folding@home is already downloaded and installed" >&2
 	exit 1

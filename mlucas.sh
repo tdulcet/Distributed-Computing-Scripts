@@ -31,6 +31,7 @@ echo -e "PrimeNet User ID:\t$USERID"
 echo -e "PrimeNet Password:\t$PASSWORD"
 echo -e "Type of work:\t\t$TYPE"
 echo -e "Idle time to run:\t$TIME minutes\n"
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
 if [[ -d "$DIR2" ]]; then
 	echo "Error: Mlucas is already downloaded" >&2
 	exit 1
@@ -100,16 +101,16 @@ echo -e "\nBuilding Mlucas\n"
 # done
 if grep -iq 'avx512' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX512 SIMD build mode.\n"
-	ARGS+=( "-DUSE_AVX512" )
+	ARGS+=( "-DUSE_AVX512" -march=native )
 elif grep -iq 'avx2' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX2 SIMD build mode.\n"
-	ARGS+=( "-DUSE_AVX2" -mavx2 )
+	ARGS+=( "-DUSE_AVX2" -march=native -mavx2 )
 elif grep -iq 'avx' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX SIMD build mode.\n"
-	ARGS+=( "-DUSE_AVX" -mavx )
+	ARGS+=( "-DUSE_AVX" -march=native -mavx )
 elif grep -iq 'sse2' /proc/cpuinfo; then
 	echo -e "The CPU supports the SSE2 SIMD build mode.\n"
-	ARGS+=( "-DUSE_SSE2" )
+	ARGS+=( "-DUSE_SSE2" -march=native )
 fi
 if grep -iq 'asimd' /proc/cpuinfo; then
 	echo -e "The CPU supports the ASIMD build mode.\n"
@@ -121,7 +122,7 @@ OBJS=\$(patsubst ../src/%.c, %.o, \$(wildcard ../src/*.c))
 Mlucas: \$(OBJS)
 	gcc -Wall -g -o \$@ \$(OBJS) -lm -lpthread -lrt
 %.o: ../src/%.c
-	gcc -Wall -g -c -O3 -march=native ${ARGS[@]} -DUSE_THREADS \$<
+	gcc -Wall -g -c -O3 ${ARGS[@]} -DUSE_THREADS \$<
 clean:
 	rm -f *.o
 EOF
@@ -181,7 +182,7 @@ for i in "${!RUNS[@]}"; do
 	pushd "run$i" > /dev/null
 	ln -s ../mlucas.cfg .
 	echo -e "\tStarting PrimeNet\n"
-	nohup python ../../src/primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" &
+	nohup python2 ../../src/primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" &
 	sleep 1
 	echo -e "\n\tStarting Mlucas\n"
 	nohup nice ../Mlucas -cpu "${RUNS[i]}" &
@@ -190,5 +191,5 @@ for i in "${!RUNS[@]}"; do
 done
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done)"; } | crontab -
-#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done)"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) pgrep -f '^python \.\./\.\./src/primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -
+#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python2 ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done)"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) pgrep -f '^python2 \.\./\.\./src/primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python2 ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -

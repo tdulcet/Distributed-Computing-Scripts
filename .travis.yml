@@ -6,7 +6,7 @@ matrix:
     before_script:
     - sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
     - sed -i '/^if ! COMPUTE=/,/^fi/ s/^/# /' cudalucas.sh
-    - sed -i 's/\/$COMPUTE/\/--generate-code arch=compute_35,code=sm_35/' cudalucas.sh
+    - sed -i 's/\/$COMPUTE/\/--generate-code arch=compute_35,code=sm_35 --generate-code arch=compute_50,code=sm_50/' cudalucas.sh
     - sed -i '/^\.\/CUDALucas / s/^/# /' cudalucas.sh
     - sed -i '/^nohup / s/^/# /' cudalucas.sh
     - sed -i '/^crontab / s/^/# /' cudalucas.sh

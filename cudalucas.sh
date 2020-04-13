@@ -32,6 +32,7 @@ echo -e "PrimeNet User ID:\t$USERID"
 echo -e "PrimeNet Password:\t$PASSWORD"
 echo -e "Type of work:\t\t$TYPE"
 echo -e "Idle time to run:\t$TIME minutes\n"
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
 if [[ -d "$DIR1" ]]; then
 	echo "Error: CUDALucas is already downloaded" >&2
 	exit 1
@@ -112,11 +113,12 @@ sed -i '/nvmlDevice_t device;/d' CUDALucas.cu
 sed -i '/nvmlDeviceGetHandleByIndex(device_number, &device);/d' CUDALucas.cu
 sed -i '/nvmlDeviceGetUUID(device, uuid, sizeof(uuid)\/sizeof(uuid\[0\]));/d' CUDALucas.cu
 sed -i '/nvmlShutdown();/d' CUDALucas.cu
+sed -i 's/r"rogram"/r"CUDALucas"/' primenet.py
 sed -i 's/^workfile = os.path.join(workdir, "worktodo.ini")/workfile = os.path.join(workdir, "worktodo.txt")/' primenet.py
 make
 make clean
 echo -e "\nStarting PrimeNet\n"
-nohup python primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" &
+nohup python2 primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" &
 sleep 1
 echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take awhile…\n"
 ./CUDALucas -cufftbench 1024 8192 5
@@ -129,5 +131,5 @@ nohup nice ./CUDALucas &
 sleep 1
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "cd $DIR && nohup nice ./CUDALucas &"; } | crontab -
-#crontab -l | { cat; echo "cd $DIR && nohup python primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep CUDALucas > /dev/null || (cd $DIR && nohup nice ./CUDALucas &); pgrep -f '^python primenet\.py' > /dev/null || (cd $DIR && nohup python primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); else pgrep CUDALucas > /dev/null && killall CUDALucas; fi"; } | crontab -
+#crontab -l | { cat; echo "cd $DIR && nohup python2 primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep CUDALucas > /dev/null || (cd $DIR && nohup nice ./CUDALucas &); pgrep -f '^python2 primenet\.py' > /dev/null || (cd $DIR && nohup python2 primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); else pgrep CUDALucas > /dev/null && killall CUDALucas; fi"; } | crontab -
