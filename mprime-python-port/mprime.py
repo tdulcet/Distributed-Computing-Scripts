@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#Daniel Connelly
+# Daniel Connelly
 # Usage: ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 # ./mprime.py "$USER" "$HOSTNAME" 100 10
 # ./mprime.py ANONYMOUS
@@ -61,6 +61,11 @@ COMPUTER = sys.argv[2] if len(sys.argv) > 2 else socket.gethostname()
 TYPE = sys.argv[3] if len(sys.argv) > 3 else str(100)
 TIME = str(int(sys.argv[4]) * 60) if len(sys.argv) > 4 else str(10 * 60)
 
+#args = [USERID, COMPUTER, TYPE]
+#p = subprocess.check_output("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -q0 - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
+#print(p)
+#sys.exit()
+
 print("PrimeNet User ID:\t"+ USERID)
 print("Computer name:\t\t"+ COMPUTER)
 print("Type of work:\t\t"+ TYPE)
@@ -105,7 +110,28 @@ subprocess.run(['tar', '-xzvf', FILE])
 
 #---Configuration---#
 args = [USERID, COMPUTER, TYPE]
+
+#subprocess.run("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
+#subprocess.run("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- \"$USERID\" \"$COMPUTER\" \"$TYPE\"",shell=Tr
+
+p = subprocess.check_output("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
+print(p)
+
+'''
 print("Setting up Prime95.")
+#p = subprocess.Popen(['wget', 'https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py', '-qO', '-' '--'] + args,
+p = subprocess.Popen(['wget', 'https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py', '-qO', '-' '--'] + args,
+  stdout=subprocess.PIPE,
+  universal_newlines=True,
+  bufsize=0)
+
+# This code block reads the output from the pexpect script p
+for line in p.stdout:
+    line=line[:-1]
+    print(line)
+'''
+
+'''print("Setting up Prime95.")
 p = subprocess.Popen(['python3', "../exp.py"] + args,
   stdout=subprocess.PIPE,
   universal_newlines=True,
@@ -115,6 +141,7 @@ p = subprocess.Popen(['python3', "../exp.py"] + args,
 for line in p.stdout:
     line=line[:-1]
     print(line)
+'''
 #---------------------------------------#
 
 #---Starting Program---#
