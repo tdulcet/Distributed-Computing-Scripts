@@ -27,29 +27,25 @@ With exception to the special instructions listed above, both Jupyter Notebooks 
 
 0. **(Optional): [Create an account on Mersenne.org**](https://www.mersenne.org/update/).
 
-1. [![Open GPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabGPU.ipynb).
-
-or 
-
-[![Open CPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabCPU.ipynb).
+1. Open GPU Notebook in Colab: [![Open GPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabGPU.ipynb) or open CPU Notebook in Colab [![Open CPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabCPU.ipynb).
 
 If not already, sign in to your Google Account (upper right-hand corner).
 
 2. **Run/click the first cell**. The first cell is required to be run the very first time one sets up the cell on their Google Colab notebook 
 and should not need to be run again if this process is successful. 
 
-3. Follow the link and follow the instructions at the link's location. Copy-and-paste the authorization string into the textbox Google provides in the notebook.
+3. **Follow the link** and follow the instructions at the link's location. Copy-and-paste the authorization string into the textbox Google provides in the notebook.
 
-4. When the notebook disconnects -- for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
+4. **When the notebook disconnects** -- for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
 usage limit, a bad internet connection, Google requiring a GPU, etc. -- you must run/click the second cell on subsequent runs of the notebook to continue where the software left off.
 
 5. **Please Note:** you must keep each browser window OPEN in your browser in order to avoid notebooks shutting off due to being perceived as idle.
 
 6. **(Optional):** Run the third cell to see what NVIDIA GPU is assigned to your notebook.
 
-7. **(Optional): [Pin the tab in Firefox**](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) for easy access to the Colab window(s).
+7. **(Optional): [Pin the tab in Firefox]**(https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) for easy access to the Colab window(s).
 
-# Required Tools and Restrictions
+## Required Tools, Restrictions
 
 As long as a user has a Gmail account, a Google Drive that has ~50MB of free space, an internet connection, and a reliable browser,
 anyone can use both notebooks to crunch primes using the GPU and CPU notebook.
@@ -59,7 +55,7 @@ and only one of these notebooks may run a GPU.
 
 The 12-hour usage limit is lifted if one purchases a [Google Colab Pro](https://colab.research.google.com/) plan.
 
-# NVIDIA GPU (INCOMPLETE)
+## NVIDIA GPU (INCOMPLETE)
 
 Google runs exclusively on NVIDIA GPUs. The GPUs offered by Google depend on the needs of Google, so the GPU assigned to you will vary.
 
@@ -95,7 +91,7 @@ At the moment, the tried-and-true solution is disconnect the VM and reconnect it
 will assign a compatible GPU. Future plans are in the works to re-work the CUDALucas script
 to allow for this variation in GPU assignment.
 
-# Using the GPU and CPU
+## Using the GPU and CPU
 
 It is also possible to run the two notebook's software in parallel; that is, CUDALucas and Prime95 within the same notebook. In order to do this:
 
