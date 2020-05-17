@@ -16,7 +16,7 @@ With minor exceptions, Jupyter Notebooks require exactly the same input from a u
 0. **(Optional): [Create an account on Mersenne.org**](https://www.mersenne.org/update/).
 
 1. **Open The GPU Notebook in Colab:** [![Open GPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabGPU.ipynb) or **Open The CPU Notebook in Colab** [![Open CPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabCPU.ipynb).
-If not already, sign in to your Google Account (upper right-hand corner). If running the GPU notebook, you must enable the GPU runtime as, by default, it is not enabled on a notebook: Click `Runtime -> Change Runtime Type -> Hardware accelerator -> GPU -> SAVE`.
+If not already signed in, sign in to your Google Account in the upper right-hand corner. If running the GPU notebook, you must enable the GPU runtime: `Runtime -> Change Runtime Type -> Hardware accelerator -> GPU -> SAVE`.
 
 2. **Run/Click The First Cell**. The first cell is required to be run the very first time one sets up the cell on their Google Colab notebook 
 and should not need to be run again if this process is successful. 
@@ -25,7 +25,7 @@ and should not need to be run again if this process is successful.
 (Note: You will need to perform this step each time you connect to a Colab notebook).
 
 4. **When The Notebook Disconnects** -- for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
-usage limit, a bad internet connection, Google requiring a GPU, etc. -- you must run/click the second cell on subsequent runs of the notebook to continue where the software left off.
+usage limit, a bad internet connection, Google requiring your GPU type, etc. -- you must run/click the second cell on subsequent runs of the notebook to continue where the software left off.
 
 5. **Please Note:** you must keep each browser window **OPEN** in your browser in order to avoid notebooks shutting off due to being perceived as idle.
 
