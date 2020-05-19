@@ -2,12 +2,12 @@
 Google offers a service known as [Google Colabatory](https://research.google.com/colaboratory/faq.html) which allows for free access to 
 a high-performance GPU-powered Jupyter Notebook and additionally a CPU-powered Jupyter Notebook. 
 
-The service can be used to run Distributed Computing projects, such as the [GIMPS project](https://www.mersenne.org/), at 
-no cost to the user. GIMPS can be ran on a GPU, using a software implementation called 
-[CUDALucas](https://sourceforge.net/projects/cudalucas/) or using a CPU, using the [Prime95](https://www.mersenne.org/download/) implementation.
+The service can be used to run Distributed Computing projects such as the [GIMPS project](https://www.mersenne.org/) at 
+no cost to the user. GIMPS can be ran on a GPU using a software implementation called 
+[CUDALucas](https://sourceforge.net/projects/cudalucas/) or ran on a CPU using the [Prime95](https://www.mersenne.org/download/) implementation.
 
-This repository contains two Jupyter Notebooks, a CPU notebook and a GPU notebook. The CPU notebook runs `Prime95`. The GPU notebook is able to run both `CUDALucas` and `Prime95` 
-as the CPU can be used in parallel with the GPU to crunch prime numbers. Each notebook makes use of Google Drive storage, which is provided to Gmail users by default. 
+This repository contains two Jupyter Notebooks, a CPU notebook and a GPU notebook. The CPU notebook runs `Prime95`. The GPU notebook runs both `CUDALucas` and `Prime95` 
+as the GPU and the CPU can use each respective software in parallel to "crunch" prime numbers. Each notebook makes use of Google Drive storage, which is provided to Gmail users by default. 
 
 ## How to Use
 With minor exceptions, Jupyter Notebooks require exactly the same input from a user. 
