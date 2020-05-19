@@ -3,6 +3,9 @@ language: bash
 matrix:
   include:
   - name: "CUDALucas"
+    install:
+    - sudo apt-get -yqq update
+    - sudo apt-get -yqq install cppcheck
     before_script:
     - sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
     - sed -i '/^if ! COMPUTE=/,/^fi/ s/^/# /' cudalucas.sh
@@ -12,6 +15,7 @@ matrix:
     - sed -i '/^crontab / s/^/# /' cudalucas.sh
     script:
     - bash -e -- cudalucas.sh password ANONYMOUS
+    - cppcheck --enable=all .
   - name: "Mlucas (Intel)"
     arch: amd64
   - name: "Mlucas (ARM)"

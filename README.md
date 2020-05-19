@@ -16,7 +16,7 @@ Downloads, sets up and runs [Prime95](https://www.mersenne.org/download/#downloa
 wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 ```
 
-To run Prime95 for Stress/Torture Testing, see here: https://github.com/tdulcet/Testing-and-Benchmarking-Scripts.
+To run Prime95 for Stress/Torture Testing, see the [Testing and Benchmarking](https://github.com/tdulcet/Testing-and-Benchmarking-Scripts) scripts.
 
 ### CUDALucas
 

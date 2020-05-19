@@ -10,7 +10,7 @@ DIR1="cudalucas"
 DIR2="mlucas_v19/src"
 FILE2="mlucas_v19.txz"
 SUM="7c48048cb6d935638447e45e0528fe9c"
-if [[ "$#" -lt 2 || "$#" -gt 5 ]]; then
+if [[ $# -lt 2 || $# -gt 5 ]]; then
 	echo "Usage: $0 <Computer number> <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
 fi
@@ -108,6 +108,9 @@ EOF
 	sed -i '/nvmlDeviceGetHandleByIndex(device_number, &device);/d' CUDALucas.cu
 	sed -i '/nvmlDeviceGetUUID(device, uuid, sizeof(uuid)\/sizeof(uuid\[0\]));/d' CUDALucas.cu
 	sed -i '/nvmlShutdown();/d' CUDALucas.cu
+	# Increase buffers to prevent buffer overflow
+	sed -i 's/file\[32\]/file[268]/g' CUDALucas.cu
+	sed -i 's/file_bak\[64\]/file_bak[268]/g' CUDALucas.cu
 	awk -i inplace '{print} /workdir/ && !x {print "parser.add_option(\"-i\", \"--workfile\", dest=\"workfile\", default=\"worktodo.txt\", help=\"WorkFile filename, default %(default)\")"; x=1}' primenet.py
 	sed -i 's/r"rogram"/r"CUDALucas"/' primenet.py
 	sed -i 's/^workfile = os.path.join(workdir, "worktodo.ini")/workfile = os.path.join(workdir, options.workfile)/' primenet.py
@@ -120,7 +123,7 @@ if [[ -d "$DIR2" && -f "$DIR2/primenet.py" ]]; then
 else
 	echo -e "\nDownloading Mlucas\n"
 	wget https://www.mersenneforum.org/mayer/src/C/$FILE2
-	if [[ ! "$(md5sum $FILE2 | head -c 32)" = "$SUM" ]]; then
+	if [[ ! "$(md5sum $FILE2 | head -c 32)" == "$SUM" ]]; then
 		echo "Error: md5sum does not match" >&2
 		echo "Please run \"rm -r $DIR\" and try running this script again" >&2
 		exit 1

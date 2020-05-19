@@ -9,7 +9,7 @@
 DIR2="mlucas_v19"
 FILE2="mlucas_v19.txz"
 SUM="7c48048cb6d935638447e45e0528fe9c"
-if [[ "$#" -lt 1 || "$#" -gt 4 ]]; then
+if [[ $# -lt 1 || $# -gt 4 ]]; then
 	echo "Usage: $0 <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
 fi
@@ -49,7 +49,7 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
 echo -e "Linux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
 
-KERNEL=$(uname -r)
+KERNEL=$(</proc/sys/kernel/osrelease) # uname -r
 echo -e "Linux Kernel:\t\t\t$KERNEL"
 
 mapfile -t CPU < <(sed -n 's/^model name[[:space:]]*: *//p' /proc/cpuinfo | uniq)
@@ -64,10 +64,11 @@ echo -e "CPU Cores/Threads:\t\t$CPU_CORES/$CPU_THREADS"
 ARCHITECTURE=$(getconf LONG_BIT)
 echo -e "Architecture:\t\t\t$HOSTTYPE (${ARCHITECTURE}-bit)"
 
-TOTAL_PHYSICAL_MEM=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+MEMINFO=$(</proc/meminfo)
+TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ {print $2}')
 echo -e "Total memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM / 1024))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM * 1024) / 1000) / 1000))) MB)"
 
-TOTAL_SWAP=$(awk '/^SwapTotal:/ {print $2}' /proc/meminfo)
+TOTAL_SWAP=$(echo "$MEMINFO" | awk '/^SwapTotal:/ {print $2}')
 echo -e "Total swap space:\t\t$(printf "%'d" $((TOTAL_SWAP / 1024))) MiB ($(printf "%'d" $((((TOTAL_SWAP * 1024) / 1000) / 1000))) MB)"
 
 if command -v lspci >/dev/null; then
@@ -79,7 +80,7 @@ fi
 
 echo -e "\nDownloading Mlucas\n"
 wget https://www.mersenneforum.org/mayer/src/C/$FILE2
-if [[ ! "$(md5sum $FILE2 | head -c 32)" = "$SUM" ]]; then
+if [[ ! "$(md5sum $FILE2 | head -c 32)" == "$SUM" ]]; then
     echo "Error: md5sum does not match" >&2
     echo "Please run \"rm -r $PWD\" and try running this script again" >&2
 	exit 1

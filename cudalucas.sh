@@ -10,7 +10,7 @@ DIR1="cudalucas"
 DIR2="mlucas_v19/src"
 FILE2="mlucas_v19.txz"
 SUM="7c48048cb6d935638447e45e0528fe9c"
-if [[ "$#" -lt 1 || "$#" -gt 4 ]]; then
+if [[ $# -lt 1 || $# -gt 4 ]]; then
 	echo "Usage: $0 <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
 fi
@@ -67,7 +67,7 @@ cd "$DIR1"
 DIR=$PWD
 echo -e "\nDownloading Mlucas\n"
 wget https://www.mersenneforum.org/mayer/src/C/$FILE2
-if [[ ! "$(md5sum $FILE2 | head -c 32)" = "$SUM" ]]; then
+if [[ ! "$(md5sum $FILE2 | head -c 32)" == "$SUM" ]]; then
     echo "Error: md5sum does not match" >&2
     echo "Please run \"rm -r $DIR\" and try running this script again" >&2
 	exit 1
@@ -76,9 +76,11 @@ echo -e "\nDecompressing the files\n"
 tar -xvf $FILE2
 cp "$DIR2/primenet.py" primenet.py
 echo -e "\nSetting up CUDALucas\n"
+# sed -i 's/\r//g' Makefile
 sed -i 's/^OptLevel = 1/OptLevel = 3/' Makefile
 CUDA=$(command -v nvcc | sed 's/\/bin\/nvcc$//')
 sed -i "s/^CUDA = \/usr\/local\/cuda/CUDA = ${CUDA//\//\\/}/" Makefile
+# sed -i '/^LDFLAGS / s/$/ -lstdc++/' Makefile
 
 # Adapted from: https://stackoverflow.com/a/37757606
 cat << EOF > /tmp/cudaComputeVersion.cu
@@ -113,8 +115,12 @@ sed -i '/nvmlDevice_t device;/d' CUDALucas.cu
 sed -i '/nvmlDeviceGetHandleByIndex(device_number, &device);/d' CUDALucas.cu
 sed -i '/nvmlDeviceGetUUID(device, uuid, sizeof(uuid)\/sizeof(uuid\[0\]));/d' CUDALucas.cu
 sed -i '/nvmlShutdown();/d' CUDALucas.cu
+# Increase buffers to prevent buffer overflow
+sed -i 's/file\[32\]/file[268]/g' CUDALucas.cu
+sed -i 's/file_bak\[64\]/file_bak[268]/g' CUDALucas.cu
 sed -i 's/r"rogram"/r"CUDALucas"/' primenet.py
 sed -i 's/^workfile = os.path.join(workdir, "worktodo.ini")/workfile = os.path.join(workdir, "worktodo.txt")/' primenet.py
+# make debug
 make
 make clean
 echo -e "\nStarting PrimeNet\n"

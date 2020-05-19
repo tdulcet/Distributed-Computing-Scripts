@@ -11,7 +11,7 @@
 # sudo dpkg -P fahviewer
 
 DIR="folding"
-if [[ "$#" -gt 4 ]]; then
+if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [Username] [Team number] [Passkey] [Power]" >&2
 	exit 1
 fi
