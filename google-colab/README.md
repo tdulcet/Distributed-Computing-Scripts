@@ -10,17 +10,16 @@ This repository contains two Jupyter Notebooks, a CPU notebook and a GPU noteboo
 since they both can run in parallel to "crunch" more prime numbers. Each notebook makes use of Google Drive storage, which is provided to all Google accounts.
 
 ## How to Use
-With minor exceptions, the freely available Jupyter Notebooks require exactly the same input from a user. **Please Note:** you must keep each notebook **OPEN** 
-in your browser in order to prevent them from shutting off due to being perceived as idle.
+**Please Note:** you must keep each notebook **OPEN** in your browser in order to prevent them from shutting off due to being perceived as idle.
 
 1. **Open the GPU Notebook in Colab:** [![Open GPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabGPU.ipynb) or **Open The CPU Notebook in Colab** [![Open CPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabCPU.ipynb).
 If not already signed in, sign in to your Google Account in the upper right-hand corner. 
 
-2. **Save a Copy of the Notebook** (Ctrl + S) to your drive to avoid a warning each time you run the notebook.
+2. **Save a Copy of the Notebook** (Ctrl + s) to your drive to avoid a warning each time you run the notebook.
 
 3. **If Running the GPU** notebook, you must enable the GPU runtime: `Runtime -> Change Runtime Type -> Hardware accelerator -> GPU -> SAVE`. 
 
-4. **Run/Click the First Cell**. The first cell is required to be run the very first time one sets up the cell on their Google Colab notebook 
+4. **Run/Click the First Cell**. The first cell is required to be run the very first time to set up the cell on their Google Colab notebook 
 and should not need to be run again if this is successful. 
 
 5. **Follow the link** Google provides to authorize the login to your drive account. Copy-and-paste the authorization string into the textbox Google provides within the notebook's output box.
