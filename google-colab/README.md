@@ -15,7 +15,7 @@ since they both can run in parallel to "crunch" more prime numbers. Each noteboo
 1. **Open the GPU Notebook in Colab:** [![Open GPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabGPU.ipynb) or **Open The CPU Notebook in Colab** [![Open CPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabCPU.ipynb).
 If not already signed in, sign in to your Google Account in the upper right-hand corner. 
 
-2. **Save a Copy of the Notebook** (Ctrl + s) to your drive to avoid a warning each time you run the notebook.
+2. **Save a Copy of the Notebook** <kbd>Ctrl</kbd> + <kbd>s</kbd> to your drive to avoid a warning each time you run the notebook.
 
 3. **If Running the GPU** notebook, you must enable the GPU runtime: `Runtime -> Change Runtime Type -> Hardware accelerator -> GPU -> SAVE`. 
 
