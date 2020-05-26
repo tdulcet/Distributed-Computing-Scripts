@@ -6,18 +6,18 @@ This service can be used to run Distributed Computing projects such as the [Grea
 at no cost to the user. GIMPS can be run on an Nvidia GPU using the [CUDALucas](https://sourceforge.net/projects/cudalucas/) program
 or a CPU using the [Prime95](https://www.mersenne.org/download/) program.
 
-This repository contains two Jupyter Notebooks, a "CPU" notebook and a "GPU and CPU" notebook. The CPU notebook runs `Prime95`. The GPU and CPU notebook runs both `CUDALucas` and `Prime95` 
-since they both can run in parallel to "crunch" more prime numbers. Each notebook makes use of Google Drive storage, which is provided to all Google accounts.
+This repository contains two Jupyter Notebooks, a "CPU" notebook and a "GPU and CPU" notebook. The CPU notebook runs `Prime95`. The "GPU and CPU" notebook runs both `CUDALucas` and `Prime95` 
+since they can run in parallel to "crunch" more prime numbers. Each notebook makes use of Google Drive storage, which is provided to all Google accounts.
 
 ## How to Use
 **Please Note:** you must keep each notebook **OPEN** in your browser in order to prevent them from shutting off due to being perceived as idle.
 
-1. **Open the GPU Notebook in Colab:** [![Open GPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabGPU.ipynb) or **Open The CPU Notebook in Colab** [![Open CPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabCPU.ipynb).
+1. **Open the "GPU and CPU" Notebook** [![Open GPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabGPU.ipynb) and/or the **CPU Notebook** [![Open CPU Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Danc2050/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabCPU.ipynb) **in Colab.**
 If not already signed in, sign in to your Google Account in the upper right-hand corner. 
 
 2. **Save a Copy of the Notebook** <kbd>Ctrl</kbd> + <kbd>s</kbd> to your drive to avoid a warning each time you run the notebook.
 
-3. **If Running the GPU** notebook, you must enable the GPU runtime: `Runtime -> Change Runtime Type -> Hardware accelerator -> GPU -> SAVE`. 
+3. **If Running the GPU** notebook, you must enable the GPU runtime: `Runtime → Change Runtime Type → Hardware accelerator → GPU → SAVE`. 
 
 4. **Run/Click the ▶** to run the GIMPS project annonymously. Alternatively, fill in the fields with your Mersenne.org user credentials.
 
@@ -32,13 +32,13 @@ A user may optionally perform other steps to gain more insight into GIMPS and/or
 
 1. Create an account on [Mersenne.org](https://www.mersenne.org/update/).
 
-2. In a GPU-powered notebook, set the `debug` option to `True` to see which Nvidia GPU is assigned to your notebook and see the progress CUDALucas has made.
+2. In a GPU-powered notebook, set the `debug` option to `True` to see which Nvidia GPU is assigned to your notebook and see the progress CUDALucas has made. Alternatively, you may access the `nohup.out` file in your Google drive manually to see the CUDALucas progress.
 
-3. Pin the tab in [Firefox](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) for easy access to the Colab notebook(s).
+3. Pin the tab(s) in [Firefox](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) for easy access to the Colab notebook(s).
 
 ## Required Tools, Restrictions
 As long as they have a Google/Gmail account, a Google Drive with ~50MB of free space, an internet connection, and a browser,
-a user can use both the GPU and CPU and CPU notebooks to crunch primes.
+a user can use both the "GPU and CPU" and CPU notebooks to crunch primes.
 
 Please note that with the free version of Colab, a 12-hour usage limit exists per notebook. The 12-hour usage limit is lifted if one purchases a [Google Colab Pro](https://colab.research.google.com/) plan. 
 Additionally, a user may only connect to two notebooks at a time, and only one of these notebooks may run a GPU. 
@@ -56,4 +56,4 @@ Tesla P4
 ```
 
 Though each GPU works well and will complete most assignments in a matter of days, one may use the following method to attain a new GPU:
-`Runtime -> Factory reset runtime -> YES`. After repeating 1-3 times, this method will assign a new GPU.
+`Runtime → Factory reset runtime → YES`. After repeating 1-3 times, this method will assign a new GPU.
