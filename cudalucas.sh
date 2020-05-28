@@ -99,6 +99,7 @@ int main()
 }
 EOF
 
+trap 'rm /tmp/cudaComputeVersion.cu /tmp/cudaComputeVersion' EXIT
 # nvcc /tmp/cudaComputeVersion.cu -o /tmp/cudaComputeVersion -O3 --compiler-options=-Wall
 nvcc /tmp/cudaComputeVersion.cu -O3 -D_FORCE_INLINES --compiler-options=-Wall -o /tmp/cudaComputeVersion
 if ! COMPUTE=$(/tmp/cudaComputeVersion); then
@@ -106,8 +107,6 @@ if ! COMPUTE=$(/tmp/cudaComputeVersion); then
 	echo "Error: CUDA compute capability not found" >&2
 	exit 1
 fi
-rm /tmp/cudaComputeVersion.cu
-rm /tmp/cudaComputeVersion
 # sed -i "s/--generate-code arch=compute_35,code=sm_35/$COMPUTE/" Makefile
 sed -i "s/--generate-code arch=compute_35,code=sm_35/$COMPUTE -D_FORCE_INLINES/" Makefile
 sed -i '/nvmlInit();/d' CUDALucas.cu

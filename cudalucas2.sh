@@ -92,6 +92,7 @@ int main()
 }
 EOF
 
+	trap 'rm /tmp/cudaComputeVersion.cu /tmp/cudaComputeVersion' EXIT
 	# nvcc /tmp/cudaComputeVersion.cu -o /tmp/cudaComputeVersion -O3 --compiler-options=-Wall
 	nvcc /tmp/cudaComputeVersion.cu -O3 -D_FORCE_INLINES --compiler-options=-Wall -o /tmp/cudaComputeVersion
 	if ! COMPUTE=$(/tmp/cudaComputeVersion); then
@@ -99,8 +100,6 @@ EOF
 		echo "Error: CUDA compute capability not found" >&2
 		exit 1
 	fi
-	rm /tmp/cudaComputeVersion.cu
-	rm /tmp/cudaComputeVersion
 	# sed -i "s/--generate-code arch=compute_35,code=sm_35/$COMPUTE/" Makefile
 	sed -i "s/--generate-code arch=compute_35,code=sm_35/$COMPUTE -D_FORCE_INLINES/" Makefile
 	sed -i '/nvmlInit();/d' CUDALucas.cu
@@ -111,9 +110,6 @@ EOF
 	# Increase buffers to prevent buffer overflow
 	sed -i 's/file\[32\]/file[268]/g' CUDALucas.cu
 	sed -i 's/file_bak\[64\]/file_bak[268]/g' CUDALucas.cu
-	awk -i inplace '{print} /workdir/ && !x {print "parser.add_option(\"-i\", \"--workfile\", dest=\"workfile\", default=\"worktodo.txt\", help=\"WorkFile filename, default %(default)\")"; x=1}' primenet.py
-	sed -i 's/r"rogram"/r"CUDALucas"/' primenet.py
-	sed -i 's/^workfile = os.path.join(workdir, "worktodo.ini")/workfile = os.path.join(workdir, options.workfile)/' primenet.py
 	make
 	make clean
 fi
@@ -131,6 +127,9 @@ else
 	echo -e "\nDecompressing the files\n"
 	tar -xvf $FILE2
 	cp "$DIR2/primenet.py" primenet.py
+	awk -i inplace '{print} /workdir/ && !x {print "parser.add_option(\"-i\", \"--workfile\", dest=\"workfile\", default=\"worktodo.txt\", help=\"WorkFile filename, default %(default)\")"; x=1}' primenet.py
+	sed -i 's/r"rogram"/r"CUDALucas"/' primenet.py
+	sed -i 's/^workfile = os.path.join(workdir, "worktodo.ini")/workfile = os.path.join(workdir, options.workfile)/' primenet.py
 fi
 cp CUDALucas.ini "CUDALucas$N.ini"
 sed -i "s/^WorkFile=worktodo.txt/WorkFile=worktodo$N.txt/" "CUDALucas$N.ini"

@@ -15,7 +15,7 @@ matrix:
     - sed -i '/^crontab / s/^/# /' cudalucas.sh
     script:
     - bash -e -- cudalucas.sh password ANONYMOUS
-    - cppcheck --enable=all .
+    - cd cudalucas && cppcheck --enable=all *.cu *.c *.h
   - name: "Mlucas (Intel)"
     arch: amd64
   - name: "Mlucas (ARM)"
