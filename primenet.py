@@ -1,15 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-# DC: Reverted remaining Python2 pieces to Python3 by Daniel Connelly
+'''
+DC: Reverted remaining Python2 pieces to Python3 by Daniel Connelly
+EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py by teknohog and Mark Rose, with help rom Gord Palameta.
+Automatic assignment handler for CUDALucas using manual testing forms at mersenne.org
 
-# Automatic assignment handler for CUDALucas using manual testing forms at mersenne.org
-
-# EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py by teknohog and Mark Rose, with help rom Gord Palameta.
-
-# This only handles LL testing (first-time and double-check) for now.
-# To-do: Add support for PRP-testing.
-
-# This version can run in parallel with Mlucas, as it uses lockfiles to avoid conflicts when updating files.
+Use `./primenet.py -h` to get more help
+'''
 
 ################################################################################
 #                                                                              #
@@ -190,7 +187,7 @@ def primenet_fetch(num_to_get):
     elif options.worktype == "100MdigitPRP":
         options.worktype = "153"
     supported = set(['100', '101', '102', '104', '150', '151', '152', '153'])
-    if not options.worktype in supported:
+    if options.worktype not in supported:
         debug_print("Unsupported/unrecognized worktype = " + options.worktype)
         return []
     assignment = {"cores": "1",
@@ -237,11 +234,9 @@ def get_assignment():
 
 
 def mersenne_find(line, complete=True):
-    # Pre-v19 old-style HRF-formatted result used "Program:..."; starting w/v19 JSON-formatted result uses "program",
-    # so take the intersection of those to regexp strings:
-    return re.search(r"CUDALucas", line)
+    return re.search(r"rogram|CUDALucas", line)
 
-
+# This has not been tested yet and thus is not called.
 def update_progress():
     w = read_list_file(workfile)
     unlock_file(workfile)
@@ -375,7 +370,6 @@ def submit_work():
                 post_data = urlencode({"data": sendline})
                 url = primenet_baseurl + b"default.php"
                 url = primenet_baseurl.decode("utf-8")
-                print(url)
                 import requests
                 r = requests.post(url, data=post_data)
                 res = r.text
@@ -410,10 +404,10 @@ parser.add_option("-p", "--password", dest="password",
 parser.add_option("-w", "--workdir", dest="workdir", default=".",
                   help="Working directory with worktodo.ini and results.txt, default current")
 parser.add_option("-i", "--workfile", dest="workfile",
-                  default="worktodo.txt", help="WorkFile filename, default %(default)")
+                  default="worktodo.ini", help="WorkFile filename, default %default")
 
 # -t is reserved for timeout, instead use -T for assignment-type preference:
-parser.add_option("-T", "--worktype", dest="worktype", default="101", help="Worktype code, default %(default)s for double-check LL, alternatively 100 (smallest available first-time LL), 102 (world-record-sized first-time LL), 104 (100M digit number to LL test - not recommended), 150 (smallest available first-time PRP), 151 (double-check PRP), 152 (world-record-sized first-time PRP), 153 (100M digit number to PRP test - not recommended)")
+parser.add_option("-T", "--worktype", dest="worktype", default="101", help="Worktype code, default %defaults for double-check LL, alternatively 100 (smallest available first-time LL), 102 (world-record-sized first-time LL), 104 (100M digit number to LL test - not recommended), 150 (smallest available first-time PRP), 151 (double-check PRP), 152 (world-record-sized first-time PRP), 153 (100M digit number to PRP test - not recommended)")
 
 parser.add_option("-n", "--num_cache", dest="num_cache",
                   default="2", help="Number of assignments to cache, default 2")
@@ -493,7 +487,7 @@ while True:
         url = primenet_baseurl + b"default.php"
         import requests
         r = requests.post(url, data=login_data)
-        if not options.username + "<br>logged in" in r.text:
+        if options.username + "<br>logged in" not in r.text:
             primenet_login = False
             debug_print("Login failed.")
         else:
