@@ -23,6 +23,8 @@ Alternatively you may open a notebook using the link for your respective intenti
 4. **When the Notebook Disconnects** -- for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
 usage limit, a bad internet connection, Google requiring your GPU type, etc. -- you must press the `reconnect` button and potentially start steps 2-3 again to continue where the software left off.
 
+5. **Starting a 2nd GPU-powered Notebook** Google may offer you two GPUs between the two notebooks allotted to you. If you would like to run another CUDALucas job, change the `computer_number` from `Default (0)` to `1`.
+
 ## Optional 
 A user may optionally perform other steps to gain more insight into GIMPS and/or this software:
 
