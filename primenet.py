@@ -202,7 +202,8 @@ def primenet_fetch(num_to_get):
         # debug_print("Fetching work via URL = "+openurl)
         import requests
         r = requests.post(openurl)
-        return [line.decode()[line.decode().find("Test="):] for line in r.iter_lines() if "Test=" in line.decode()]
+        #return [line.decode()[line.decode().find("Test="):] for line in r.iter_lines() if "Test=" in line.decode()]
+        return greplike(workpattern, [line.decode() for line in r.iter_lines()])
     except URLError:
         debug_print("URL open error at primenet_fetch")
         return []
