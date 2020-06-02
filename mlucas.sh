@@ -9,7 +9,7 @@
 DIR2="mlucas_v19"
 FILE2="mlucas_v19.txz"
 SUM="7c48048cb6d935638447e45e0528fe9c"
-if [[ "$#" -lt 1 || "$#" -gt 4 ]]; then
+if [[ $# -lt 1 || $# -gt 4 ]]; then
 	echo "Usage: $0 <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
 fi
@@ -31,6 +31,7 @@ echo -e "PrimeNet User ID:\t$USERID"
 echo -e "PrimeNet Password:\t$PASSWORD"
 echo -e "Type of work:\t\t$TYPE"
 echo -e "Idle time to run:\t$TIME minutes\n"
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
 if [[ -d "$DIR2" ]]; then
 	echo "Error: Mlucas is already downloaded" >&2
 	exit 1
@@ -48,7 +49,7 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
 echo -e "Linux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
 
-KERNEL=$(uname -r)
+KERNEL=$(</proc/sys/kernel/osrelease) # uname -r
 echo -e "Linux Kernel:\t\t\t$KERNEL"
 
 mapfile -t CPU < <(sed -n 's/^model name[[:space:]]*: *//p' /proc/cpuinfo | uniq)
@@ -63,10 +64,11 @@ echo -e "CPU Cores/Threads:\t\t$CPU_CORES/$CPU_THREADS"
 ARCHITECTURE=$(getconf LONG_BIT)
 echo -e "Architecture:\t\t\t$HOSTTYPE (${ARCHITECTURE}-bit)"
 
-TOTAL_PHYSICAL_MEM=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+MEMINFO=$(</proc/meminfo)
+TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ {print $2}')
 echo -e "Total memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM / 1024))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM * 1024) / 1000) / 1000))) MB)"
 
-TOTAL_SWAP=$(awk '/^SwapTotal:/ {print $2}' /proc/meminfo)
+TOTAL_SWAP=$(echo "$MEMINFO" | awk '/^SwapTotal:/ {print $2}')
 echo -e "Total swap space:\t\t$(printf "%'d" $((TOTAL_SWAP / 1024))) MiB ($(printf "%'d" $((((TOTAL_SWAP * 1024) / 1000) / 1000))) MB)"
 
 if command -v lspci >/dev/null; then
@@ -78,7 +80,7 @@ fi
 
 echo -e "\nDownloading Mlucas\n"
 wget https://www.mersenneforum.org/mayer/src/C/$FILE2
-if [[ ! "$(md5sum $FILE2 | head -c 32)" = "$SUM" ]]; then
+if [[ ! "$(md5sum $FILE2 | head -c 32)" == "$SUM" ]]; then
     echo "Error: md5sum does not match" >&2
     echo "Please run \"rm -r $PWD\" and try running this script again" >&2
 	exit 1
@@ -88,7 +90,7 @@ tar -xvf $FILE2
 cd "$DIR2"
 mkdir obj
 cd obj
-DIR=$(pwd)
+DIR=$PWD
 ARGS=()
 echo -e "\nBuilding Mlucas\n"
 # for mode in avx512 avx2 avx sse2; do
@@ -100,16 +102,16 @@ echo -e "\nBuilding Mlucas\n"
 # done
 if grep -iq 'avx512' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX512 SIMD build mode.\n"
-	ARGS+=( "-DUSE_AVX512" -march=skylake-avx512 )
+	ARGS+=( "-DUSE_AVX512" -march=native )
 elif grep -iq 'avx2' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX2 SIMD build mode.\n"
-	ARGS+=( "-DUSE_AVX2" -mavx2 )
+	ARGS+=( "-DUSE_AVX2" -march=native -mavx2 )
 elif grep -iq 'avx' /proc/cpuinfo; then
 	echo -e "The CPU supports the AVX SIMD build mode.\n"
-	ARGS+=( "-DUSE_AVX" -mavx )
+	ARGS+=( "-DUSE_AVX" -march=native -mavx )
 elif grep -iq 'sse2' /proc/cpuinfo; then
 	echo -e "The CPU supports the SSE2 SIMD build mode.\n"
-	ARGS+=( "-DUSE_SSE2" )
+	ARGS+=( "-DUSE_SSE2" -march=native )
 fi
 if grep -iq 'asimd' /proc/cpuinfo; then
 	echo -e "The CPU supports the ASIMD build mode.\n"
@@ -181,14 +183,14 @@ for i in "${!RUNS[@]}"; do
 	pushd "run$i" > /dev/null
 	ln -s ../mlucas.cfg .
 	echo -e "\tStarting PrimeNet\n"
-	nohup python ../../src/primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" &
+	nohup python2 ../../src/primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" &
 	sleep 1
 	echo -e "\n\tStarting Mlucas\n"
-	nohup nice ../Mlucas -cpu "${RUNS[$i]}" &
+	nohup nice ../Mlucas -cpu "${RUNS[i]}" &
 	sleep 1
 	popd > /dev/null
 done
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done)"; } | crontab -
-#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done)"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[$i]}\" &); "; done) pgrep -f '^python \.\./\.\./src/primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -
+#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done)"; } | crontab -
+#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python2 ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done)"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) pgrep -f '^python2 \.\./\.\./src/primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python2 ../../src/primenet.py -d -T \"$TYPE\" -u \"$USERID\" -p \"$PASSWORD\" &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -

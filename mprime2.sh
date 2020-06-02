@@ -9,7 +9,7 @@
 DIR="mprime"
 FILE="p95v298b3.linux64.tar.gz"
 SUM="66117E8C30752426471C7B4A7A64FFBFC53C84D0F3140ACF87C08D3FEC8E99AC"
-if [[ "$#" -lt 1 || "$#" -gt 5 ]]; then
+if [[ $# -lt 1 || $# -gt 5 ]]; then
 	echo "Usage: $0 <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]" >&2
 	exit 1
 fi
@@ -37,6 +37,7 @@ echo -e "PrimeNet User ID:\t$USERID"
 echo -e "Computer name:\t\t$COMPUTER"
 echo -e "Type of work:\t\t$TYPE"
 echo -e "Idle time to run:\t$TIME minutes\n"
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
 if ! command -v expect >/dev/null; then
 	echo -e "Installing Expect"
 	echo -e "Please enter your password when prompted.\n"
@@ -47,17 +48,17 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 if [[ -d "$DIR" && -x "$DIR/mprime" ]]; then
 	echo -e "Prime95 is already downloaded\n"
 	cd "$DIR"
-	DIR=$(pwd)
+	DIR=$PWD
 else
 	if ! mkdir "$DIR"; then
 		echo "Error: Failed to create directory $DIR" >&2
 		exit 1
 	fi
 	cd "$DIR"
-	DIR=$(pwd)
+	DIR=$PWD
 	echo -e "Downloading Prime95\n"
 	wget https://www.mersenne.org/ftp_root/gimps/$FILE
-	if [[ ! "$(sha256sum $FILE | head -c 64 | tr 'a-z' 'A-Z')" = "$SUM" ]]; then
+	if [[ ! "$(sha256sum $FILE | head -c 64 | tr 'a-z' 'A-Z')" == "$SUM" ]]; then
 		echo "Error: sha256sum does not match" >&2
 		echo "Please run \"rm -r $DIR\" and try running this script again" >&2
 		exit 1
@@ -71,4 +72,4 @@ echo -e "\nStarting Prime95\n"
 nohup ./mprime -A$N &
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "cd $DIR && nohup ./mprime -A$N &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\$(date +\%s)\"'-\$2<$TIME) { print \$1\"\t\"'\"\$(date +\%s)\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || (cd $DIR && nohup ./mprime -A$N &); else pgrep mprime > /dev/null && killall mprime; fi"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || (cd $DIR && nohup ./mprime -A$N &); else pgrep mprime > /dev/null && killall mprime; fi"; } | crontab -
