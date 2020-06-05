@@ -21,8 +21,8 @@ since they can run in parallel to "crunch" more prime numbers. Each notebook mak
 
 3. **Run/Click ▶** to run the GIMPS project anonymously. Alternatively, fill in the fields with your Mersenne.org user credentials.
 
-4. **When the Notebook Disconnects** -- for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
-usage limit, a bad internet connection, Google requiring your GPU type, etc. -- you must press the `reconnect` button and potentially start steps 2-3 again to continue where the software left off.
+4. **When the Notebook Disconnects** – for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
+usage limit, a bad internet connection, Google requiring your GPU type, etc. – you must press the `reconnect` button and potentially start steps 2-3 again to continue where the software left off.
 
 5. **Starting a 2nd GPU-powered Notebook** Google may offer you two GPU runtimes to disperse among two of the notebooks assigned to you. In this case, you may run another CUDALucas job by re-running the notebook with a different `computer_number` option. For example, choose `2` if you are already running a notebook with the `Default (1)` number.
 
@@ -31,7 +31,7 @@ A user may optionally perform other steps to gain more insight into GIMPS and/or
 
 1. Create an account on [Mersenne.org](https://www.mersenne.org/update/).
 
-2. Set the `debug` option to view the output of a respective GIMPS program and, if using a "GPU and CPU notebook", which Nvidia GPU is presently assigned. Alternatively, you may access the `gpu1.out`,  `gpu2.out`, `cpu1.out`...`cpuN.out`, and `nohup.out` files in your Google drive under the `cudalucas` or `mprime_gpu`/`mprime_cpu` folders to manually see the CUDALucas and/or Prime95 progress respectively.
+2. Set the `debug` option to view the output of a respective GIMPS program and, if using a "GPU and CPU notebook", which Nvidia GPU is presently assigned. Alternatively, you may access the `gpu1.out`,  `gpu2.out`, `cpu1.out`…`cpuN.out`, and `nohup.out` files in your Google drive under the `cudalucas` or `mprime_gpu`/`mprime_cpu` folders to manually see the CUDALucas and/or Prime95 progress respectively.
 
 3. Pin the tab(s) in [Firefox](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) for easy access to the Colab notebook(s).
 
@@ -59,5 +59,5 @@ Though each GPU works well and will complete most assignments in a matter of day
 
 ## Acknowledgements
 These notebooks acknowledge the following projects which enabled + encouraged us to create these notebooks:
-* [our scripts](../#organizations), which automatically download, build and setup the respective GIMPS programs on Colab.
+* [our scripts](../../#organizations), which automatically download, build and setup the respective GIMPS programs on Colab.
 * [GPU72](https://www.gpu72.com/), whose work encouraged us to also use the [form](https://colab.research.google.com/notebooks/forms.ipynb) format.
