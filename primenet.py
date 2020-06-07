@@ -2,7 +2,7 @@
 
 '''
 DC: Reverted remaining Python2 pieces to Python3 by Daniel Connelly
-EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py by teknohog and Mark Rose, with help rom Gord Palameta.
+EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py by teknohog and Mark Rose, with help from Gord Palameta.
 Automatic assignment handler for CUDALucas using manual testing forms at mersenne.org
 
 Use `./primenet.py -h` to get more help
@@ -31,26 +31,12 @@ Use `./primenet.py -h` to get more help
 ################################################################################
 
 import sys
-import os.path
 import re
 from time import sleep
 import os
-import math
 from optparse import OptionParser
-
-# More python3-backward-incompatibility-breakage-related foo - thanks to Gord Palameta for the workaround:
-try:
-    import http.cookiejar as cookiejar
-    from urllib.error import URLError
-    from urllib.parse import urlencode
-    from urllib.request import build_opener
-    from urllib.request import HTTPCookieProcessor
-except ImportError:
-    import cookielib as cookiejar
-    from urllib2 import URLError
-    from urllib import urlencode
-    from urllib2 import build_opener
-    from urllib2 import HTTPCookieProcessor
+import requests
+s = requests.Session() # session that maintains our cookies
 
 primenet_v5_burl = b"http://v5.mersenne.org/v5server/?v=0.95&px=GIMPS"
 primenet_baseurl = b"https://www.mersenne.org/"
@@ -200,9 +186,7 @@ def primenet_fetch(num_to_get):
         openurl = primenet_baseurl.decode(
             "utf-8") + "manual_assignment/?" + ass_generate(assignment) + "B1=Get+Assignments"
         # debug_print("Fetching work via URL = "+openurl)
-        import requests
-        r = requests.post(openurl)
-        #return [line.decode()[line.decode().find("Test="):] for line in r.iter_lines() if "Test=" in line.decode()]
+        r = s.post(openurl)
         return greplike(workpattern, [line.decode() for line in r.iter_lines()])
     except URLError:
         debug_print("URL open error at primenet_fetch")
@@ -307,8 +291,7 @@ def update_progress():
 
     debug_print("ap_url: " + ap_url)
     try:
-        import requests
-        r = requests.post(ap_url)
+        r = s.post(ap_url)
         page = r.content.decode()
 
         # debug_print("update_progress returns: " + str(len(page)) + " lines:")
@@ -371,8 +354,7 @@ def submit_work():
                 post_data = urlencode({"data": sendline})
                 url = primenet_baseurl + b"default.php"
                 url = primenet_baseurl.decode("utf-8")
-                import requests
-                r = requests.post(url, data=post_data)
+                r = s.post(url, data=post_data)
                 res = r.text
                 if "Error" in res:
                     ibeg = res.find("Error")
@@ -486,8 +468,9 @@ while True:
                       }
 
         url = primenet_baseurl + b"default.php"
-        import requests
-        r = requests.post(url, data=login_data)
+        #r = requests.post(url, data=login_data)
+        r = s.post(url, data=login_data)
+        #print(r.cookies)
         if options.username + "<br>logged in" not in r.text:
             primenet_login = False
             debug_print("Login failed.")
