@@ -36,6 +36,9 @@ from time import sleep
 import os
 from optparse import OptionParser
 import requests
+from requests import HTTPError
+from urllib import urlencode
+
 s = requests.Session() # session that maintains our cookies
 
 primenet_v5_burl = b"http://v5.mersenne.org/v5server/?v=0.95&px=GIMPS"
@@ -75,12 +78,10 @@ def num_to_fetch(l, targetsize):
 def readonly_file(filename):
     # Used when there is no intention to write the file back, so don't
     # check or write lockfiles. Also returns a single string, no list.
+    contents = ""
     if os.path.exists(filename):
-        File = open(filename, "r")
-        contents = File.read()
-        File.close()
-    else:
-        contents = ""
+        with open(filename, "r") as f1:
+            contents = f1.read()
     return contents
 
 
@@ -91,12 +92,10 @@ def read_list_file(filename):
         fd = os.open(lockfile, os.O_CREAT | os.O_EXCL)
         os.close(fd)
         if os.path.exists(filename):
-            File = open(filename, "r")
-            contents = File.readlines()
-            File.close()
+            with open(filename, "r") as f1:
+                contents = f1.readlines()
             return map(lambda x: x.rstrip(), contents)
-        else:
-            return []
+        return []
     # This python2-style exception decl gives a syntax error in python3:
     # except OSError, e:
     # https://stackoverflow.com/questions/11285313/try-except-as-error-in-python-2-5-python-3-x
@@ -117,9 +116,8 @@ def write_list_file(filename, l, mode="w"):
     # lockfile. In this case the main file need not be touched.
     if mode != "a" or len(l) > 0:
         content = "\n".join(l) + "\n"
-        File = open(filename, mode)
-        File.write(content)
-        File.close()
+        with open(filename, mode) as f1:
+            f1.write(content)
     os.remove(lockfile)
 
 
@@ -188,7 +186,7 @@ def primenet_fetch(num_to_get):
         # debug_print("Fetching work via URL = "+openurl)
         r = s.post(openurl)
         return greplike(workpattern, [line.decode() for line in r.iter_lines()])
-    except URLError:
+    except HTTPError:
         debug_print("URL open error at primenet_fetch")
         return []
 
@@ -304,7 +302,7 @@ def update_progress():
         # debug_print("Current-assignment [p = " + p + "] update_progress may have failed; return value:")
         # for i in range(len(page)):
         #	debug_print("line[" + str(i) + "] = " + page[i])
-    except URLError:
+    except HTTPError:
         debug_print("update_progress: URL open error")
 
     return []
@@ -365,7 +363,7 @@ def submit_work():
                 else:
                     print("Submission of results line '" + sendline +
                           "' failed for reasons unknown - please try manual resubmission.")
-            except URLError:
+            except HTTPError:
                 debug_print("URL open error")
 
     # EWM: Append entire results_send rather than just sent to avoid resubmitting
@@ -470,7 +468,6 @@ while True:
         url = primenet_baseurl + b"default.php"
         #r = requests.post(url, data=login_data)
         r = s.post(url, data=login_data)
-        #print(r.cookies)
         if options.username + "<br>logged in" not in r.text:
             primenet_login = False
             debug_print("Login failed.")
@@ -482,7 +479,7 @@ while True:
             while submit_work() == "locked":
                 debug_print("Waiting for results file access...")
                 sleep(2)
-    except URLError:
+    except HTTPError:
         debug_print("Primenet URL open error")
 
     if primenet_login:
