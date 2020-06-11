@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 '''
-DC: Reverted remaining Python2 pieces to Python3 by Daniel Connelly
+DC: Reverted remaining Python2 pieces to Python3 by Daniel Connelly. This version is used in the Google Colab scripts: https://github.com/tdulcet/Distributed-Computing-Scripts.
 EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py by teknohog and Mark Rose, with help from Gord Palameta.
 Automatic assignment handler for CUDALucas using manual testing forms at mersenne.org
 
@@ -36,8 +36,7 @@ from time import sleep
 import os
 from optparse import OptionParser
 import requests
-from requests import HTTPError
-from urllib import urlencode
+from requests.exceptions import HTTPError
 
 s = requests.Session() # session that maintains our cookies
 
@@ -349,10 +348,8 @@ def submit_work():
         for sendline in results_send:
             debug_print("Submitting\n" + sendline)
             try:
-                post_data = urlencode({"data": sendline})
-                url = primenet_baseurl + b"default.php"
-                url = primenet_baseurl.decode("utf-8")
-                r = s.post(url, data=post_data)
+                url = primenet_baseurl + b"manual_result/default.php"
+                r = s.post(url, data={"data": sendline})
                 res = r.text
                 if "Error" in res:
                     ibeg = res.find("Error")
