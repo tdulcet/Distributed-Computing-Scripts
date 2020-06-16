@@ -461,10 +461,9 @@ while True:
         login_data = {"user_login": options.username,
                       "user_password": options.password,
                       }
-
         url = primenet_baseurl + b"default.php"
-        #r = requests.post(url, data=login_data)
         r = s.post(url, data=login_data)
+
         if options.username + "<br>logged in" not in r.text:
             primenet_login = False
             debug_print("Login failed.")

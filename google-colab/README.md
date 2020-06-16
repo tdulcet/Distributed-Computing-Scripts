@@ -61,3 +61,7 @@ Though each GPU works well and will complete most assignments in a matter of day
 These notebooks acknowledge the following projects which enabled + encouraged us to create these notebooks:
 * [our scripts](/../../#organizations), which automatically download, build and setup the respective GIMPS programs on Colab.
 * [GPU72](https://www.gpu72.com/), whose work encouraged us to also use the [form](https://colab.research.google.com/notebooks/forms.ipynb) format.
+
+## Donate
+
+To support this endeavor, please consider making a <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=NJ4PULABRVNCC">donation</a>.
