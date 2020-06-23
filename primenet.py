@@ -36,7 +36,7 @@ from time import sleep
 import os
 from optparse import OptionParser
 import requests
-from requests.exceptions import HTTPError
+from requests.exceptions import ConnectionError
 
 s = requests.Session() # session that maintains our cookies
 
@@ -185,7 +185,7 @@ def primenet_fetch(num_to_get):
         # debug_print("Fetching work via URL = "+openurl)
         r = s.post(openurl)
         return greplike(workpattern, [line.decode() for line in r.iter_lines()])
-    except HTTPError:
+    except ConnectionError:
         debug_print("URL open error at primenet_fetch")
         return []
 
@@ -301,7 +301,7 @@ def update_progress():
         # debug_print("Current-assignment [p = " + p + "] update_progress may have failed; return value:")
         # for i in range(len(page)):
         #	debug_print("line[" + str(i) + "] = " + page[i])
-    except HTTPError:
+    except ConnectionError:
         debug_print("update_progress: URL open error")
 
     return []
@@ -360,7 +360,7 @@ def submit_work():
                 else:
                     print("Submission of results line '" + sendline +
                           "' failed for reasons unknown - please try manual resubmission.")
-            except HTTPError:
+            except ConnectionError:
                 debug_print("URL open error")
 
     # EWM: Append entire results_send rather than just sent to avoid resubmitting
@@ -475,7 +475,7 @@ while True:
             while submit_work() == "locked":
                 debug_print("Waiting for results file access...")
                 sleep(2)
-    except HTTPError:
+    except ConnectionError:
         debug_print("Primenet URL open error")
 
     if primenet_login:

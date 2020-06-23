@@ -8,6 +8,7 @@ import os
 import platform
 import json
 import time
+from urllib.parse import urlencode # TODO -- delete
 from optparse import OptionParser
 from datetime import datetime as date
 
@@ -25,7 +26,7 @@ def get_cpu_signature():
         all_info = subprocess.check_output(command, shell=True).strip().decode()
         for line in all_info.split("\n"):
             if "model name" in line:
-                output = re.sub( ".*model name.*:", "", line,1)
+                output = re.sub(".*model name.*:", "", line,1).lstrip()
                 break
     return output
 
@@ -67,7 +68,8 @@ cpu_brand = get_cpu_name(cpu_signature)
 
 #################### GLOBAL VARIABLES/OPTIONS ####################
 # Basic file
-primenet_v5_url = "http://v5.mersenne.org/v5server/?px=GIMPS&"
+#primenet_v5_url = "http://v5.mersenne.org/v5server/?px=GIMPS&"
+primenet_v5_url = "http://v5.mersenne.org/v5server/?"
 
 # Options. Credit goes to original primenet.py and Teal Dulcet for the `-i` option.
 parser = OptionParser()
@@ -124,29 +126,34 @@ else:
 #################### ######################## ####################
 
 # kind of what Teal was thinking initially
-assignment = {"v": "0.95", # transaction API version (float)
+#assignment = {"px": "GIMPS",
+#        "v": 0.95, # transaction API version (float)
+
+# Note: Each request type (e.g., uc, ga, etc.) starts with: px, v, t, and g.
+assignment = {"v": 0.95, # transaction API version (float)
+        "px": "GIMPS",
         "t": "uc", # transaction type
 	"g": g, # program's self-assigned permanent ID (guid)
         "hg": hg , # machine's hardware hash ID (guid)
         "wg": "", # machine's Windows hardware hash ID (guid) # TODO -- for Windows
-        "a": f'{platform.system()}64, {program}, {version}, {build}', # application version string (min length 10, max length 64)
+        "a": f'{platform.system()}64,{program},{version},{build}', # application version string (min length 10, max length 64)
 	"c": f'{cpu_signature}', # CPU model string (min length 8, max length 64)
         "f": "", # CPU features string (min length 0, max length 64) # TODO -- common.c 582
         "L1": 0, # level 1 cache of CPU in KB (integer; set 0 if unavailable)
         "L2": 0, # level 2 cache of CPU in KB (integer; set 0 if unavailable)
-        "L3": 0, # L3 - level 3 cache of CPU in KB (integer; optional)
         "np": os.cpu_count(), # number of physical CPUs/cores available to run assignments (integer >= 1) # TODO -- this gives hp count...does not account for systems that do not have hp
-        "hp": os.cpu_count(), # number of hyperthreaded CPUs on each physical CPU (integer >= 0)
+        "hp": 1, # number of hyperthreaded CPUs on each physical CPU (integer >= 0)
         "m": 0, # number of megabytes of physical memory (integer >= 0; set 0 if unavailable)
         "s": get_cpu_MHz(cpu_signature), # speed of CPU in Mhz; assumes all CPUs are same speed (integer)
         "h": 24, # hours per day CPU runs application (integer 0-24)
         "r": 0, # rolling average (integer; set 0 if unavailable) TODO -- ?
+        "L3": 0, # L3 - level 3 cache of CPU in KB (integer; optional)
         "u": options.username if options.username else 'psu', # existing server account userID to bind CPU's owning user (max length 20; may be null, see notes)
         "cn": options.computer_name, # user-friendly public name of CPU (max length 20; may be null, see notes) # TODO -- put "computer name" in here.
         "ss": random.randint(0, 4000000), # security salt, a random number (integer; may be null)
-        "sh": '183CFA034BE5D3A40B5E710D2F25A5AA', # security hash (guid; may be null) Must be 32 chars (a requirement not updated in v5 documentation)
+        #"sh": '183CFA034BE5D3A40B5E710D2F25A5AA', # security hash (guid; may be null) Must be 32 chars (a requirement not updated in v5 documentation)
 }
-print(assignment)
+#assignment['sh'] = hashlib.md5(str.encode(primenet_v5_url + urlencode(assignment))).hexdigest()
 
 ############################################## ######### ######## ####################################################
 
@@ -159,6 +166,7 @@ def error_code(code):
 def endpoint(data, job=""):
     print(data)
     r = requests.post(primenet_v5_url, data)
+
     print(r.text)
     if r.text == "": # or len(r.text) == 0, this means we got no response back
         sys.exit()
@@ -176,10 +184,12 @@ def debug_exit(message):
 
 def main(args):
     ''' On each startup we 1) ping the server, 2) update the computer, 3)'''
+    #print(get_cpu_signature())
+    #sys.exit()
+    #print(assignment['c'])
     print("Welcome to Teal and Daniel's v5 PrimeNet Port!")
     #
-    endpoint(json.loads('{"v": "0.95", "t": "ps", "q": "0", "ss": 0, "sh": "183CFA034BE5D3A40B5E710D2F25A5AA"}'), "Pinging server") # Mimicking example command: `curl -sSi 'http://v5.mersenne.org/v5server/?px=GIMPS&v=0.95&t=ps&q=0&ss=&sh='`
-    from urllib.parse import urlencode
+    #endpoint(json.loads('{"v": "0.95", "t": "ps", "q": "0", "ss": 0, "sh": "183CFA034BE5D3A40B5E710D2F25A5AA"}'), "Pinging server") # Mimicking example command: `curl -sSi 'http://v5.mersenne.org/v5server/?px=GIMPS&v=0.95&t=ps&q=0&ss=&sh='`
     print(primenet_v5_url + urlencode(assignment), "\n")
 
     endpoint(assignment, "Updating/Registering")
