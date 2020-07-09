@@ -69,7 +69,7 @@ fi
 echo -e "\nSetting up Prime95\n"
 expect <(wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime2.exp -qO -) -- "$USERID" "$COMPUTER" "$TYPE" "$N"
 echo -e "\nStarting Prime95\n"
-nohup ./mprime -A$N &
+nohup ./mprime -A"$N" &
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "cd $DIR && nohup ./mprime -A$N &"; } | crontab -
 crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep mprime > /dev/null || (cd $DIR && nohup ./mprime -A$N &); else pgrep mprime > /dev/null && killall mprime; fi"; } | crontab -
