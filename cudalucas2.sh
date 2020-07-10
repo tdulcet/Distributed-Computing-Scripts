@@ -9,7 +9,7 @@
 DIR1="cudalucas"
 DIR2="mlucas_v19/src"
 FILE2="mlucas_v19.txz"
-SUM="7c48048cb6d935638447e45e0528fe9c"
+SUM="10906d3f1f4206ae93ebdb045f36535c"
 if [[ $# -lt 2 || $# -gt 5 ]]; then
 	echo "Usage: $0 <Computer number> <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]" >&2
 	exit 1
@@ -118,7 +118,7 @@ if [[ -d "$DIR2" && -f "$DIR2/primenet.py" ]]; then
 	echo -e "Mlucas is already downloaded\n"
 else
 	echo -e "\nDownloading Mlucas\n"
-	wget https://www.mersenneforum.org/mayer/src/C/$FILE2
+	wget https://www.mersenneforum.org/mayer/src/$FILE2
 	if [[ ! "$(md5sum $FILE2 | head -c 32)" == "$SUM" ]]; then
 		echo "Error: md5sum does not match" >&2
 		echo "Please run \"rm -r $DIR\" and try running this script again" >&2

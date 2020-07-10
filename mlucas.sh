@@ -9,7 +9,7 @@
 DIR2="mlucas_v19"
 FILE2="mlucas_v19.txz"
 FILE3="primenet.tbz2"
-SUM2="7c48048cb6d935638447e45e0528fe9c"
+SUM2="10906d3f1f4206ae93ebdb045f36535c"
 SUM3="6fefeef5773a7d0de9f1d2c7983c20f0"
 if [[ $# -lt 1 || $# -gt 4 ]]; then
 	echo "Usage: $0 <PrimeNet Password> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]" >&2
@@ -106,7 +106,7 @@ if [[ -n "$GPU" ]]; then
 fi
 
 echo -e "\nDownloading Mlucas\n"
-wget https://www.mersenneforum.org/mayer/src/C/$FILE2
+wget https://www.mersenneforum.org/mayer/src/$FILE2
 if [[ ! "$(md5sum $FILE2 | head -c 32)" == "$SUM2" ]]; then
     echo "Error: md5sum does not match" >&2
     echo "Please run \"rm -r $PWD\" and try running this script again" >&2

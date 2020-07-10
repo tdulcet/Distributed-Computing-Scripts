@@ -32,7 +32,7 @@ Downloads, builds, sets up and runs [Mlucas](https://www.mersenneforum.org/mayer
 This script follows the recommended instructions on the [Mlucas README](https://www.mersenneforum.org/mayer/README.html) for each architecture and CPU and is currently for testing only.
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s -- <PrimeNet Password> [PrimeNet User ID] [Type of work] [Idle time to run]
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s -- <PrimeNet Password> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 ```
 
 ### Organizations
