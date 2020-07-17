@@ -161,7 +161,7 @@ def primenet_fetch(num_to_get):
         options.worktype = "102"
     elif options.worktype == "100Mdigit":
         options.worktype = "104"
-    if options.worktype == "SmallestAvailPRP":
+    elif options.worktype == "SmallestAvailPRP":
         options.worktype = "150"
     elif options.worktype == "DoubleCheckPRP":
         options.worktype = "151"
