@@ -200,30 +200,13 @@ def make_v5_client_key(guid):
 	#k = binascii.hexlify(k)
 	print(k)
 
-	#for i in range(0, len(k)):
-	#	print(k[i] ^ 2)
-
-	#print(hashlib.md5(str.encode(guid)).hexdigest())
-	'''
-	print("".join("0x%s"%my_string[i:i+2] for i in range(0, len(k), 2)))
-	for i in range(0, len(k)):
-		#print(i, " ", int_(k[i]))
-		print(i, " ", k[i])
-	sys.exit()
-	'''
-	#for i in range(0, len(k)):
-	#	print(i, " ", k[i])
 	new_k = ""
 
 	for i in range(0, 16):
-		#k[i] ^= str(k[str((k[i]) ^ str(_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16]) ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ / 256)
-		#print(type(k[i]))
-		#print(type((_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF) % 16))
-		#print(int(bin(int(k[i], scale)), 2)) #^ k[(k[i] ^ (_v5_unique_trusted_client_constant_ & 0xff)) % 16]) #^ (_v5_unique_trusted_client_constant_ / 256)
-		#print(f'{k[i]},', end ='')
-		#print(int_(k[i])) #^ k[(k[i] ^ (_v5_unique_trusted_client_constant_ & 0xff)) % 16]) #^ (_v5_unique_trusted_client_constant_ / 256)
-		new_k  += k[i] ^ k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256)
-		#new_k  += k[i] ^ k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ / 256)
+		res1 = k[i] ^ k[(k[i]
+		res2 = res1 ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16]
+		res3 = res2 ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256)
+		#new_k  += k[i] ^ k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256)
 	p_v5key = hashlib.md5(str.encode(k)).upper()
 	sys.exit()
 	return p_v5key
