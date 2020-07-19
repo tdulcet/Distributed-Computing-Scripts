@@ -47,6 +47,7 @@ import requests
 from requests.exceptions import ConnectionError, HTTPError
 import subprocess
 import logging
+import hashlib
 
 s = requests.Session()  # session that maintains our cookies
 
@@ -189,40 +190,44 @@ def int_(k):
 	#return int(bin(int(k, scale)), 16)
 
 def make_v5_client_key(guid):
-	import hashlib
 	_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ = 17737
 	#k = hashlib.md5(str.encode(guid)).hexdigest()[0:16] # TODO: is this right? Or do we want digest() (16 bits)?
+	#k = hashlib.md5(str.encode(guid)).digest()
 	k = hashlib.md5(str.encode(guid)).digest()
 	print(k)
 	print(k[0])
 	print(k.hex())
 	import binascii
+	print(binascii.hexlify(k))
 	#k = binascii.hexlify(k)
 	print(k)
-
 	new_k = ""
-
 	for i in range(0, 16):
-		res1 = k[i] ^ k[(k[i]
-		res2 = res1 ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16]
-		res3 = res2 ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256)
-		#new_k  += k[i] ^ k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256)
-	p_v5key = hashlib.md5(str.encode(k)).upper()
-	sys.exit()
+		new_k  += str(k[i] ^ k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256))
+	print(new_k)
+	p_v5key = hashlib.md5(new_k.encode()).hexdigest().upper()
+	print(p_v5key)
 	return p_v5key
 
 def secure_v5_url(URL, p_v5key):
 	__v5salt_ = 0
-	if len(url) > 4020:
+	if len(URL) > 4020:
 		return "" # return empty URL if URL is too long
 
-	if not _v5salt_:
+	if not __v5salt_:
 		import random
 		import time
-		__v5salt_ = random.SystemRandom(time.time()) & 0xFFFF # TODO -- cast time.time() to int?
+		random.seed(time.time()) # TODO -- cast time.time() to int?
 
-	hash_ = hashlib.md5(URL).upper()
-	return URL + len(hash_) + f'&ss={__v5salt_}&sh={hash_}'
+	__v5salt_ = random.randint(0, 32767) & 0xFFFF # 32767 is minimum random max in C++
+	URL = urlencode(URL)
+	hash_ = hashlib.md5(URL.encode()).hexdigest().upper()
+
+	URL += f'&ss={__v5salt_}&sh={hash_}'
+	print(URL)
+	#sys.exit()
+
+	return URL
 
 
 def primenet_fetch(num_to_get):
@@ -267,8 +272,6 @@ def primenet_fetch(num_to_get):
 	#salt = "0"  # TODO -- get these
 	#sec_hash = "0"  # TODO -- get these
 	guid = get_guid(config)
-	p_v5key = make_v5_client_key(guid)
-	print("p_v5key " + p_v5key)
 	program = "Prime95" # TODO -- don't hardcode
 	build = "build 6" # TODO -- don't hardcode
 
@@ -283,15 +286,19 @@ def primenet_fetch(num_to_get):
 		#	else '') + f',{program},v29.8,{build}'), # application version string (min length 10, max length 64)
 		))
 	try:
-		# TODO -- this doesn't urlencode the assignment as we are trying to get rid of the urlencode...
+		p_v5key = make_v5_client_key(guid)
+		print("p_v5key " + p_v5key)
 		assignment = secure_v5_url(assignment, p_v5key)
-		print("URL:\t%s%s,".format(primenet_v5_burl, assignment))
 
-		sys.exit()
-		debug_print("Fetching work via URL = "+primenet_v5_burl + str(assignment))
+		#debug_print("Fetching work via URL = "+primenet_v5_burl + urlencode(assignment))
+		print("URL: " + primenet_v5_burl + assignment)
 		r = requests.post(primenet_v5_burl, assignment)
-		print("HERE")
-		print (r.text)
+		print(r)
+		for text in r.text.split("\n"):
+			res = re.search(r'(?<=pnErrorResult=).+',text)
+			if res:
+				print(res.group(0))
+		sys.exit()
 		return greplike(workpattern, [line.decode('utf-8', 'replace') for line in r.iter_lines()])
 	except ConnectionError:
 		debug_print("URL open error at primenet_fetch")

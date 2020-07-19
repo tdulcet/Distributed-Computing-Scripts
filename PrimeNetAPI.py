@@ -189,8 +189,9 @@ def main(args):
     #print(assignment['c'])
     print("Welcome to Teal and Daniel's v5 PrimeNet Port!")
     #
-    #endpoint(json.loads('{"v": "0.95", "t": "ps", "q": "0", "ss": 0, "sh": "183CFA034BE5D3A40B5E710D2F25A5AA"}'), "Pinging server") # Mimicking example command: `curl -sSi 'http://v5.mersenne.org/v5server/?px=GIMPS&v=0.95&t=ps&q=0&ss=&sh='`
-    print(primenet_v5_url + urlencode(assignment), "\n")
+    endpoint(json.loads('{"v": "0.95", "t": "ps", "q": "0", "ss": 0, "sh": "183CFA034BE5D3A40B5E710D2F25A5AA"}'), "Pinging server") # Mimicking example command: `curl -sSi 'http://v5.mersenne.org/v5server/?px=GIMPS&v=0.95&t=ps&q=0&ss=&sh='`
+    print(assignment["a"])
+    #print(primenet_v5_url + urlencode(assignment), "\n")
 
     endpoint(assignment, "Updating/Registering")
 
