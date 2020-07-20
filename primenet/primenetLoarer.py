@@ -9,12 +9,13 @@ Automatic assignment handler for Mlucas and CUDALucas.
 		* # 2020: support for computer registration and assignment-progress via direct Primenet-v5-API calls by Loïc Le Loarer <loic@le-loarer.org>.
 
 [*] List of supported v5 operations:
-	* assignment progress` (ap) and `Assignment Result` (ar) are already supported by Loarer's v5 api already  (see submit_one_line_v5 for Assignment Result)
-	* update_computer() # uc -- isn't this just calling register again?
-	* program_options() # po DONE
-	* ga() # get assignment # DONE
-	* ra() # register assignment # DONE; not used
-	* unreserve() # register assignment # DONE; not used
+    * Update Comptuer Info (Register Assignment) (Credit: Loarer)
+    * Program Options (po) (Credit: Connelly)
+    * Get Assignment (ga) (Credit: Connelly & Loarer)
+    * Register Assignment (ra) (Credit: Connelly) NOTE: DONE; not used
+    * Assignment Un-Reserve (au) (Credit: Connelly) NOTE: Done, not used
+    * Assignment Progress (ap) (Credit: Loarer)
+    * Assignment Result (ar) (Credit: Loarer)
 '''
 
 ################################################################################
@@ -155,7 +156,6 @@ cpu_speed = "100.0" # default. May use the average speed of last 3 calculations 
 cpu_brand = get_cpu_name(cpu_signature)
 
 # END Daniel's Functions
-
 
 
 # TODO -- take out
