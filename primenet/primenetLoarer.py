@@ -1,15 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+'''
+Automatic assignment handler for Mlucas and CUDALucas.
 
-# Automatic assignment handler for Mlucas.
-# This handles LL and PRP testing (first-time and double-check), i.e. all the worktypes supported by the program.
-# EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py by teknohog and Mark Rose, with help rom Gord Palameta.
-# 2020: support for computer registration and assignment-progress via direct Primenet-v5-API calls by Loïc Le Loarer <loic@le-loarer.org>.
+[*] Revised by Teal Dulcet and Daniel Connelly (2020)
+	Original Authorship(s):
+		* # EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py by teknohog and Mark Rose, with help rom Gord Palameta.
+		* # 2020: support for computer registration and assignment-progress via direct Primenet-v5-API calls by Loïc Le Loarer <loic@le-loarer.org>.
 
-# This script is intended to be run alongside Mlucas - use it to register your computer (if you've not previously done so)
-# and then reinvoke in periodic-update mode to automatically fetch work from the Primenet server, report latest results and
-# report the status of currently-in-progress assignments to the server, which you can view in a convenient dashboard form via
-# login to the server and clicking Account/Team Info --> My Account --> CPUs. (Or directly via URL: https://www.mersenne.org/cpus/)
+[*] List of supported v5 operations:
+	* assignment progress` (ap) and `Assignment Result` (ar) are already supported by Loarer's v5 api already  (see submit_one_line_v5 for Assignment Result)
+	* update_computer() # uc -- isn't this just calling register again?
+	* program_options() # po DONE
+	* ga() # get assignment # DONE
+	* ra() # register assignment # DONE; not used
+	* unreserve() # register assignment # DONE; not used
+'''
 
 ################################################################################
 #                                                                              #
@@ -33,6 +39,12 @@
 #                                                                              #
 ################################################################################
 from __future__ import division, print_function
+try:
+	import requests
+except ImportError as error:
+	print("Installing requests as dependency")
+	p = subprocess.run('pip install requests', shell=True)
+	import requests
 from random import getrandbits
 from collections import namedtuple
 import sys
@@ -43,7 +55,6 @@ from optparse import OptionParser, OptionGroup
 from hashlib import sha256
 import json
 import platform
-import requests
 from requests.exceptions import ConnectionError, HTTPError
 import subprocess
 import logging
@@ -51,12 +62,101 @@ import hashlib
 
 s = requests.Session()  # session that maintains our cookies
 
-try:
-	import requests
-except ImportError as error:
-	print("Installing requests as dependency")
-	p = subprocess.run('pip install requests', shell=True)
-	import requests
+# [*] Daniel Connelly's functions
+
+# get assignment
+def ga():
+	guid = get_guid(config)
+	return OrderedDict((
+		("px", "GIMPS"),
+		("v", PRIMENET_TRANSACTION_API_VERSION),
+		("t", "ga"),					# transaction type
+		("g", guid),		# GUID
+		("c", 0),
+		("a", ""),
+		))
+
+
+# register assignment
+def ra(n):
+	guid = get_guid(config)
+	return OrderedDict((
+		("px", "GIMPS"),
+		("v", PRIMENET_TRANSACTION_API_VERSION),
+		("t", "ra"),
+		("g", guid),
+		("c", 0),
+		("b", 2),
+		("b", 2),
+		("n", n),
+		("w", options.worktype),
+		))
+
+
+# unreserve assignment
+def au(k):
+	guid = get_guid(config)
+	return OrderedDict((
+		("px", "GIMPS"),
+		("v", PRIMENET_TRANSACTION_API_VERSION),
+		("t", "au"),
+		("g", guid),
+		("k", k),
+		))
+
+
+# TODO -- have people set their own program options
+def program_options():
+	args = primenet_v5_bargs.copy()
+	guid = get_guid(config)
+	args["t"] = "po"
+	args["g"] = guid
+	args["c"] = "" # no value updates all cpu threads with given worktype
+	args["w"] = options.worktype
+	args["nw"] = 1
+	args["Priority"] = 1
+	args["DaysOfWork"] = 2
+	args["DayMemory"] = 8
+	args["NightMemory"] = 8
+	args["DayStartTime"] = 0
+	args["NightStartTime"] = 0
+	args["RunOnBattery"] = 1
+	print(send_request(guid, args))
+
+
+def get_cpu_signature():
+    output = ""
+    if platform.system() == "Windows":
+        output = subprocess.check_output('wmic cpu list brief').decode()
+    elif platform.system() == "Darwin":
+        os.environ['PATH'] = os.environ['PATH'] + os.pathsep + '/usr/sbin'
+        command ="sysctl -n machdep.cpu.brand_string"
+        output = subprocess.check_output(command).decode().strip()
+    elif platform.system() == "Linux":
+        command = "cat /proc/cpuinfo"
+        all_info = subprocess.check_output(command, shell=True).strip().decode()
+        for line in all_info.split("\n"):
+            if "model name" in line:
+                output = re.sub(".*model name.*:", "", line,1).lstrip()
+                break
+    return output
+
+def get_cpu_name(signature):
+    search = re.search(r'\bPHENOM\b|\bAMD\b|\bATOM\b|\bCore 2\b|\bCore(TM)2\b|\bCORE(TM) i7\b|\bPentium(R) M\b|\bCore\b|\bIntel\b|\bUnknown\b|\bK5\b|\bK6\b', signature)
+    return search.group(0) if search else ""
+
+def get_cpu_MHz(signature):
+    search = re.search(r'\d+\.\d+', signature)
+    return int(float(search.group(0))*1000) if search else ""
+
+cpu_signature = get_cpu_signature()
+#cpu_speed = get_cpu_speed(cpu_signature)
+cpu_speed = "100.0" # default. May use the average speed of last 3 calculations to update speed later (see CPU_SPEED variable in gwnum/cpuid.c file)
+cpu_brand = get_cpu_name(cpu_signature)
+
+# END Daniel's Functions
+
+
 
 # TODO -- take out
 try:
@@ -183,53 +283,6 @@ def write_list_file(filename, l, mode="w"):
 		with open(filename, mode) as File:
 			File.write(content)
 
-def int_(k):
-	# converts hex to integer form
-	scale = 16
-	return int(bin(int(k, scale)), 2)
-	#return int(bin(int(k, scale)), 16)
-
-def make_v5_client_key(guid):
-	_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ = 17737
-	#k = hashlib.md5(str.encode(guid)).hexdigest()[0:16] # TODO: is this right? Or do we want digest() (16 bits)?
-	#k = hashlib.md5(str.encode(guid)).digest()
-	k = hashlib.md5(str.encode(guid)).digest()
-	print(k)
-	print(k[0])
-	print(k.hex())
-	import binascii
-	print(binascii.hexlify(k))
-	#k = binascii.hexlify(k)
-	print(k)
-	new_k = ""
-	for i in range(0, 16):
-		new_k  += str(k[i] ^ k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) % 16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256))
-	print(new_k)
-	p_v5key = hashlib.md5(new_k.encode()).hexdigest().upper()
-	print(p_v5key)
-	return p_v5key
-
-def secure_v5_url(URL, p_v5key):
-	__v5salt_ = 0
-	if len(URL) > 4020:
-		return "" # return empty URL if URL is too long
-
-	if not __v5salt_:
-		import random
-		import time
-		random.seed(time.time()) # TODO -- cast time.time() to int?
-
-	__v5salt_ = random.randint(0, 32767) & 0xFFFF # 32767 is minimum random max in C++
-	URL = urlencode(URL)
-	hash_ = hashlib.md5(URL.encode()).hexdigest().upper()
-
-	URL += f'&ss={__v5salt_}&sh={hash_}'
-	print(URL)
-	#sys.exit()
-
-	return URL
-
-
 def primenet_fetch(num_to_get):
 	if not options.username:
 		return []
@@ -261,45 +314,23 @@ def primenet_fetch(num_to_get):
 	option_dict = {"SmallestAvail": "100", "DoubleCheck": "101", "WorldRecord": "102", "100Mdigit": "104",
 			"SmallestAvailPRP": "150", "DoubleCheckPRP": "151", "WorldRecordPRP": "152", "100MdigitPRP": "153"}
 	if options.worktype in option_dict:
-		option_dict[options.worktype]
+		options.worktype = option_dict[options.worktype]
 	supported = set(['100', '101', '102', '104', '150', '151', '152', '153'])
 	if not options.worktype in supported:
 		debug_print("Unsupported/unrecognized worktype = " + options.worktype)
 		return []
 
-	# TODO -- get assignment here
-	# TODO -- get from .ini file if possible
-	#salt = "0"  # TODO -- get these
-	#sec_hash = "0"  # TODO -- get these
-	guid = get_guid(config)
-	program = "Prime95" # TODO -- don't hardcode
-	build = "build 6" # TODO -- don't hardcode
-
-	assignment = OrderedDict((
-		("px", "GIMPS"),
-		("v", PRIMENET_TRANSACTION_API_VERSION),
-		("t", "ga"),					# transaction type
-		("g", guid),		# GUID
-		("c", 0), # cpu requesting assignment
-		("a", 0), # TODO -- get assignment
-		#("a", platform.system() + ('64' if platform.machine().endswith('64')
-		#	else '') + f',{program},v29.8,{build}'), # application version string (min length 10, max length 64)
-		))
+	# Get assignment
+	assignment = ga() # get assignment
 	try:
-		p_v5key = make_v5_client_key(guid)
-		print("p_v5key " + p_v5key)
-		assignment = secure_v5_url(assignment, p_v5key)
-
-		#debug_print("Fetching work via URL = "+primenet_v5_burl + urlencode(assignment))
-		print("URL: " + primenet_v5_burl + assignment)
-		r = requests.post(primenet_v5_burl, assignment)
-		print(r)
-		for text in r.text.split("\n"):
-			res = re.search(r'(?<=pnErrorResult=).+',text)
-			if res:
-				print(res.group(0))
-		sys.exit()
-		return greplike(workpattern, [line.decode('utf-8', 'replace') for line in r.iter_lines()])
+		debug_print("Fetching work via URL = "+primenet_v5_burl + urlencode(assignment))
+		tests = []
+		for _ in range(num_to_get):
+			guid = get_guid(config)
+			r = send_request(guid, assignment)
+			print(r)
+			tests.append(f"Test={r['k']},{r['n']},{r['sf']},{r['p1']}") # only gets one assignment ATM
+		return tests
 	except ConnectionError:
 		debug_print("URL open error at primenet_fetch")
 		return []
@@ -322,7 +353,7 @@ def get_assignment(progress):
 		num_cache += 1
 		debug_print("Time_left is {0} and smaller than limit ({1}), so num_cache is increased by one to {2}".format(
 			time_left, options.days_work*24*3600, num_cache))
-		num_to_get = num_to_fetch(tasks, num_cache)
+	num_to_get = num_to_fetch(tasks, num_cache)
 
 	if num_to_get < 1:
 		debug_print(workfile + " already has " + str(len(tasks)) +
@@ -332,7 +363,9 @@ def get_assignment(progress):
 	debug_print("Fetching " + str(num_to_get) + " assignments")
 
 	new_tasks = primenet_fetch(num_to_get)
+	#print("new_tasks" + str(new_tasks))
 	num_fetched = len(new_tasks)
+	#print("Num fetched " + str(num_fetched))
 	if num_fetched > 0:
 		debug_print("Fetched {0} assignments:".format(num_fetched))
 		for new_task in new_tasks:
@@ -341,7 +374,7 @@ def get_assignment(progress):
 	if num_fetched < num_to_get:
 		debug_print("Error: Failed to obtain requested number of new assignments, " +
 				str(num_to_get) + " requested, " + str(num_fetched) + " successfully retrieved")
-		return num_fetched
+	return num_fetched
 
 
 resultpattern = re.compile("[Pp]rogram|CUDALucas")
@@ -408,7 +441,6 @@ def send_request(guid, args):
 	url_args += "&ss=19191919&sh=ABCDABCDABCDABCDABCDABCDABCDABCD"
 	# url_args += "&ss=" + str(random.randint(0, sys.maxsize) & 0xFFFF) + "&sh=ABCDABCDABCDABCDABCDABCDABCDABCD"
 	try:
-		# don't need to use primenet opener because this API doesn't have cookies
 		r = requests.get(primenet_v5_burl+url_args)
 	except HTTPError as e:
 		debug_print("ERROR receiving answer to request: " +
@@ -439,9 +471,9 @@ def register_instance(guid):
 	if options.username is None or options.hostname is None:
 		parser.error(
 				"To register the instance, --username and --hostname are required")
-		hardware_id = sha256(options.cpu_model.encode(
-			"utf-8")).hexdigest()[:32]  # similar as mprime
-		args = primenet_v5_bargs.copy()
+	hardware_id = sha256(options.cpu_model.encode(
+		"utf-8")).hexdigest()[:32]  # similar as mprime
+	args = primenet_v5_bargs.copy()
 	args["t"] = "uc"					# update compute command
 	args["a"] = platform.system() + ('64' if platform.machine().endswith('64')
 			else '') + ",Mlucas,v" + str(VERSION)
@@ -465,13 +497,14 @@ def register_instance(guid):
 	args["cn"] = options.hostname[:20]  # truncate to 20 char max
 	if guid is None:
 		guid = create_new_guid()
+		print("GUID: " + guid)
 	result = send_request(guid, args)
 	if result is None:
 		parser.error("Error while registering on mersenne.org")
 	elif int(result["pnErrorResult"]) != 0:
 		parser.error(
 				"Error while registering on mersenne.org\nReason: "+result["pnErrorDetail"])
-		config_write(config, guid=guid)
+	config_write(config, guid=guid)
 	print("GUID {guid} correctly registered with the following features:".format(
 		guid=guid))
 	print("Username: {0}".format(options.username))
@@ -693,7 +726,7 @@ def send_progress(assignment_id, is_prp, percent, time_left, retry_count=0):
 				# drop the assignment
 				debug_print("ERROR while updating on mersenne.org",
 						file=sys.stderr)
-				debug_print("Code: "+str(rc), file=sys.stderr)
+			debug_print("Code: "+str(rc), file=sys.stderr)
 			debug_print("Reason: "+result["pnErrorDetail"], file=sys.stderr)
 	if retry:
 		return send_progress(assignment_id, is_prp, percent, time_left, retry_count+1)
@@ -735,8 +768,8 @@ def get_result_type(ar):
 				"This is a bug in primenet.py, Unsupported worktype {0}".format(ar['worktype']))
 
 
-		def submit_one_line_v5(sendline, guid, ar):
-			"""Submit one result line using V5 API, will be attributed to the computed identified by guid"""
+def submit_one_line_v5(sendline, guid, ar):
+	"""Submit one result line using V5 API, will be attributed to the computed identified by guid"""
 	"""Return False if the submission should be retried"""
 	# JSON is required because assignment_id is necessary in that case
 	# and it is not present in old output format.
@@ -911,12 +944,10 @@ parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60*60*6
 		help="Seconds to wait between network updates, Default: %default seconds (6 hours). Use 0 for a single update without looping.")
 
 group = OptionGroup(parser, "Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
-group.add_option("--register", action="store_true", dest="register",
-		default=False, help="Register this GIMPS program with PrimeNet")
 group.add_option("-H", "--hostname", dest="hostname",
 		default=platform.node()[:20], help="Computer name, Default: %default")
 # TODO: add detection for most parameter, including automatic change of the hardware
-group.add_option("--cpu_model", dest="cpu_model", default="cpu.unknown",
+group.add_option("--cpu_model", dest="cpu_model", default=f'{cpu_signature}',
 		help="Processor (CPU) model, Default: %default")
 group.add_option("--features", dest="features", default="",
 		help="CPU features, Default: '%default'")
@@ -981,7 +1012,7 @@ sentfile = os.path.join(workdir, "results_sent.txt")
 #	>>> print re.search(r"(DoubleCheck|Test|PRP)=.*(,[0-9]+){3}" , s2)
 #	<_sre.SRE_Match object at 0x1004bd250>
 #	>>> print re.search(r"(DoubleCheck|Test|PRP)=.*(,[0-9]+){3}" , s3)
-#	<_sre.SRE_Match object at 0x1004bd250>
+#	<_sre.SRE_Match object at 0x1004bd250>.
 #	>>> print re.search(r"(DoubleCheck|Test|PRP)=.*(,[0-9]+){3}" , s4)
 #	<_sre.SRE_Match object at 0x1004bd250>
 #
@@ -1034,58 +1065,20 @@ if config_updated:
 	config_write(config)
 
 guid = get_guid(config)
-if options.register:
-	# if guid already exist, recover it, this way, one can (re)register to change
-	# the CPU model (changing instance name can only be done in the website)
-	register_instance(guid)
-	sys.exit(0)
-
 if options.username is None:
 	parser.error("Username must be given")
 
 while True:
-	# Log in to primenet
-	try:
-		# TODO -- delete this...
-		if options.username:
-			print(primenet_fetch(2))
-			sys.exit()
-			submit_work()
-			progress = update_progress()
-			print(progress)
-			got = get_assignment(progress)
-			print(got)
-			if got > 0:
-				debug_print(
-						"Redo progress update to update the just obtained assignment(s)")
-				# Since assignment are obtain by manual assignment, it is important to update them
-				# to mark them as belonging to the current computer.
-				sleep(1)
-				update_progress()
+	# TODO -- Check if program has been registered...
+	if options.username and options.password:
+		pass
+		# TODO --
 
-		break
-		login_data = {"user_login": options.username,
-			"user_password": options.password,
-			}
-
-	# TODO: login only if necessary:
-		# TODO: when configuration has been changed to test the password
-		# TODO: when getting assignments is necessary
-		# TODO: on a monthly basis ?
-		# This makes a POST instead of GET
-		url = primenet_baseurl + "default.php"
-		r = s.post(url, data={"data": login_data})
-		#r = s.post(url, data=login_data)
-
-		if options.username + "<br>logged in" not in r.text:
-			primenet_login = False
-			debug_print("ERROR: Login failed.")
-		else:
-			primenet_login = True
-	except ConnectionError:
-		debug_print("PrimeNet URL open ERROR")
-
-	if options.username:
+	elif options.username:
+		# if guid already exist, recover it, this way, one can (re)register to change
+		# the CPU model (changing instance name can only be done in the website)
+		register_instance(guid)
+		program_options() # must register program options, or else get_assignment()/primenet_fetch() will not work.
 		submit_work()
 		progress = update_progress()
 		got = get_assignment(progress)
@@ -1095,20 +1088,6 @@ while True:
 			sleep(1)
 			update_progress()
 
-		''' # We no longer need to get work if a proper login is given..., only if a username is given.
-	primenet_login = True
-	if primenet_login:
-		submit_work()
-		progress = update_progress()
-		got = get_assignment(progress)
-		if got > 0:
-			debug_print(
-				"Redo progress update to update the just obtained assignment(s)")
-			# Since assignment are obtain by manual assignment, it is important to update them
-			# to mark them as belonging to the current computer.
-			sleep(1)
-			update_progress()
-	'''
 	if options.timeout <= 0:
 		break
 	try:
@@ -1117,5 +1096,3 @@ while True:
 		break
 
 sys.exit(0)
-
-# vim: noexpandtab ts=4 sts=0 sw=0

@@ -166,7 +166,7 @@ def error_code(code):
 def endpoint(data, job=""):
     print(data)
     r = requests.post(primenet_v5_url, data)
-
+    print(r)
     print(r.text)
     if r.text == "": # or len(r.text) == 0, this means we got no response back
         sys.exit()
