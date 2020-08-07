@@ -1,0 +1,23 @@
+PRIMENET TODO
+
+*GOALS*
+
+~1) When using the v5 API (`submit_one_line_v5` and maybe `submit_one_line`?), we need to extract the values required for the `ar` endpoint for CUDALucas.~
+
+~2) Grab the progress + report it from the file indicated in the `-g/--gpu` flag.~
+
+~3) Throw an error when CUDALucas attempts to get PRP assignments.~
+
+
+*STRETCH GOALS*
+1) Unreserve all function
+2) (N/A?) Take out duplication of the return code printing in `register_instance`, `submit_one_line_v5` and `send_progress`.
+3) Do more based off of the errors received back
+4) Add in system info + `psutil` stuff that makes it work for all OS types.
+5) Cleanup/optimize code
+
+***********UP TO DATE*********************
+I think the priorities are:
+1) grab the info from a cudalucas file to REPORT a work assignment with the AR endpoint (submit_one_line_v5)
+2) grab the info from a cudalucas file to UPDATE a work assignment with the AP endpoint (submit_progress)
+
