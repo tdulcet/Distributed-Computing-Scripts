@@ -351,18 +351,33 @@ def primenet_fetch(num_to_get):
         debug_print("Unsupported/unrecognized worktype = " + options.worktype + " for " + program)
         return []
 
-    # Get assignment
-    assignment = ga()  # get assignment
     try:
-        debug_print("Fetching work via URL = " +
+        # Get assignment (Loarer's way)
+        if options.password:
+            assignment = OrderedDict((
+                ("cores","1"),
+                ("num_to_get", num_to_get),
+                ("pref", options.worktype),
+                ("exp_lo", ""),
+                ("exp_hi", ""),
+                ("B1", "Get Assignments")
+            ))
+            openurl = primenet_baseurl + "manual_assignment/?"
+            debug_print("Fetching work via URL = "+openurl + urlencode(assignment))
+            r = s.post(openurl, data=assignment)
+            return greplike(workpattern, [line.decode('utf-8', 'replace') for line in r.iter_lines()])
+        # Get assignment (Daniel + Teal's way)
+        else:
+            assignment = ga()  # get assignment
+            debug_print("Fetching work via V5 Primenet = " +
                     primenet_v5_burl + urlencode(assignment))
-        tests = []
-        for _ in range(num_to_get):
-            guid = get_guid(config)
-            r = send_request(guid, assignment)
-            # only gets one assignment ATM
-            tests.append(f"Test={r['k']},{r['n']},{r['sf']},{r['p1']}")
-        return tests
+            tests = []
+            for _ in range(num_to_get):
+                guid = get_guid(config)
+                r = send_request(guid, assignment)
+                # only gets one assignment ATM
+                tests.append(f"Test={r['k']},{r['n']},{r['sf']},{r['p1']}")
+            return tests
     except ConnectionError:
         debug_print("URL open error at primenet_fetch")
         return []
@@ -404,6 +419,7 @@ def get_assignment(progress):
         for new_task in new_tasks:
             debug_print("{0}".format(new_task))
     write_list_file(workfile, new_tasks, "a")
+    print(num_fetched, num_to_get)
     if num_fetched < num_to_get:
         debug_print("Error: Failed to obtain requested number of new assignments, " +
                     str(num_to_get) + " requested, " + str(num_fetched) + " successfully retrieved")
@@ -1147,26 +1163,31 @@ if options.username is None:
     parser.error("Username must be given")
 
 program = "CUDALucas" if options.gpu else "MLucas"
-print(options.gpu) # automatically false
-print(options.debug) # automatically false
-print(options.password)
 
 while True:
-    # TODO
-    #if options.username and options.password:
-    #    print("HERE")
-    #    pass
+    # Carry on with Loarer's style of primenet
+    if options.username and options.password:
+        login_data = {"user_login":options.username,
+                "user_password": options.password}
+        url = primenet_baseurl + "default.php"
+        #r = s.post(url, data={"data": login_data})
+        r = s.post(url, data=login_data)
 
-    #elif options.username:
-    if True:
-        if config.has_option("primenet", "guid") is False:
+        if options.username + "<br>logged in" not in r.text:
+            primenet_login = False
+            debug_print("ERROR: Login failed.")
+        else:
+            primenet_login = True
+    # use the v5 API for registration and program options
+    elif options.username:
+        if config.has_option("primenet", "guid") is False and options.password is false:
             register_instance(guid)
             program_options()
         # worktype has changed, update worktype preference in program_options()
         if config_updated:
             program_options()
+    if (options.username and not options.password) or (options.password and primenet_login): # branch 1 or branch 2 was taken
         submit_work()
-        #progress = update_progress_cuda if options.gpu else update_progress()
         progress = update_progress()
         got = get_assignment(progress)
         print("GOT: " + str(got))
