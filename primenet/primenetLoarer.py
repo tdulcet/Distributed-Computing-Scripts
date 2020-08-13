@@ -1180,7 +1180,7 @@ while True:
             primenet_login = True
     # use the v5 API for registration and program options
     elif options.username:
-        if config.has_option("primenet", "guid") is False and options.password is false:
+        if config.has_option("primenet", "guid") is False and options.password is False:
             register_instance(guid)
             program_options()
         # worktype has changed, update worktype preference in program_options()
