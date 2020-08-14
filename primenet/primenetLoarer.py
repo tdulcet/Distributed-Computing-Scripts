@@ -1180,13 +1180,13 @@ while True:
             primenet_login = True
     # use the v5 API for registration and program options
     elif options.username:
-        if config.has_option("primenet", "guid") is False and options.password is False:
+        if guid is None and options.password is None:
             register_instance(guid)
             program_options()
         # worktype has changed, update worktype preference in program_options()
         if config_updated:
             program_options()
-    if (options.username and not options.password) or (options.password and primenet_login): # branch 1 or branch 2 was taken
+    if (options.username and not options.password) or (options.password and primenet_login): # branch 1 or branch 2 above was taken
         submit_work()
         progress = update_progress()
         got = get_assignment(progress)
