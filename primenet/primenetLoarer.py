@@ -723,7 +723,7 @@ def parse_stat_file_cuda():
         iter_res = re.findall(iter_regex, line)
         ms_res = re.findall(ms_per_regex, line)
         # regex matches, but not when cudalucas is continuing
-        if iter_res and ms_res and "Continuing" not in line:
+        if iter_res and ms_res and "Compatibility" not in line and "Continuing" not in line and "M(" not in line:
             found += 1
             # keep the last iteration to compute the percent of progress
             if found == 1:
