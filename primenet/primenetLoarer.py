@@ -391,7 +391,7 @@ def get_assignment(progress):
     (percent, time_left) = None, None
     if progress is not None and type(progress) == tuple and len(progress) == 2:
         (percent, time_left) = progress  # unpack update_progress output
-    num_cache += 1
+    num_cache = int(options.num_cache) + 1
     # if percent is not None and percent >= int(options.percent_limit):
     # num_cache += 1
     # debug_print("Progress of current assignment is {0:.2f} and bigger than limit ({1}), so num_cache is increased by one to {2}".format(percent, options.percent_limit, num_cache))
