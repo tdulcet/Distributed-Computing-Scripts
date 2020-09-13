@@ -53,7 +53,6 @@ import sys
 import os.path
 import re
 import time
-from time import sleep
 from optparse import OptionParser, OptionGroup
 from hashlib import sha256
 import json
@@ -1137,7 +1136,7 @@ if options.features is not None and len(options.features) > 64:
 
 # write back local.ini if necessary
 if config_updated:
-    debug_print("write " + options.worktype)
+    debug_print("write " + options.localfile)
     config_write(config)
 
 # if guid already exist, recover it, this way, one can (re)register to change
@@ -1177,18 +1176,17 @@ while True:
     if not options.password or (options.password and primenet_login): # branch 1 or branch 2 above was taken
         submit_work()
         progress = update_progress()
-        register_instance(guid)
         got = get_assignment(progress)
         print("GOT: " + str(got))
         if got > 0:
             debug_print(
                 "Redo progress update to update the just obtain assignmment(s)")
-            sleep(1)
+            time.sleep(1)
             update_progress()
     if options.timeout <= 0:
         break
     try:
-        sleep(options.timeout)
+        time.sleep(options.timeout)
     except KeyboardInterrupt:
         break
 
