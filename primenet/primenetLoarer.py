@@ -40,6 +40,7 @@ Automatic assignment handler for Mlucas and CUDALucas.
 #                                                                              #
 ################################################################################
 from __future__ import division, print_function
+import subprocess
 try:
     import requests
 except ImportError as error:
@@ -51,13 +52,13 @@ from collections import namedtuple
 import sys
 import os.path
 import re
+import time
 from time import sleep
 from optparse import OptionParser, OptionGroup
 from hashlib import sha256
 import json
 import platform
 from requests.exceptions import ConnectionError, HTTPError
-import subprocess
 import logging
 import hashlib
 
@@ -66,49 +67,38 @@ s = requests.Session()  # session that maintains our cookies
 # [***] Daniel Connelly's functions
 # get assignment
 def ga():
-    guid = get_guid(config)
-    return OrderedDict((
-        ("px", "GIMPS"),
-        ("v", PRIMENET_TRANSACTION_API_VERSION),
-        ("t", "ga"),					# transaction type
-        ("g", guid),		# GUID
-        ("c", 0),
-        ("a", ""),
-    ))
-
+    args = primenet_v5_bargs.copy()
+    args["t"] = "ga"			# transaction type
+    args["g"] = get_guid(config)	# GUID
+    args["c"] = 0
+    args["a"] = ""
+    return args
 
 # register assignment
 def ra(n):
-    guid = get_guid(config)
-    return OrderedDict((
-        ("px", "GIMPS"),
-        ("v", PRIMENET_TRANSACTION_API_VERSION),
-        ("t", "ra"),
-        ("g", guid),
-        ("c", 0),
-        ("b", 2),
-        ("b", 2),
-        ("n", n),
-        ("w", options.worktype),
-    ))
-
+    '''Note: this function is not used'''
+    args = primenet_v5_bargs.copy()
+    args["t"] = "ra"
+    args["g"] = get_guid(config)
+    args["c"] = 0
+    args["b"] = 2
+    args["n"] = n
+    args["w"] = options.worktype
+    return args
 
 # unreserve assignment
 def au(k):
-    guid = get_guid(config)
-    return OrderedDict((
-        ("px", "GIMPS"),
-        ("v", PRIMENET_TRANSACTION_API_VERSION),
-        ("t", "au"),
-        ("g", guid),
-        ("k", k),
-    ))
+    '''Note: this function is not used'''
+    args = primenet_v5_bargs.copy()
+    args["t"] = "au"
+    args["g"] = get_guid(config)
+    args["k"] = k
+    return args
 
 
 # TODO -- have people set their own program options
-def program_options():
+def program_options(guid):
     args = primenet_v5_bargs.copy()
-    guid = get_guid(config)
     args["t"] = "po"
     args["g"] = guid
     args["c"] = ""  # no value updates all cpu threads with given worktype
@@ -121,6 +111,7 @@ def program_options():
     args["DayStartTime"] = 0
     args["NightStartTime"] = 0
     args["RunOnBattery"] = 1
+    print(str(args))
     print(send_request(guid, args)) # TODO -- take out print()
 
 def return_code(result, aid):
@@ -163,9 +154,8 @@ def get_cpu_signature():
         command = "sysctl -n machdep.cpu.brand_string"
         output = subprocess.check_output(command).decode().strip()
     elif platform.system() == "Linux":
-        command = "cat /proc/cpuinfo"
-        all_info = subprocess.check_output(
-            command, shell=True).strip().decode()
+        with open('/proc/cpuinfo', 'r') as f1:
+            all_info = f1.read()
         for line in all_info.split("\n"):
             if "model name" in line:
                 output = re.sub(".*model name.*:", "", line, 1).lstrip()
@@ -174,14 +164,10 @@ def get_cpu_signature():
 
 
 def get_cpu_name(signature):
+    '''Note: Not used'''
     search = re.search(
         r'\bPHENOM\b|\bAMD\b|\bATOM\b|\bCore 2\b|\bCore(TM)2\b|\bCORE(TM) i7\b|\bPentium(R) M\b|\bCore\b|\bIntel\b|\bUnknown\b|\bK5\b|\bK6\b', signature)
     return search.group(0) if search else ""
-
-
-def get_cpu_MHz(signature):
-    search = re.search(r'\d+\.\d+', signature)
-    return int(float(search.group(0))*1000) if search else ""
 
 
 cpu_signature = get_cpu_signature()
@@ -275,7 +261,8 @@ def debug_print(text, file=sys.stdout):
             caller_name = 'main loop'
         caller_string = caller_name + ": "
         #print(progname + ": " + caller_string + str(text), file=file)
-        print(progname + " " + time.strftime("%Y-%m-%d %H:%M") + " " + text, file=file)
+        #print(progname + " " + time.strftime("%Y-%m-%d %H:%M") + " " + text, file=file)
+        print(progname + " " + time.strftime("%Y-%m-%d %H:%M") + " " + str(text), file=file)
         file.flush()
 
 
@@ -370,6 +357,7 @@ def primenet_fetch(num_to_get):
         # Get assignment (Daniel + Teal's way)
         else:
             assignment = ga()  # get assignment
+            print(assignment)
             debug_print("Fetching work via V5 Primenet = " +
                     primenet_v5_burl + urlencode(assignment))
             tests = []
@@ -553,6 +541,7 @@ def register_instance(guid):
     elif int(result["pnErrorResult"]) != 0:
         parser.error(
             "Error while registering on mersenne.org\nReason: "+result["pnErrorDetail"])
+    program_options(guid)
     config_write(config, guid=guid)
     print("GUID {guid} correctly registered with the following features:".format(
         guid=guid))
@@ -566,7 +555,7 @@ def register_instance(guid):
     print("CPU threads per core: {0}".format(options.hp))
     print("CPU frequency: {0} MHz".format(options.frequency))
     print("Total RAM: {0} MiB".format(options.memory))
-    print(u"If you want to change the value, please rerun with the --register option or edit the “local.ini” file")
+    print(u"If you want to change the value, please rerun with the --register option or edit the " + options.localfile + " file")
     print("You can see the result in this page:")
     print("https://www.mersenne.org/editcpu/?g={guid}".format(guid=guid))
     return
@@ -625,7 +614,7 @@ def merge_config_and_options(config, options):
                                        or config.get("primenet", attr) != str(attr_val)):
             # If an option is given (even default value) and it is not already
             # identical in local.ini, update local.ini
-            debug_print("update local.ini with {0}={1}".format(attr, attr_val))
+            debug_print("update " + options.localfile + " with {0}={1}".format(attr, attr_val))
             config.set("primenet", attr, str(attr_val))
             updated = True
     return updated
@@ -707,24 +696,23 @@ def get_progress_assignment(task):
     p = int(found[idx])
     if not options.gpu:
         iteration, usec_per_iter = parse_stat_file(p)
-        print(assignment_id, p, is_prp, iteration, usec_per_iter) # TODO  remove
     else:
         iteration, usec_per_iter = parse_stat_file_cuda()
-        print(assignment_id, p, is_prp, iteration, usec_per_iter) # TODO  remove
     return Assignment(assignment_id, p, is_prp, iteration, usec_per_iter)
 
 def parse_stat_file_cuda():
     w = readonly_list_file(options.gpu)  # appended line by line, no lock needed
     found = 0
-    iter_regex = re.compile(r'\d{5,}')
-    ms_per_regex = re.compile(r'\d+\.\d+')
+    iter_regex = re.compile(r'\b\d{5,}\b')
+    ms_per_regex = re.compile(r'\b\d+\.\d+\b')
     list_msec_per_iter = []
     # get the 5 most recent Iter line
     for line in reversed(w):
         iter_res = re.findall(iter_regex, line)
         ms_res = re.findall(ms_per_regex, line)
         # regex matches, but not when cudalucas is continuing
-        if iter_res and ms_res and "Compatibility" not in line and "Continuing" not in line and "M(" not in line:
+        #if iter_res and ms_res and "Compatibility" not in line and "Continuing" not in line and "M(" not in line:
+        if iter_res and ms_res:
             found += 1
             # keep the last iteration to compute the percent of progress
             if found == 1:
@@ -822,7 +810,7 @@ def get_cuda_ar_object(sendline):
 
     ar['aid']=args[5][5:]
     ar['worktype'] = 'LL' # CUDAlucas only does LL tests
-    ar['status'] = 'P' if int(args[2].strip("offset = ")) == 0 else 'R' # the else does not matter in Loarer's program
+    ar['status'] = 'P' if int(args[1], 0) == 0 else 'R' # the else does not matter in Loarer's program
     ar['exponent'] = re.search(r'\d{5,}',args[0]).group(0)
 
     ar['res64'] = args[1].strip("0x")
@@ -841,24 +829,19 @@ def submit_one_line(sendline):
             is_json = True
         except json.decoder.JSONDecodeError:
             is_json = False
-        guid = get_guid(config)
-        if guid is not None and is_json:
-            # If registered and the line is a JSON, submit using the v5 API
-            # The result will be attributed to the registered computer
-            sent = submit_one_line_v5(sendline, guid, ar)
-        else:
-            # The result will be attributed to "Manual testing"
-            sent = submit_one_line_manually(sendline)
     else: # CUDALucas
         ar = get_cuda_ar_object(sendline)
-        guid = get_guid(config)
-        if guid is not None and ar is not None:
-            # If registered and the ar object was returned successfully, submit using the v5 API
-            # The result will be attributed to the registered computer
-            sent = submit_one_line_v5(sendline, guid, ar)
-        else:
-            # The result will be attributed to "Manual testing"
-            sent = submit_one_line_manually(sendline)
+
+    guid = get_guid(config)
+    if guid is not None and ar is not None and (options.gpu or is_json):
+        # If registered and the ar object was returned successfully, submit using the v5 API
+        # The result will be attributed to the registered computer
+        # If registered and the line is a JSON, submit using the v5 API
+        # The result will be attributed to the registered computer
+        sent = submit_one_line_v5(sendline, guid, ar)
+    else:
+        # The result will be attributed to "Manual testing"
+        sent = submit_one_line_manually(sendline)
     return sent
 
 
@@ -1025,7 +1008,7 @@ parser.add_option("-T", "--worktype", dest="worktype", default="100", help="""Ty
 
 #parser.add_option("-g", "--gpu", action="store_true", dest="gpu", default=False,
 parser.add_option("-g", "--gpu", dest="gpu", default=False,
-                  help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas)")
+        help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas). This flag takes as argument your CUDALucas output file.")
 parser.add_option("-c", "--cpu_num", dest="cpu", type="int", default=0,
                   help="CPU core or GPU number to get assignments for, Default: %default")
 parser.add_option("-n", "--num_cache", dest="num_cache", type="int",
@@ -1154,42 +1137,47 @@ if options.features is not None and len(options.features) > 64:
 
 # write back local.ini if necessary
 if config_updated:
-    debug_print("write local.ini")
+    debug_print("write " + options.worktype)
     config_write(config)
 
 # if guid already exist, recover it, this way, one can (re)register to change
 # the CPU model (changing instance name can only be done in the website)
+#guid = create_new_guid() if get_guid(config) is None else get_guid(config)
 guid = get_guid(config)
 if options.username is None:
     parser.error("Username must be given")
 
 program = "CUDALucas" if options.gpu else "MLucas"
-
+print(guid)
 while True:
     # Carry on with Loarer's style of primenet
-    if options.username and options.password:
-        login_data = {"user_login":options.username,
-                "user_password": options.password}
-        url = primenet_baseurl + "default.php"
-        #r = s.post(url, data={"data": login_data})
-        r = s.post(url, data=login_data)
+    try:
+        if options.password:
+            login_data = {"user_login":options.username,
+                    "user_password": options.password}
+            url = primenet_baseurl + "default.php"
+            r = s.post(url, data=login_data)
 
-        if options.username + "<br>logged in" not in r.text:
-            primenet_login = False
-            debug_print("ERROR: Login failed.")
+            if options.username + "<br>logged in" not in r.text:
+                primenet_login = False
+                debug_print("ERROR: Login failed.")
+            else:
+                primenet_login = True
+        # use the v5 API for registration and program options
         else:
-            primenet_login = True
-    # use the v5 API for registration and program options
-    elif options.username:
-        if guid is None and options.password is None:
-            register_instance(guid)
-            program_options()
-        # worktype has changed, update worktype preference in program_options()
-        if config_updated:
-            program_options()
-    if (options.username and not options.password) or (options.password and primenet_login): # branch 1 or branch 2 above was taken
+            if guid is None:
+                register_instance(guid)
+            # worktype has changed, update worktype preference in program_options()
+            #if config_updated:
+            elif config_updated:
+                program_options(guid)
+    except HTTPError as e:
+        debug_print("ERROR: Login failed.")
+
+    if not options.password or (options.password and primenet_login): # branch 1 or branch 2 above was taken
         submit_work()
         progress = update_progress()
+        register_instance(guid)
         got = get_assignment(progress)
         print("GOT: " + str(got))
         if got > 0:
