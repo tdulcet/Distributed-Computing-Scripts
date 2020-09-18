@@ -18,8 +18,11 @@ matrix:
     - cd cudalucas && cppcheck --enable=all *.cu *.c *.h
   - name: "Mlucas (Intel)"
     arch: amd64
+    virt: vm
   - name: "Mlucas (ARM)"
-    arch: arm64
+    # arch: arm64
+    arch: arm64-graviton2
+    virt: vm
 
 before_script:
     - sudo apt-get -yqq update

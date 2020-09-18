@@ -7,8 +7,8 @@
 # ./mprime2.sh <N> ANONYMOUS
 
 DIR="mprime"
-FILE="p95v298b3.linux64.tar.gz"
-SUM="66117E8C30752426471C7B4A7A64FFBFC53C84D0F3140ACF87C08D3FEC8E99AC"
+FILE="p95v303b6.linux64.tar.gz"
+SUM="EE54B56062FEB05C9F80963A4E3AE8555D0E59CA60DDBCBA65CE05225C9B9A79"
 if [[ $# -lt 1 || $# -gt 5 ]]; then
 	echo "Usage: $0 <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]" >&2
 	exit 1
@@ -16,14 +16,14 @@ fi
 N=$1
 USERID=${2:-$USER}
 COMPUTER=${3:-$HOSTNAME}
-TYPE=${4:-100}
+TYPE=${4:-150}
 TIME=${5:-10}
 RE='^[0-9]+$'
 if ! [[ $N =~ $RE ]]; then
 	echo "Usage: <Computer number> must be a number" >&2
 	exit 1
 fi
-RE='^([024568]|1(0[0124]|5[0124]|6[01])?)$'
+RE='^([024568]|1(0[0124]|5[0123]|6[01])?)$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] is not a valid number" >&2
 	exit 1

@@ -75,7 +75,7 @@ Downloads, installs and sets up [Folding@home](https://foldingathome.org/start-f
 wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh -qO - | bash -s -- [Username] [Team number] [Passkey] [Power]
 ```
 
-These scripts should work on Ubuntu and any Linux distribution that can use the apt package manager.
+These scripts should work on Ubuntu, Debian and any Linux distribution that can use the apt package manager.
 
 ## Contributing
 
