@@ -13,8 +13,8 @@ import re # regular expression matching
 import hashlib # sha256
 
 DIR = "mprime"
-FILE = "p95v298b3.linux64.tar.gz"
-SUM = "66117E8C30752426471C7B4A7A64FFBFC53C84D0F3140ACF87C08D3FEC8E99AC"
+FILE = "p95v303b6.linux64.tar.gz"
+SUM = "EE54B56062FEB05C9F80963A4E3AE8555D0E59CA60DDBCBA65CE05225C9B9A79"
 
 def regex_check(reg, var, err):
     '''Checks cmdline args for proper bounds using regex

@@ -41,12 +41,6 @@ Automatic assignment handler for Mlucas and CUDALucas.
 ################################################################################
 from __future__ import division, print_function
 import subprocess
-try:
-    import requests
-except ImportError as error:
-    print("Installing requests as dependency")
-    p = subprocess.run('pip install requests', shell=True)
-    import requests
 from random import getrandbits
 from collections import namedtuple
 import sys
@@ -60,6 +54,40 @@ import platform
 from requests.exceptions import ConnectionError, HTTPError
 import logging
 import hashlib
+try:
+    import requests
+except ImportError as error:
+    print("Installing requests as dependency")
+    p = subprocess.run('pip install requests', shell=True)
+    import requests
+
+try:
+    # Python3
+    from urllib.parse import urlencode
+except ImportError:
+    # Python2
+    from urllib import urlencode
+
+try:
+    from configparser import ConfigParser, Error as ConfigParserError
+except ImportError:
+    from ConfigParser import ConfigParser, Error as ConfigParserError  # ver. < 3.0
+
+if sys.version_info[:2] >= (3, 7):
+    # If is OK to use dict in 3.7+ because insertion order is garantied to be preserved
+    # Since it is also faster, it is better to use raw dict()
+    OrderedDict = dict
+else:
+    try:
+        from collections import OrderedDict
+    except ImportError:
+        # For python2.6 and before which don't have OrderedDict
+        try:
+            from ordereddict import OrderedDict
+        except ImportError:
+            # Tests will not work correctly but it doesn't affect the functionnality
+            OrderedDict = dict
+
 
 s = requests.Session()  # session that maintains our cookies
 
@@ -69,7 +97,7 @@ def ga():
     args = primenet_v5_bargs.copy()
     args["t"] = "ga"			# transaction type
     args["g"] = get_guid(config)	# GUID
-    args["c"] = 0
+    args["c"] = options.cpu
     args["a"] = ""
     return args
 
@@ -79,7 +107,7 @@ def ra(n):
     args = primenet_v5_bargs.copy()
     args["t"] = "ra"
     args["g"] = get_guid(config)
-    args["c"] = 0
+    args["c"] = options.cpu
     args["b"] = 2
     args["n"] = n
     args["w"] = options.worktype
@@ -104,14 +132,23 @@ def program_options(guid):
     args["w"] = options.worktype
     args["nw"] = 1
     args["Priority"] = 1
-    args["DaysOfWork"] = 2
+    args["DaysOfWork"] = options.days_work
     args["DayMemory"] = 8
     args["NightMemory"] = 8
     args["DayStartTime"] = 0
     args["NightStartTime"] = 0
     args["RunOnBattery"] = 1
-    print(str(args))
-    print(send_request(guid, args)) # TODO -- take out print()
+    send_request(guid, args)
+
+def unreserve_all():
+    w = readonly_list_file(workfile)
+    tasks = greplike(workpattern, w)
+    for task in tasks:
+        assignment = get_progress_assignment(task)
+        args = au(assignment.id)
+        result = send_request(guid, args)
+        # TODO: Check result with return code
+        # TODO: Delete task from workfile
 
 def return_code(result, aid):
     '''Check if the return code is not OKAY and do something about it
@@ -133,7 +170,7 @@ def return_code(result, aid):
         if rc is primenet_api.ERROR_UNREGISTERED_CPU:
             # should register again and retry
             debug_print(
-                "ERROR UNREGISTERED CPU: Please remove guid line from local.ini, run with --register and retry", file=sys.stderr)
+                "ERROR UNREGISTERED CPU: Please remove guid line from local.ini, run with and retry", file=sys.stderr)
             return False
         elif rc is primenet_api.ERROR_INVALID_PARAMETER:
             debug_print(
@@ -178,34 +215,6 @@ cpu_brand = get_cpu_name(cpu_signature)
 # END Daniel's Functions
 
 
-try:
-    # Python3
-    from urllib.parse import urlencode
-except ImportError:
-    # Python2
-    from urllib import urlencode
-
-try:
-    from configparser import ConfigParser, Error as ConfigParserError
-except ImportError:
-    from ConfigParser import ConfigParser, Error as ConfigParserError  # ver. < 3.0
-
-
-if sys.version_info[:2] >= (3, 7):
-    # If is OK to use dict in 3.7+ because insertion order is garantied to be preserved
-    # Since it is also faster, it is better to use raw dict()
-    OrderedDict = dict
-else:
-    try:
-        from collections import OrderedDict
-    except ImportError:
-        # For python2.6 and before which don't have OrderedDict
-        try:
-            from ordereddict import OrderedDict
-        except ImportError:
-            # Tests will not work correctly but it doesn't affect the functionnality
-            OrderedDict = dict
-
 primenet_v5_burl = "http://v5.mersenne.org/v5server/?"
 PRIMENET_TRANSACTION_API_VERSION = 0.95
 VERSION = 19
@@ -214,6 +223,24 @@ primenet_v5_bargs = OrderedDict(
 primenet_baseurl = "https://www.mersenne.org/"
 primenet_login = False
 
+# Teal's addition
+errors = {primenet_api.PRIMENET_ERROR_SERVER_BUSY: "Server busy",
+        primenet_api.ERROR_INVALID_VERSION: "Invalid version",
+        primenet_api.ERROR_INVALID_TRANSACTION: "Invalid transaction",
+        primenet_api.ERROR_INVALID_PARAMETER: "Invalid parameter",
+        primenet_api.ERROR_ACCESS_DENIED: "Access denied",
+        primenet_api.ERROR_DATABASE_CORRUPT: "Server database malfunction",
+        primenet_api.ERROR_DATABASE_FULL_OR_BROKEN: "Server database full or broken",
+        primenet_api.ERROR_INVALID_USER: "Invalid user",
+        primenet_api.ERROR_UNREGISTERED_CPU: "CPU not registered",
+        primenet_api.ERROR_OBSOLETE_CLIENT: "Obsolete client, please upgrade",
+        primenet_api.ERROR_STALE_CPU_INFO: "Stale cpu info",
+        primenet_api.ERROR_CPU_IDENTITY_MISMATCH: "CPU identity mismatch",
+        primenet_api.ERROR_CPU_CONFIGURATION_MISMATCH: "CPU configuration mismatch",
+        primenet_api.ERROR_NO_ASSIGNMENT: "No assignment",
+        primenet_api.ERROR_INVALID_ASSIGNMENT_KEY: "Invalid assignment key",
+        primenet_api.ERROR_INVALID_ASSIGNMENT_TYPE: "Invalid assignment type",
+        primenet_api.ERROR_INVALID_RESULT_TYPE: "Invalid result type"}
 
 class primenet_api:
     ERROR_OK = 0
@@ -333,7 +360,6 @@ def primenet_fetch(num_to_get):
     if options.worktype in option_dict: # this and the above line of code enables us to use words or numbers on the cmdline
         options.worktype = option_dict[options.worktype]
     supported = set(['100', '101', '102', '104', '150', '151', '152', '153']) if program == "MLucas" else set(['100', '101', '102', '104'])
-    print(options.worktype not in supported)
     if options.worktype not in supported:
         debug_print("Unsupported/unrecognized worktype = " + options.worktype + " for " + program)
         return []
@@ -360,8 +386,8 @@ def primenet_fetch(num_to_get):
             debug_print("Fetching work via V5 Primenet = " +
                     primenet_v5_burl + urlencode(assignment))
             tests = []
+            guid = get_guid(config)
             for _ in range(num_to_get):
-                guid = get_guid(config)
                 r = send_request(guid, assignment)
                 # only gets one assignment ATM
                 tests.append(f"Test={r['k']},{r['n']},{r['sf']},{r['p1']}")
@@ -399,15 +425,12 @@ def get_assignment(progress):
     debug_print("Fetching " + str(num_to_get) + " assignments")
 
     new_tasks = primenet_fetch(num_to_get)
-    #print("new_tasks" + str(new_tasks))
     num_fetched = len(new_tasks)
-    #print("Num fetched " + str(num_fetched))
     if num_fetched > 0:
         debug_print("Fetched {0} assignments:".format(num_fetched))
         for new_task in new_tasks:
             debug_print("{0}".format(new_task))
     write_list_file(workfile, new_tasks, "a")
-    print(num_fetched, num_to_get)
     if num_fetched < num_to_get:
         debug_print("Error: Failed to obtain requested number of new assignments, " +
                     str(num_to_get) + " requested, " + str(num_fetched) + " successfully retrieved")
@@ -479,6 +502,21 @@ def send_request(guid, args):
     # url_args += "&ss=" + str(random.randint(0, sys.maxsize) & 0xFFFF) + "&sh=ABCDABCDABCDABCDABCDABCDABCDABCD"
     try:
         r = requests.get(primenet_v5_burl+url_args)
+
+        result = parse_v5_resp(r.text)
+        rc = int(parsed_resp["pnErrorResult"])
+        if rc:
+            if res in errors:
+                resmsg = errors[res]
+            else:
+                resmsg = "Unknown error code"
+            debug_print("PrimeNet error " + str(rc) + ": " + resmsg, file=sys.stderr)
+                debug_print(result["pnErrorDetail"], file=sys.stderr)
+        else:
+            if result["pnErrorDetail"] != "SUCCESS":
+                    debug_print("PrimeNet success code with additional info:")
+                    debug_print(result["pnErrorDetail"])
+
     except HTTPError as e:
         debug_print("ERROR receiving answer to request: " +
                     str(primenet_v5_burl+url_args), file=sys.stderr)
@@ -554,7 +592,7 @@ def register_instance(guid):
     print("CPU threads per core: {0}".format(options.hp))
     print("CPU frequency: {0} MHz".format(options.frequency))
     print("Total RAM: {0} MiB".format(options.memory))
-    print(u"If you want to change the value, please rerun with the --register option or edit the " + options.localfile + " file")
+    print(u"If you want to change the value, please edit the " + options.localfile + " file")
     print("You can see the result in this page:")
     print("https://www.mersenne.org/editcpu/?g={guid}".format(guid=guid))
     return
@@ -700,6 +738,7 @@ def get_progress_assignment(task):
     return Assignment(assignment_id, p, is_prp, iteration, usec_per_iter)
 
 def parse_stat_file_cuda():
+    # CUDALucas only function
     w = readonly_list_file(options.gpu)  # appended line by line, no lock needed
     found = 0
     iter_regex = re.compile(r'\b\d{5,}\b')
@@ -741,8 +780,6 @@ def send_progress(assignment_id, is_prp, percent, time_left, retry_count=0):
     if guid is None:
         debug_print("Cannot update, the registration is not done",
                     file=sys.stderr)
-        debug_print("Run primenet.py with the --register option",
-                    file=sys.stderr)
         return
     if retry_count > 5:
         return
@@ -777,13 +814,11 @@ def send_progress(assignment_id, is_prp, percent, time_left, retry_count=0):
         else:
             if rc == primenet_api.ERROR_STALE_CPU_INFO:
                 debug_print("STALE CPU INFO ERROR: re-send computer update")
-                # rerun --register
                 register_instance(guid)
                 retry = True
             elif rc == primenet_api.ERROR_UNREGISTERED_CPU:
                 debug_print(
                     "UNREGISTERED CPU ERROR: pick a new GUID and register again")
-                # corrupted GUI: change GUID, and rerun --register
                 register_instance(None)
                 retry = True
             elif rc == primenet_api.ERROR_SERVER_BUSY:
@@ -802,6 +837,8 @@ def send_progress(assignment_id, is_prp, percent, time_left, retry_count=0):
     return
 
 def get_cuda_ar_object(sendline):
+    # CUDALucas only function
+
     # sendline example: 'M( 108928711 )C, 0x810d83b6917d846c, offset = 106008371, n = 6272K, CUDALucas v2.06, AID: 02E4F2B14BB23E2E4B95FC138FC715A8'
     ar = {}
     # args example: ['M( 108928711 )C', '0x810d83b6917d846c', 'offset = 106008371', 'n = 6272K', 'CUDALucas v2.06', 'AID: 02E4F2B14BB23E2E4B95FC138FC715A8']
@@ -843,16 +880,24 @@ def submit_one_line(sendline):
         sent = submit_one_line_manually(sendline)
     return sent
 
+def announce_prime_to_user():
+    for i in range(3):
+        print('\a')
+        time.sleep(.5)
+    print("NUMBER IS PRIME")
+
 
 def get_result_type(ar):
     """Extract result type from JSON result"""
     if ar['worktype'] == 'LL':
         if ar['status'] == 'P':
+            announce_prime_to_user():
             return primenet_api.PRIMENET_AR_LL_PRIME
         else:
             return primenet_api.PRIMENET_AR_LL_RESULT
     elif ar['worktype'].startswith('PRP'):
         if ar['status'] == 'P':
+            announce_prime_to_user():
             return primenet_api.PRIMENET_AR_PRP_PRIME
         else:
             return primenet_api.PRIMENET_AR_PRP_RESULT
@@ -986,7 +1031,7 @@ parser.add_option("-r", "--resultsfile", dest="resultsfile",
 parser.add_option("-l", "--localfile", dest="localfile", default="local.ini",
                   help=u"Local configuration file filename, Default: “%default”")
 
-# all other options are saved to local.ini (except --register)
+# all other options are saved to local.ini
 parser.add_option("-u", "--username", dest="username",
                   help="GIMPS/PrimeNet User ID. Create a GIMPS/PrimeNet account: https://www.mersenne.org/update/. If you do not want a PrimeNet account, you can use ANONYMOUS.")
 parser.add_option("-p", "--password", dest="password",
@@ -1141,13 +1186,11 @@ if config_updated:
 
 # if guid already exist, recover it, this way, one can (re)register to change
 # the CPU model (changing instance name can only be done in the website)
-#guid = create_new_guid() if get_guid(config) is None else get_guid(config)
 guid = get_guid(config)
 if options.username is None:
     parser.error("Username must be given")
 
 program = "CUDALucas" if options.gpu else "MLucas"
-print(guid)
 while True:
     # Carry on with Loarer's style of primenet
     try:
@@ -1177,7 +1220,7 @@ while True:
         submit_work()
         progress = update_progress()
         got = get_assignment(progress)
-        print("GOT: " + str(got))
+        debug_print("Got: " + str(got))
         if got > 0:
             debug_print(
                 "Redo progress update to update the just obtain assignmment(s)")
