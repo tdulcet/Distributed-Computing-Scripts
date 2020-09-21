@@ -58,7 +58,7 @@ def sha256sum(filename):
 # Main script
 USERID = sys.argv[1] if len(sys.argv) > 1 else os.environ["USER"]
 COMPUTER = sys.argv[2] if len(sys.argv) > 2 else socket.gethostname()
-TYPE = sys.argv[3] if len(sys.argv) > 3 else str(100)
+TYPE = sys.argv[3] if len(sys.argv) > 3 else str(150)
 TIME = str(int(sys.argv[4]) * 60) if len(sys.argv) > 4 else str(10 * 60)
 
 #args = [USERID, COMPUTER, TYPE]
@@ -87,7 +87,7 @@ except Exception as error:
 
 #---Command Line Checks------#
 misc_check(len(sys.argv) > 4, "Usage: " + sys.argv[0]+ " [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]")
-regex_check(r'^([024568]|1(0[0124]|5[0124]|6[01])?)$', TYPE, "Usage: [Type of work] is not a valid number")
+regex_check(r'^([024568]|1(0[0124]|5[0123]|6[01])?)$', TYPE, "Usage: [Type of work] is not a valid number")
 regex_check(r'^([0-9]*[.])?[0-9]+$', TIME, err="Usage: [Idle time to run] must be a number")
 #----------------------------#
 

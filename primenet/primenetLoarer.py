@@ -138,7 +138,9 @@ def program_options(guid):
     args["DayStartTime"] = 0
     args["NightStartTime"] = 0
     args["RunOnBattery"] = 1
-    send_request(guid, args)
+    result = send_request(guid, args)
+    if result is None or int(result["pnErrorResult"]) != 0:
+        parser.error("Error while setting program options on mersenne.org")
 
 def unreserve_all():
     w = readonly_list_file(workfile)
@@ -147,7 +149,8 @@ def unreserve_all():
         assignment = get_progress_assignment(task)
         args = au(assignment.id)
         result = send_request(guid, args)
-        # TODO: Check result with return code
+        if result is None or int(result["pnErrorResult"]) != 0:
+            debug_print("ERROR while releasing assignment on mersenne.org: assignment_id={0}".format(assignment.id), file=sys.stderr)
         # TODO: Delete task from workfile
 
 def return_code(result, aid):
@@ -159,14 +162,10 @@ def return_code(result, aid):
     if rc == primenet_api.ERROR_OK:
         debug_print(
             "Result correctly send to server: assignment_id={0}".format(aid))
-        if result["pnErrorDetail"] != "SUCCESS":
-            debug_print("server message: "+result["pnErrorDetail"])
         return True
     else:  # non zero ERROR code
         debug_print("ERROR while submitting result on mersenne.org: assignment_id={0}".format(
             aid), file=sys.stderr)
-        debug_print("Code: "+str(rc), file=sys.stderr)
-        debug_print("Reason: "+result["pnErrorDetail"], file=sys.stderr)
         if rc is primenet_api.ERROR_UNREGISTERED_CPU:
             # should register again and retry
             debug_print(
@@ -223,25 +222,6 @@ primenet_v5_bargs = OrderedDict(
 primenet_baseurl = "https://www.mersenne.org/"
 primenet_login = False
 
-# Teal's addition
-errors = {primenet_api.PRIMENET_ERROR_SERVER_BUSY: "Server busy",
-        primenet_api.ERROR_INVALID_VERSION: "Invalid version",
-        primenet_api.ERROR_INVALID_TRANSACTION: "Invalid transaction",
-        primenet_api.ERROR_INVALID_PARAMETER: "Invalid parameter",
-        primenet_api.ERROR_ACCESS_DENIED: "Access denied",
-        primenet_api.ERROR_DATABASE_CORRUPT: "Server database malfunction",
-        primenet_api.ERROR_DATABASE_FULL_OR_BROKEN: "Server database full or broken",
-        primenet_api.ERROR_INVALID_USER: "Invalid user",
-        primenet_api.ERROR_UNREGISTERED_CPU: "CPU not registered",
-        primenet_api.ERROR_OBSOLETE_CLIENT: "Obsolete client, please upgrade",
-        primenet_api.ERROR_STALE_CPU_INFO: "Stale cpu info",
-        primenet_api.ERROR_CPU_IDENTITY_MISMATCH: "CPU identity mismatch",
-        primenet_api.ERROR_CPU_CONFIGURATION_MISMATCH: "CPU configuration mismatch",
-        primenet_api.ERROR_NO_ASSIGNMENT: "No assignment",
-        primenet_api.ERROR_INVALID_ASSIGNMENT_KEY: "Invalid assignment key",
-        primenet_api.ERROR_INVALID_ASSIGNMENT_TYPE: "Invalid assignment type",
-        primenet_api.ERROR_INVALID_RESULT_TYPE: "Invalid result type"}
-
 class primenet_api:
     ERROR_OK = 0
     ERROR_SERVER_BUSY = 3
@@ -278,6 +258,26 @@ class primenet_api:
     PRIMENET_AR_LL_PRIME = 101  # LL result, Mersenne prime
     PRIMENET_AR_PRP_RESULT = 150  # PRP result, not prime
     PRIMENET_AR_PRP_PRIME = 151  # PRP result, probably prime
+
+# Teal's addition
+errors = {primenet_api.ERROR_SERVER_BUSY: "Server busy",
+        primenet_api.ERROR_INVALID_VERSION: "Invalid version",
+        primenet_api.ERROR_INVALID_TRANSACTION: "Invalid transaction",
+        primenet_api.ERROR_INVALID_PARAMETER: "Invalid parameter",
+        primenet_api.ERROR_ACCESS_DENIED: "Access denied",
+        primenet_api.ERROR_DATABASE_CORRUPT: "Server database malfunction",
+        primenet_api.ERROR_DATABASE_FULL_OR_BROKEN: "Server database full or broken",
+        primenet_api.ERROR_INVALID_USER: "Invalid user",
+        primenet_api.ERROR_UNREGISTERED_CPU: "CPU not registered",
+        primenet_api.ERROR_OBSOLETE_CLIENT: "Obsolete client, please upgrade",
+        primenet_api.ERROR_STALE_CPU_INFO: "Stale cpu info",
+        primenet_api.ERROR_CPU_IDENTITY_MISMATCH: "CPU identity mismatch",
+        primenet_api.ERROR_CPU_CONFIGURATION_MISMATCH: "CPU configuration mismatch",
+        primenet_api.ERROR_NO_ASSIGNMENT: "No assignment",
+        primenet_api.ERROR_INVALID_ASSIGNMENT_KEY: "Invalid assignment key",
+        primenet_api.ERROR_INVALID_ASSIGNMENT_TYPE: "Invalid assignment type",
+        primenet_api.ERROR_INVALID_RESULT_TYPE: "Invalid result type"}
+
 
 
 def debug_print(text, file=sys.stdout):
@@ -388,7 +388,10 @@ def primenet_fetch(num_to_get):
             tests = []
             guid = get_guid(config)
             for _ in range(num_to_get):
-                r = send_request(guid, assignment)
+                result = send_request(guid, assignment)
+                if result is None or int(result["pnErrorResult"]) != 0:
+                    debug_print("ERROR while requesting an assignment on mersenne.org", file=sys.stderr)
+                    break
                 # only gets one assignment ATM
                 tests.append(f"Test={r['k']},{r['n']},{r['sf']},{r['p1']}")
             return tests
@@ -504,18 +507,18 @@ def send_request(guid, args):
         r = requests.get(primenet_v5_burl+url_args)
 
         result = parse_v5_resp(r.text)
-        rc = int(parsed_resp["pnErrorResult"])
+        rc = int(result["pnErrorResult"])
         if rc:
             if res in errors:
                 resmsg = errors[res]
             else:
                 resmsg = "Unknown error code"
             debug_print("PrimeNet error " + str(rc) + ": " + resmsg, file=sys.stderr)
-                debug_print(result["pnErrorDetail"], file=sys.stderr)
+            debug_print(result["pnErrorDetail"], file=sys.stderr)
         else:
             if result["pnErrorDetail"] != "SUCCESS":
-                    debug_print("PrimeNet success code with additional info:")
-                    debug_print(result["pnErrorDetail"])
+                debug_print("PrimeNet success code with additional info:")
+                debug_print(result["pnErrorDetail"])
 
     except HTTPError as e:
         debug_print("ERROR receiving answer to request: " +
@@ -527,7 +530,7 @@ def send_request(guid, args):
                     str(primenet_v5_burl+url_args), file=sys.stderr)
         debug_print(e, file=sys.stderr)
         return None
-    return parse_v5_resp(r.text)
+    return result
 
 
 def create_new_guid():
@@ -573,11 +576,8 @@ def register_instance(guid):
     if guid is None:
         guid = create_new_guid()
     result = send_request(guid, args)
-    if result is None:
+    if result is None or int(result["pnErrorResult"]) != 0:
         parser.error("Error while registering on mersenne.org")
-    elif int(result["pnErrorResult"]) != 0:
-        parser.error(
-            "Error while registering on mersenne.org\nReason: "+result["pnErrorDetail"])
     program_options(guid)
     config_write(config, guid=guid)
     print("GUID {guid} correctly registered with the following features:".format(
@@ -810,7 +810,7 @@ def send_progress(assignment_id, is_prp, percent, time_left, retry_count=0):
     else:
         rc = int(result["pnErrorResult"])
         if rc == primenet_api.ERROR_OK:
-            debug_print("Update correctly send to server")
+            debug_print("Update correctly sent to server")
         else:
             if rc == primenet_api.ERROR_STALE_CPU_INFO:
                 debug_print("STALE CPU INFO ERROR: re-send computer update")
@@ -830,8 +830,6 @@ def send_progress(assignment_id, is_prp, percent, time_left, retry_count=0):
                 # drop the assignment
                 debug_print("ERROR while updating on mersenne.org",
                             file=sys.stderr)
-            debug_print("Code: "+str(rc), file=sys.stderr)
-            debug_print("Reason: "+result["pnErrorDetail"], file=sys.stderr)
     if retry:
         return send_progress(assignment_id, is_prp, percent, time_left, retry_count+1)
     return
@@ -849,7 +847,7 @@ def get_cuda_ar_object(sendline):
     ar['status'] = 'P' if int(args[1], 0) == 0 else 'R' # the else does not matter in Loarer's program
     ar['exponent'] = re.search(r'\d{5,}',args[0]).group(0)
 
-    ar['res64'] = args[1].strip("0x")
+    ar['res64'] = args[1][2:]
     ar['shift-count'] = args[2].strip("offset = ")
     ar['error-code'] = "00000000"
     #print(ar['error-code'])
@@ -880,24 +878,29 @@ def submit_one_line(sendline):
         sent = submit_one_line_manually(sendline)
     return sent
 
-def announce_prime_to_user():
+def announce_prime_to_user(worktype):
     for i in range(3):
         print('\a')
         time.sleep(.5)
-    print("NUMBER IS PRIME")
+    with open(options.workfile, 'r') as f1:
+        m_num = f1.readline().split(",")[1]
+    if worktype == 'LL':
+        print("New Mersenne Prime!!!! M"+m_num+" is prime!")
+    if worktype == 'PRP':
+        print("New Probable Prime!!!! "+m_num+" is a probable prime!")
 
 
 def get_result_type(ar):
     """Extract result type from JSON result"""
     if ar['worktype'] == 'LL':
         if ar['status'] == 'P':
-            announce_prime_to_user():
+            announce_prime_to_user(ar['worktype'])
             return primenet_api.PRIMENET_AR_LL_PRIME
         else:
             return primenet_api.PRIMENET_AR_LL_RESULT
     elif ar['worktype'].startswith('PRP'):
         if ar['status'] == 'P':
-            announce_prime_to_user():
+            announce_prime_to_user(ar['worktype'])
             return primenet_api.PRIMENET_AR_PRP_PRIME
         else:
             return primenet_api.PRIMENET_AR_PRP_RESULT
