@@ -102,7 +102,7 @@ os.environ["DIR"] = os.getcwd()
 
 print("\nDownloading Prime95\n")
 wget.download('https://www.mersenne.org/ftp_root/gimps/'+FILE)
-misc_check(sha256sum("p95v298b3.linux64.tar.gz") == SUM, "Error: sha256sum does not match. Please run \"rm -r " + DIR + "\" and try running this script again")
+misc_check(sha256sum(FILE) == SUM, "Error: sha256sum does not match. Please run \"rm -r " + DIR + "\" and try running this script again")
 
 print("\nDecompressing the files")
 subprocess.run(['tar', '-xzvf', FILE])
@@ -117,31 +117,6 @@ args = [USERID, COMPUTER, TYPE]
 p = subprocess.check_output("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
 print(p)
 
-'''
-print("Setting up Prime95.")
-#p = subprocess.Popen(['wget', 'https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py', '-qO', '-' '--'] + args,
-p = subprocess.Popen(['wget', 'https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py', '-qO', '-' '--'] + args,
-  stdout=subprocess.PIPE,
-  universal_newlines=True,
-  bufsize=0)
-
-# This code block reads the output from the pexpect script p
-for line in p.stdout:
-    line=line[:-1]
-    print(line)
-'''
-
-'''print("Setting up Prime95.")
-p = subprocess.Popen(['python3', "../exp.py"] + args,
-  stdout=subprocess.PIPE,
-  universal_newlines=True,
-  bufsize=0)
-
-# This code block reads the output from the pexpect script p
-for line in p.stdout:
-    line=line[:-1]
-    print(line)
-'''
 #---------------------------------------#
 
 #---Starting Program---#
