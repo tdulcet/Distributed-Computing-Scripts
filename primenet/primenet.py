@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 '''
 Automatic assignment handler for Mlucas and CUDALucas.
 
@@ -92,9 +91,8 @@ else:
 s = requests.Session()  # session that maintains our cookies
 
 # [***] Daniel Connelly's functions
+
 # get assignment
-
-
 def ga():
     args = primenet_v5_bargs.copy()
     args["t"] = "ga"			# transaction type
@@ -104,8 +102,6 @@ def ga():
     return args
 
 # register assignment
-
-
 def ra(n):
     '''Note: this function is not used'''
     args = primenet_v5_bargs.copy()
@@ -118,8 +114,6 @@ def ra(n):
     return args
 
 # unreserve assignment
-
-
 def au(k):
     '''Note: this function is not used'''
     args = primenet_v5_bargs.copy()
@@ -129,26 +123,29 @@ def au(k):
     return args
 
 
-# TODO -- have people set their own program options
+# TODO -- have people set their own program options for commented out portions
 def program_options(guid):
     args = primenet_v5_bargs.copy()
     args["t"] = "po"
     args["g"] = guid
     args["c"] = ""  # no value updates all cpu threads with given worktype
     args["w"] = options.worktype
-    args["nw"] = 1
-    args["Priority"] = 1
+    #args["nw"] = 1
+    #args["Priority"] = 1
     args["DaysOfWork"] = options.days_work
-    args["DayMemory"] = 8
+    #args["DayMemory"] = 8
     args["NightMemory"] = 8
     args["DayStartTime"] = 0
     args["NightStartTime"] = 0
-    args["RunOnBattery"] = 1
+    #args["RunOnBattery"] = 1
     result = send_request(guid, args)
     if result is None or int(result["pnErrorResult"]) != 0:
         parser.error("Error while setting program options on mersenne.org")
+    #print("RESULT : " + str(result)) # TODO -- delete
+    #config.set("primenet", "worktype", result["w"]) # TODO -- talk to Teal
 
 
+# not used
 def unreserve_all():
     w = readonly_list_file(workfile)
     tasks = greplike(workpattern, w)
@@ -293,8 +290,6 @@ def debug_print(text, file=sys.stdout):
         if caller_name == '<module>':
             caller_name = 'main loop'
         caller_string = caller_name + ": "
-        #print(progname + ": " + caller_string + str(text), file=file)
-        #print(progname + " " + time.strftime("%Y-%m-%d %H:%M") + " " + text, file=file)
         print(progname + " " + time.strftime("%Y-%m-%d %H:%M") +
               " " + str(text), file=file)
         file.flush()
@@ -391,29 +386,44 @@ def primenet_fetch(num_to_get):
                         openurl + urlencode(assignment))
             r = s.post(openurl, data=assignment)
             return greplike(workpattern, [line.decode('utf-8', 'replace') for line in r.iter_lines()])
-        # Get assignment (Daniel + Teal's way)
+
+        # Get assignment using V5 API
         else:
             assignment = ga()  # get assignment
-            print(assignment)
+            print("ASSIGNMENT " + str(assignment)) # TODO -- delete
+            # ASSIGNMENT OrderedDict([('px', 'GIMPS'), ('v', 0.95), ('t', 'ga'), ('g', 'cb9d6a5abd612fa1b9ab2ef7b88d37e1'), ('c', 0), ('a', '')]) # TODO -- delete
             debug_print("Fetching work via V5 Primenet = " +
                         primenet_v5_burl + urlencode(assignment))
             tests = []
             guid = get_guid(config)
             for _ in range(num_to_get):
                 r = send_request(guid, assignment)
+                if r['w'] not in supported:
+                    debug_print("ERROR: Returned assignment from server is not a supported worktype for " + program + ".", file=sys.stderr)
+                    return []
+                print("RRRRRRRRRRRRRRRRRRRRRRRRRR " + str(r)) # TODO -- delete
+                # {'pnErrorResult': '0', 'pnErrorDetail': 'Assigning a double-check for yearly hardware check.', 'Server assigned Lucas Lehmer primality double-check work.': '', 'g': '7a2bed025d8960271a4a797f54a2d795', 'k': 'B58A07AF021C4296F839573230AA4462', 'A': '1', 'b': '2', 'n': '58837627', 'c': '-1', 'w': '101', 'sf': '74', 'p1': '1'}
                 if r is None or int(r["pnErrorResult"]) != 0:
                     debug_print(
                         "ERROR while requesting an assignment on mersenne.org", file=sys.stderr)
                     break
-                # only gets one assignment ATM
-                tests.append(f"Test={r['k']},{r['n']},{r['sf']},{r['p1']}")
+                # if options.worktype == LL or DC check
+                if r['w'] in set(['100', '101', '102', '104']):
+                    tests.append("Test="+r['k']+","+r['n']+","+r['sf']+","+r['p1'])
+                # if PRP type testing, first time
+                elif r['w'] in set(['150', '152', '153']):
+                    tests.append("PRP="+r['k']+","+r['b']+","+r['n']+","+r['c'])
+                # if PRP-DC (probable-primality double-check) testing
+                elif r['w'] in set(['151']):
+                    tests.append("PRP="+r['k']+","+r['b']+","+r['n']+","+r['c'])
+
+
             return tests
     except ConnectionError:
         debug_print("URL open error at primenet_fetch")
         return []
 
 
-# TODO -- with current program options, I only receive one assignment and do not know why, but should receive 2 or more
 def get_assignment(progress):
     w = readonly_list_file(workfile)
     tasks = greplike(workpattern, w)
@@ -421,12 +431,7 @@ def get_assignment(progress):
     if progress is not None and type(progress) == tuple and len(progress) == 2:
         (percent, time_left) = progress  # unpack update_progress output
     num_cache = int(options.num_cache) + 1
-    # if percent is not None and percent >= int(options.percent_limit):
-    # num_cache += 1
-    # debug_print("Progress of current assignment is {0:.2f} and bigger than limit ({1}), so num_cache is increased by one to {2}".format(percent, options.percent_limit, num_cache))
-    # elif time_left is not None and time_left <= max(3*options.timeout, 24*3600):
     if time_left is not None and time_left <= options.days_work*24*3600:
-        # use else if here is important,
         # time_left and percent increase are exclusive (don't want to do += 2)
         num_cache += 1
         debug_print("Time_left is {0} and smaller than limit ({1}), so num_cache is increased by one to {2}".format(
@@ -513,12 +518,9 @@ def send_request(guid, args):
     # to mimic mprime, it is necessary to add safe='"{}:,' argument to urlencode, in
     # particular to encode JSON in result submission. But safe is not supported by python2...
     url_args = urlencode(args)
-    # Only really usefull for t = "uc", not for "ap", is it for "ar" ?
     url_args += "&ss=19191919&sh=ABCDABCDABCDABCDABCDABCDABCDABCD"
-    # url_args += "&ss=" + str(random.randint(0, sys.maxsize) & 0xFFFF) + "&sh=ABCDABCDABCDABCDABCDABCDABCDABCD"
     try:
         r = requests.get(primenet_v5_burl+url_args)
-
         result = parse_v5_resp(r.text)
         rc = int(result["pnErrorResult"])
         if rc:
@@ -592,7 +594,12 @@ def register_instance(guid):
     result = send_request(guid, args)
     if result is None or int(result["pnErrorResult"]) != 0:
         parser.error("Error while registering on mersenne.org")
+    # Save program options in case they are changed by the PrimeNet server.
+    config.set("primenet", "username", result["u"])
+    config.set("primenet", "name", result["un"])
+    config.set("primenet", "hostname", result["cn"])
     program_options(guid)
+    merge_config_and_options(config, options)
     config_write(config, guid=guid)
     print("GUID {guid} correctly registered with the following features:".format(
         guid=guid))
@@ -648,7 +655,7 @@ def merge_config_and_options(config, options):
     # one line per attribute. Only the attr_to_copy list need to be updated
     # when adding an option you want to copy from argument options to local.ini config.
     attr_to_copy = ["workfile", "resultsfile", "localfile", "username", "password", "worktype", "num_cache", "days_work",
-                    "hostname", "cpu_model", "features", "frequency", "memory", "L1", "L2", "np", "hp"]
+                    "hostname", "cpu_model", "features", "frequency", "memory", "L1", "L2", "np", "hp", "gpu"]
     updated = False
     for attr in attr_to_copy:
         # if "attr" has its default value in options, copy it from config
@@ -773,6 +780,8 @@ def parse_stat_file_cuda():
             # keep the last iteration to compute the percent of progress
             if found == 1:
                 iteration = int(iter_res[1])
+            elif int(iter_res[1]) > iteration:
+                break
             msec_per_iter = float(ms_res[1])
             list_msec_per_iter.append(msec_per_iter)
             if found == 5:
@@ -918,7 +927,7 @@ def get_result_type(ar):
             return primenet_api.PRIMENET_AR_LL_RESULT
     elif ar['worktype'].startswith('PRP'):
         if ar['status'] == 'P':
-            announce_prime_to_user(ar['worktype'])
+            announce_prime_to_user(ar['exponent'], ar['worktype'])
             return primenet_api.PRIMENET_AR_PRP_PRIME
         else:
             return primenet_api.PRIMENET_AR_PRP_RESULT
@@ -1078,7 +1087,7 @@ parser.add_option("-c", "--cpu_num", dest="cpu", type="int", default=0,
                   help="CPU core or GPU number to get assignments for, Default: %default")
 parser.add_option("-n", "--num_cache", dest="num_cache", type="int",
                   default=0, help="Number of assignments to cache, Default: %default")
-parser.add_option("-L", "--days_work", dest="days_work", type="int", default=3,
+parser.add_option("-L", "--days_work", dest="days_work", type="float", default=3,
                   help="Days of work to queue, Default: %default days. Add one to num_cache when the time left for the current assignment is less then this number of days.")
 
 parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60*60*6,
@@ -1230,6 +1239,8 @@ while True:
         else:
             if guid is None:
                 register_instance(guid)
+                if options.timeout <= 0:
+                    break
             # worktype has changed, update worktype preference in program_options()
             # if config_updated:
             elif config_updated:

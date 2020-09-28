@@ -22,7 +22,7 @@ since they can run in parallel to "crunch" more prime numbers. Each notebook mak
 3. **Run/Click ▶** to run the GIMPS project anonymously. Alternatively, fill in the fields with your Mersenne.org user credentials.
 
 4. **When the Notebook Disconnects** – for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
-usage limit, a bad internet connection, Google requiring your GPU type, etc. – you must press the `reconnect` button and potentially start steps 2-3 again to continue where the software left off.
+usage limit, a bad internet connection, Google requiring your GPU type, etc. – after the usage limit is over, follow step 3 again to continue where the software left off.
 
 Google may offer you two GPU runtimes to disperse among two of the notebooks assigned to you. In this case, you may run another CUDALucas job by re-running the notebook with a different `computer_number` option. For example, choose `2` if you are already running a notebook with the `Default (1)` number.
 
