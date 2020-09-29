@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
 Automatic assignment handler for Mlucas and CUDALucas.
 
@@ -132,17 +133,24 @@ def program_options(guid):
     args["w"] = options.worktype
     #args["nw"] = 1
     #args["Priority"] = 1
-    args["DaysOfWork"] = options.days_work
+    args["DaysOfWork"] = round(options.days_work)
     #args["DayMemory"] = 8
-    args["NightMemory"] = 8
-    args["DayStartTime"] = 0
-    args["NightStartTime"] = 0
+    #args["NightMemory"] = 8
+    #args["DayStartTime"] = 0
+    #args["NightStartTime"] = 0
     #args["RunOnBattery"] = 1
     result = send_request(guid, args)
     if result is None or int(result["pnErrorResult"]) != 0:
         parser.error("Error while setting program options on mersenne.org")
     #print("RESULT : " + str(result)) # TODO -- delete
     #config.set("primenet", "worktype", result["w"]) # TODO -- talk to Teal
+    if "w" in result:
+        config.set("primenet", "worktype", result["w"])
+    if "DaysOfWork" in result:
+        config.set("primenet", "days_work", result["DaysOfWork"])
+    if "w" in result or "DaysOfWork" in result:
+        merge_config_and_options(config, options)
+        config_write(config)
 
 
 # not used
@@ -398,15 +406,15 @@ def primenet_fetch(num_to_get):
             guid = get_guid(config)
             for _ in range(num_to_get):
                 r = send_request(guid, assignment)
-                if r['w'] not in supported:
-                    debug_print("ERROR: Returned assignment from server is not a supported worktype for " + program + ".", file=sys.stderr)
-                    return []
                 print("RRRRRRRRRRRRRRRRRRRRRRRRRR " + str(r)) # TODO -- delete
                 # {'pnErrorResult': '0', 'pnErrorDetail': 'Assigning a double-check for yearly hardware check.', 'Server assigned Lucas Lehmer primality double-check work.': '', 'g': '7a2bed025d8960271a4a797f54a2d795', 'k': 'B58A07AF021C4296F839573230AA4462', 'A': '1', 'b': '2', 'n': '58837627', 'c': '-1', 'w': '101', 'sf': '74', 'p1': '1'}
                 if r is None or int(r["pnErrorResult"]) != 0:
                     debug_print(
                         "ERROR while requesting an assignment on mersenne.org", file=sys.stderr)
                     break
+                if r['w'] not in supported:
+                    debug_print("ERROR: Returned assignment from server is not a supported worktype for " + program + ".", file=sys.stderr)
+                    return []
                 # if options.worktype == LL or DC check
                 if r['w'] in set(['100', '101', '102', '104']):
                     tests.append("Test="+r['k']+","+r['n']+","+r['sf']+","+r['p1'])
@@ -598,9 +606,9 @@ def register_instance(guid):
     config.set("primenet", "username", result["u"])
     config.set("primenet", "name", result["un"])
     config.set("primenet", "hostname", result["cn"])
-    program_options(guid)
     merge_config_and_options(config, options)
     config_write(config, guid=guid)
+    program_options(guid)
     print("GUID {guid} correctly registered with the following features:".format(
         guid=guid))
     print("Username: {0}".format(options.username))
@@ -1097,7 +1105,7 @@ group = OptionGroup(parser, "Registering Options: sent to PrimeNet/GIMPS when re
 group.add_option("-H", "--hostname", dest="hostname",
                  default=platform.node()[:20], help="Computer name, Default: %default")
 # TODO: add detection for most parameter, including automatic change of the hardware
-group.add_option("--cpu_model", dest="cpu_model", default=f'{cpu_signature}',
+group.add_option("--cpu_model", dest="cpu_model", default=cpu_signature,
                  help="Processor (CPU) model, Default: %default")
 group.add_option("--features", dest="features", default="",
                  help="CPU features, Default: '%default'")
