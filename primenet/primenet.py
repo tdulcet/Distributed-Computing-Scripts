@@ -51,7 +51,6 @@ from optparse import OptionParser, OptionGroup
 from hashlib import sha256
 import json
 import platform
-from requests.exceptions import ConnectionError, HTTPError
 import logging
 import hashlib
 try:
@@ -64,9 +63,13 @@ except ImportError as error:
 try:
     # Python3
     from urllib.parse import urlencode
+    from requests.exceptions import ConnectionError, HTTPError
 except ImportError:
     # Python2
     from urllib import urlencode
+    from urllib2 import URLError as ConnectionError
+    from urllib2 import HTTPError
+
 
 try:
     from configparser import ConfigParser, Error as ConfigParserError
@@ -133,7 +136,7 @@ def program_options(guid):
     args["w"] = options.worktype
     #args["nw"] = 1
     #args["Priority"] = 1
-    args["DaysOfWork"] = round(options.days_work)
+    args["DaysOfWork"] = int(round(options.days_work))
     #args["DayMemory"] = 8
     #args["NightMemory"] = 8
     #args["DayStartTime"] = 0
@@ -377,7 +380,6 @@ def primenet_fetch(num_to_get):
         debug_print("Unsupported/unrecognized worktype = " +
                     options.worktype + " for " + program)
         return []
-
     try:
         # Get assignment (Loarer's way)
         if options.password:
@@ -399,15 +401,17 @@ def primenet_fetch(num_to_get):
         else:
             assignment = ga()  # get assignment
             print("ASSIGNMENT " + str(assignment)) # TODO -- delete
-            # ASSIGNMENT OrderedDict([('px', 'GIMPS'), ('v', 0.95), ('t', 'ga'), ('g', 'cb9d6a5abd612fa1b9ab2ef7b88d37e1'), ('c', 0), ('a', '')]) # TODO -- delete
             debug_print("Fetching work via V5 Primenet = " +
                         primenet_v5_burl + urlencode(assignment))
             tests = []
             guid = get_guid(config)
             for _ in range(num_to_get):
                 r = send_request(guid, assignment)
-                print("RRRRRRRRRRRRRRRRRRRRRRRRRR " + str(r)) # TODO -- delete
-                # {'pnErrorResult': '0', 'pnErrorDetail': 'Assigning a double-check for yearly hardware check.', 'Server assigned Lucas Lehmer primality double-check work.': '', 'g': '7a2bed025d8960271a4a797f54a2d795', 'k': 'B58A07AF021C4296F839573230AA4462', 'A': '1', 'b': '2', 'n': '58837627', 'c': '-1', 'w': '101', 'sf': '74', 'p1': '1'}
+                # TODO -- delete below
+                #print("RRRRRRRRRRRRRRRRRRRRRRRRRR " + str(r))
+                # Regular assignment {'pnErrorResult': '0', 'pnErrorDetail': 'Assigning a double-check for yearly hardware check.', 'Server assigned Lucas Lehmer primality double-check work.': '', 'g': '7a2bed025d8960271a4a797f54a2d795', 'k': 'B58A07AF021C4296F839573230AA4462', 'A': '1', 'b': '2', 'n': '58837627', 'c': '-1', 'w': '101', 'sf': '74', 'p1': '1'}
+                # PRP Assignment : {u'A': u'1', u'c': u'-1', u'b': u'2', u'g': u'2176024a595828e810766530dbd47a6f', u'k': u'995231599C026D5FC96DB728D5807BA0', u'n': u'112584079', u'pnErrorDetail': u'Server assigned PRP work.', u'w': u'150', u'sf': u'76', u'saved': u'2', u'pnErrorResult': u'0'}
+                # PRP Double Check: {'pnErrorResult': '0', 'pnErrorDetail': 'Server assigned PRPDC work.', 'g': '15195a587fd9a1adabd24c9f21f9db3c', 'k': 'CAF327C97D9FB599E14922E20E02E389', 'A': '1', 'b': '2', 'n': '83980877', 'c': '-1', 'w': '150', 'sf': '76', 'saved': '0', 'base': '3', 'rt': '4', 'dc': '1'}
                 if r is None or int(r["pnErrorResult"]) != 0:
                     debug_print(
                         "ERROR while requesting an assignment on mersenne.org", file=sys.stderr)
@@ -420,11 +424,10 @@ def primenet_fetch(num_to_get):
                     tests.append("Test="+r['k']+","+r['n']+","+r['sf']+","+r['p1'])
                 # if PRP type testing, first time
                 elif r['w'] in set(['150', '152', '153']):
-                    tests.append("PRP="+r['k']+","+r['b']+","+r['n']+","+r['c'])
+                    tests.append("PRP="+r['k']+","+r['b']+","+r['n']+","+r['c']+","+r['sf']+","r['saved'])
                 # if PRP-DC (probable-primality double-check) testing
                 elif r['w'] in set(['151']):
-                    tests.append("PRP="+r['k']+","+r['b']+","+r['n']+","+r['c'])
-
+                    tests.append("PRP="+r['k']+","+r['b']+","+r['n']+","+r['c']+","+r['sf']+","+r['saved']+","+r['base']+","+r['rt'])
 
             return tests
     except ConnectionError:
@@ -532,8 +535,8 @@ def send_request(guid, args):
         result = parse_v5_resp(r.text)
         rc = int(result["pnErrorResult"])
         if rc:
-            if res in errors:
-                resmsg = errors[res]
+            if rc in errors:
+                resmsg = errors[rc]
             else:
                 resmsg = "Unknown error code"
             debug_print("PrimeNet error " + str(rc) +
