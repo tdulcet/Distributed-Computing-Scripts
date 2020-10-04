@@ -400,18 +400,12 @@ def primenet_fetch(num_to_get):
         # Get assignment using V5 API
         else:
             assignment = ga()  # get assignment
-            print("ASSIGNMENT " + str(assignment)) # TODO -- delete
             debug_print("Fetching work via V5 Primenet = " +
                         primenet_v5_burl + urlencode(assignment))
             tests = []
             guid = get_guid(config)
             for _ in range(num_to_get):
                 r = send_request(guid, assignment)
-                # TODO -- delete below
-                #print("RRRRRRRRRRRRRRRRRRRRRRRRRR " + str(r))
-                # Regular assignment {'pnErrorResult': '0', 'pnErrorDetail': 'Assigning a double-check for yearly hardware check.', 'Server assigned Lucas Lehmer primality double-check work.': '', 'g': '7a2bed025d8960271a4a797f54a2d795', 'k': 'B58A07AF021C4296F839573230AA4462', 'A': '1', 'b': '2', 'n': '58837627', 'c': '-1', 'w': '101', 'sf': '74', 'p1': '1'}
-                # PRP Assignment : {u'A': u'1', u'c': u'-1', u'b': u'2', u'g': u'2176024a595828e810766530dbd47a6f', u'k': u'995231599C026D5FC96DB728D5807BA0', u'n': u'112584079', u'pnErrorDetail': u'Server assigned PRP work.', u'w': u'150', u'sf': u'76', u'saved': u'2', u'pnErrorResult': u'0'}
-                # PRP Double Check: {'pnErrorResult': '0', 'pnErrorDetail': 'Server assigned PRPDC work.', 'g': '15195a587fd9a1adabd24c9f21f9db3c', 'k': 'CAF327C97D9FB599E14922E20E02E389', 'A': '1', 'b': '2', 'n': '83980877', 'c': '-1', 'w': '150', 'sf': '76', 'saved': '0', 'base': '3', 'rt': '4', 'dc': '1'}
                 if r is None or int(r["pnErrorResult"]) != 0:
                     debug_print(
                         "ERROR while requesting an assignment on mersenne.org", file=sys.stderr)
@@ -419,15 +413,18 @@ def primenet_fetch(num_to_get):
                 if r['w'] not in supported:
                     debug_print("ERROR: Returned assignment from server is not a supported worktype for " + program + ".", file=sys.stderr)
                     return []
-                # if options.worktype == LL or DC check
-                if r['w'] in set(['100', '101', '102', '104']):
-                    tests.append("Test="+r['k']+","+r['n']+","+r['sf']+","+r['p1'])
+                # if options.worktype == LL
+                if r['w'] in set(['100', '102', '104']):
+                    tests.append("Test="+",".join([r[i] for i in ['k','n','sf','p1']]))
+                # if options.worktype == DC
+                elif r['w'] in set(['101']):
+                    tests.append("DoubleCheck="+",".join([r[i] for i in ['k','n','sf','p1']]))
                 # if PRP type testing, first time
                 elif r['w'] in set(['150', '152', '153']):
-                    tests.append("PRP="+r['k']+","+r['b']+","+r['n']+","+r['c']+","+r['sf']+","r['saved'])
+                    tests.append("PRP="+",".join([r[i] for i in ['k','b','n','c','sf','saved']]))
                 # if PRP-DC (probable-primality double-check) testing
                 elif r['w'] in set(['151']):
-                    tests.append("PRP="+r['k']+","+r['b']+","+r['n']+","+r['c']+","+r['sf']+","+r['saved']+","+r['base']+","+r['rt'])
+                    tests.append("PRP="+",".join([r[i] for i in ['k','b','n','c','sf','saved','base','rt']]))
 
             return tests
     except ConnectionError:
