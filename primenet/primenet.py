@@ -57,7 +57,7 @@ try:
     import requests
 except ImportError as error:
     print("Installing requests as dependency")
-    p = subprocess.run('pip install requests', shell=True)
+    subprocess.check_output("pip install requests", shell=True)
     import requests
 
 try:
