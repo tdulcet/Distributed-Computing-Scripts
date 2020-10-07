@@ -58,7 +58,8 @@ try:
 except ImportError as error:
     print("Installing requests as dependency")
     subprocess.check_output("pip install requests", shell=True)
-    import requests
+    print("The Requests library has been installed. Please run the program again")
+    sys.exit(0)
 
 try:
     # Python3
@@ -301,7 +302,7 @@ def debug_print(text, file=sys.stdout):
         if caller_name == '<module>':
             caller_name = 'main loop'
         caller_string = caller_name + ": "
-        print(progname + " " + time.strftime("%Y-%m-%d %H:%M") +
+        print(progname + ": " + caller_string + " " + time.strftime("%Y-%m-%d %H:%M") +
               " " + str(text), file=file)
         file.flush()
 
@@ -485,6 +486,9 @@ except ImportError:
 
 def parse_stat_file(p):
     statfile = 'p' + str(p) + '.stat'
+    if !os.path.exists(statfile):
+        print("ERROR: GPU file does not exist")
+        sys.exit(2)
     w = readonly_list_file(statfile)  # appended line by line, no lock needed
     found = 0
     regex = re.compile("Iter# = (.+?) .*?(\d+\.\d+) (m?sec)/iter")
@@ -772,6 +776,9 @@ def get_progress_assignment(task):
 def parse_stat_file_cuda():
     # CUDALucas only function
     # appended line by line, no lock needed
+    if !os.path.exists(options.gpu):
+        print("ERROR: GPU file does not exist")
+        sys.exit(2)
     w = readonly_list_file(options.gpu)
     found = 0
     iter_regex = re.compile(r'\b\d{5,}\b')
@@ -1262,7 +1269,7 @@ while True:
         progress = update_progress()
         got = get_assignment(progress)
         debug_print("Got: " + str(got))
-        if got > 0:
+        if got > 0 and not options.password:
             debug_print(
                 "Redo progress update to update the just obtain assignmment(s)")
             time.sleep(1)
