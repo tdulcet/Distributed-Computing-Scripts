@@ -1139,6 +1139,10 @@ parser.add_option_group(group)
 progname = os.path.basename(sys.argv[0])
 workdir = os.path.expanduser(options.workdir)
 
+localfile = os.path.join(workdir, options.localfile)
+workfile = os.path.join(workdir, options.workfile)
+resultsfile = os.path.join(workdir, options.resultsfile)
+
 # A cumulative backup
 sentfile = os.path.join(workdir, "results_sent.txt")
 
