@@ -486,9 +486,10 @@ except ImportError:
 
 def parse_stat_file(p):
     statfile = 'p' + str(p) + '.stat'
-    if !os.path.exists(statfile):
-        print("ERROR: GPU file does not exist")
-        sys.exit(2)
+    if os.path.exists(statfile) == False:
+        print("ERROR: stat file does not exist")
+        return 0, None
+
     w = readonly_list_file(statfile)  # appended line by line, no lock needed
     found = 0
     regex = re.compile("Iter# = (.+?) .*?(\d+\.\d+) (m?sec)/iter")
@@ -689,6 +690,10 @@ def merge_config_and_options(config, options):
                         " with {0}={1}".format(attr, attr_val))
             config.set("primenet", attr, str(attr_val))
             updated = True
+
+    localfile = os.path.join(workdir, options.localfile)
+    workfile = os.path.join(workdir, options.workfile)
+    resultsfile = os.path.join(workdir, options.resultsfile)
     return updated
 
 
@@ -776,7 +781,7 @@ def get_progress_assignment(task):
 def parse_stat_file_cuda():
     # CUDALucas only function
     # appended line by line, no lock needed
-    if !os.path.exists(options.gpu):
+    if os.path.exists(options.gpu) == False:
         print("ERROR: GPU file does not exist")
         sys.exit(2)
     w = readonly_list_file(options.gpu)
@@ -1096,8 +1101,7 @@ parser.add_option("-T", "--worktype", dest="worktype", default="100", help="""Ty
                   )
 
 # parser.add_option("-g", "--gpu", action="store_true", dest="gpu", default=False,
-parser.add_option("-g", "--gpu", dest="gpu", default=False,
-                  help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas). This flag takes as argument your CUDALucas output file.")
+parser.add_option("-g", "--gpu", dest="gpu", help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas). This flag takes as argument your CUDALucas output file.")
 parser.add_option("-c", "--cpu_num", dest="cpu", type="int", default=0,
                   help="CPU core or GPU number to get assignments for, Default: %default")
 parser.add_option("-n", "--num_cache", dest="num_cache", type="int",
@@ -1134,10 +1138,6 @@ parser.add_option_group(group)
 
 progname = os.path.basename(sys.argv[0])
 workdir = os.path.expanduser(options.workdir)
-
-localfile = os.path.join(workdir, options.localfile)
-workfile = os.path.join(workdir, options.workfile)
-resultsfile = os.path.join(workdir, options.resultsfile)
 
 # A cumulative backup
 sentfile = os.path.join(workdir, "results_sent.txt")
