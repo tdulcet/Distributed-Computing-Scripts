@@ -783,7 +783,8 @@ def parse_stat_file_cuda():
     # appended line by line, no lock needed
     if os.path.exists(options.gpu) == False:
         print("ERROR: GPU file does not exist")
-        sys.exit(2)
+        return 0, None
+
     w = readonly_list_file(options.gpu)
     found = 0
     iter_regex = re.compile(r'\b\d{5,}\b')
@@ -1134,7 +1135,22 @@ group.add_option("--hp", dest="hp", type="int", default=0,
                  help="Number of CPU threads per core (0 is unknown), Default: %default")
 parser.add_option_group(group)
 
-(options, args) = parser.parse_args()
+#(options, args) = parser.parse_args()
+#print(options)
+
+import optparse
+opts_no_defaults = optparse.Values()
+__, args = parser.parse_args(values=opts_no_defaults)
+options = optparse.Values(parser.get_default_values().__dict__)
+options._update_careful(opts_no_defaults.__dict__)
+print(opts_no_defaults.__dict__)
+print(options.__dict__)
+for opt in parser._get_all_options():
+    if opt.dest:
+        print("Value of %s: %s" % (opt._long_opts[0], getattr(options, opt.dest)))
+        print("Is %s specified by user? %s" % (opt._long_opts[0], hasattr(opts_no_defaults, opt.dest)))
+
+#sys.exit(0)
 
 progname = os.path.basename(sys.argv[0])
 workdir = os.path.expanduser(options.workdir)
