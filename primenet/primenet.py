@@ -98,10 +98,10 @@ s = requests.Session()  # session that maintains our cookies
 # [***] Daniel Connelly's functions
 
 # get assignment
-def ga():
+def ga(guid):
     args = primenet_v5_bargs.copy()
     args["t"] = "ga"			# transaction type
-    args["g"] = get_guid(config)  # GUID
+    args["g"] = guid
     args["c"] = options.cpu
     args["a"] = ""
     return args
@@ -134,10 +134,10 @@ def program_options(guid):
     args["t"] = "po"
     args["g"] = guid
     args["c"] = ""  # no value updates all cpu threads with given worktype
-    args["w"] = options.worktype
+    args["w"] = options.worktype if config.has_option("primenet", "first_time") == "false" or hasattr(opt_no_defaults, "worktype") else ""
     #args["nw"] = 1
     #args["Priority"] = 1
-    args["DaysOfWork"] = int(round(options.days_work))
+    args["DaysOfWork"] = int(round(options.days_work)) if config.has_option("primenet", "first_time") == "false" or hasattr(opt_no_defaults, "days_work") else ""
     #args["DayMemory"] = 8
     #args["NightMemory"] = 8
     #args["DayStartTime"] = 0
@@ -146,12 +146,12 @@ def program_options(guid):
     result = send_request(guid, args)
     if result is None or int(result["pnErrorResult"]) != 0:
         parser.error("Error while setting program options on mersenne.org")
-    #print("RESULT : " + str(result)) # TODO -- delete
-    #config.set("primenet", "worktype", result["w"]) # TODO -- talk to Teal
     if "w" in result:
         config.set("primenet", "worktype", result["w"])
     if "DaysOfWork" in result:
         config.set("primenet", "days_work", result["DaysOfWork"])
+    if config.has_option("primenet", "first_time") == False:
+        config.set("primenet", "first_time", "false")
     if "w" in result or "DaysOfWork" in result:
         merge_config_and_options(config, options)
         config_write(config)
@@ -400,11 +400,11 @@ def primenet_fetch(num_to_get):
 
         # Get assignment using V5 API
         else:
-            assignment = ga()  # get assignment
+            guid = get_guid(config)
+            assignment = ga(guid)  # get assignment
             debug_print("Fetching work via V5 Primenet = " +
                         primenet_v5_burl + urlencode(assignment))
             tests = []
-            guid = get_guid(config)
             for _ in range(num_to_get):
                 r = send_request(guid, assignment)
                 if r is None or int(r["pnErrorResult"]) != 0:
@@ -673,7 +673,7 @@ def merge_config_and_options(config, options):
     for attr in attr_to_copy:
         # if "attr" has its default value in options, copy it from config
         attr_val = getattr(options, attr)
-        if attr_val == parser.defaults[attr] \
+        if not hasattr(opt_no_defaults, attr) \
                 and config.has_option("primenet", attr):
             # If no option is given and the option exists in local.ini, take it from local.ini
             new_val = config.get("primenet", attr)
@@ -747,7 +747,8 @@ def update_progress():
                 cur_time_left/3600/24, usec_per_iter))
             send_progress(assignment.id, assignment.is_prp,
                           percent, cur_time_left)
-    config_write(config)
+    if config_updated:
+        config_write(config)
     return percent, cur_time_left
 
 
@@ -1138,19 +1139,10 @@ parser.add_option_group(group)
 #(options, args) = parser.parse_args()
 #print(options)
 
-import optparse
 opts_no_defaults = optparse.Values()
 __, args = parser.parse_args(values=opts_no_defaults)
 options = optparse.Values(parser.get_default_values().__dict__)
 options._update_careful(opts_no_defaults.__dict__)
-print(opts_no_defaults.__dict__)
-print(options.__dict__)
-for opt in parser._get_all_options():
-    if opt.dest:
-        print("Value of %s: %s" % (opt._long_opts[0], getattr(options, opt.dest)))
-        print("Is %s specified by user? %s" % (opt._long_opts[0], hasattr(opts_no_defaults, opt.dest)))
-
-#sys.exit(0)
 
 progname = os.path.basename(sys.argv[0])
 workdir = os.path.expanduser(options.workdir)
