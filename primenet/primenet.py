@@ -47,7 +47,7 @@ import sys
 import os.path
 import re
 import time
-from optparse import OptionParser, OptionGroup
+import optparse
 from hashlib import sha256
 import json
 import platform
@@ -134,10 +134,10 @@ def program_options(guid):
     args["t"] = "po"
     args["g"] = guid
     args["c"] = ""  # no value updates all cpu threads with given worktype
-    args["w"] = options.worktype if config.has_option("primenet", "first_time") == "false" or hasattr(opt_no_defaults, "worktype") else ""
+    args["w"] = options.worktype if config.has_option("primenet", "first_time") == False or hasattr(opts_no_defaults, "worktype") else ""
     #args["nw"] = 1
     #args["Priority"] = 1
-    args["DaysOfWork"] = int(round(options.days_work)) if config.has_option("primenet", "first_time") == "false" or hasattr(opt_no_defaults, "days_work") else ""
+    args["DaysOfWork"] = int(round(options.days_work)) if config.has_option("primenet", "first_time") == False or hasattr(opts_no_defaults, "days_work") else ""
     #args["DayMemory"] = 8
     #args["NightMemory"] = 8
     #args["DayStartTime"] = 0
@@ -673,7 +673,7 @@ def merge_config_and_options(config, options):
     for attr in attr_to_copy:
         # if "attr" has its default value in options, copy it from config
         attr_val = getattr(options, attr)
-        if not hasattr(opt_no_defaults, attr) \
+        if not hasattr(opts_no_defaults, attr) \
                 and config.has_option("primenet", attr):
             # If no option is given and the option exists in local.ini, take it from local.ini
             new_val = config.get("primenet", attr)
@@ -1065,7 +1065,7 @@ def submit_work():
 #######################################################################################################
 
 
-parser = OptionParser(version="%prog 1.0", description=u"""This program will automatically get assignments, report assignment results and optionally progress to PrimeNet for both the CUDALucas and Mlucas GIMPS programs. It also saves its configuration to a “local.ini” file, so it is only necessary to give most of the arguments the first time it is run.
+parser = optparse.OptionParser(version="%prog 1.0", description=u"""This program will automatically get assignments, report assignment results and optionally progress to PrimeNet for both the CUDALucas and Mlucas GIMPS programs. It also saves its configuration to a “local.ini” file, so it is only necessary to give most of the arguments the first time it is run.
 The first time it is run, if a password is NOT provided, it will register the current CUDALucas/Mlucas instance with PrimeNet (see below).
 Then, it will get assignments, report the results and progress, if registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
 """
@@ -1114,7 +1114,7 @@ parser.add_option("-L", "--days_work", dest="days_work", type="float", default=3
 parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60*60*6,
                   help="Seconds to wait between network updates, Default: %default seconds (6 hours). Use 0 for a single update without looping.")
 
-group = OptionGroup(parser, "Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
+group = optparse.OptionGroup(parser, "Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
 group.add_option("-H", "--hostname", dest="hostname",
                  default=platform.node()[:20], help="Computer name, Default: %default")
 # TODO: add detection for most parameter, including automatic change of the hardware
