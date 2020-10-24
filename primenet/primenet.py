@@ -303,7 +303,7 @@ def debug_print(text, file=sys.stdout):
             caller_name = 'main loop'
         caller_string = caller_name + ": "
         print(progname + ": " + caller_string + " " + time.strftime("%Y-%m-%d %H:%M") +
-              " " + str(text), file=file)
+              " \t" + str(text), file=file)
         file.flush()
 
 
@@ -690,6 +690,10 @@ def merge_config_and_options(config, options):
                         " with {0}={1}".format(attr, attr_val))
             config.set("primenet", attr, str(attr_val))
             updated = True
+
+    global localfile
+    global workfile
+    global resultsfile
 
     localfile = os.path.join(workdir, options.localfile)
     workfile = os.path.join(workdir, options.workfile)
@@ -1150,6 +1154,11 @@ workdir = os.path.expanduser(options.workdir)
 localfile = os.path.join(workdir, options.localfile)
 workfile = os.path.join(workdir, options.workfile)
 resultsfile = os.path.join(workdir, options.resultsfile)
+
+print(opts_no_defaults)
+print(options)
+
+
 
 # A cumulative backup
 sentfile = os.path.join(workdir, "results_sent.txt")
