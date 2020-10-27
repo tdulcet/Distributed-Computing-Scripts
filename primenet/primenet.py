@@ -148,10 +148,13 @@ def program_options(guid):
         parser.error("Error while setting program options on mersenne.org")
     if "w" in result:
         config.set("primenet", "worktype", result["w"])
+        config_write(config)
     if "DaysOfWork" in result:
         config.set("primenet", "days_work", result["DaysOfWork"])
+        config_write(config)
     if config.has_option("primenet", "first_time") == False:
         config.set("primenet", "first_time", "false")
+        config_write(config)
     if "w" in result or "DaysOfWork" in result:
         merge_config_and_options(config, options)
         config_write(config)
