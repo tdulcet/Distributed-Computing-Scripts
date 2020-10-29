@@ -144,19 +144,21 @@ def program_options(guid):
     #args["NightStartTime"] = 0
     #args["RunOnBattery"] = 1
     result = send_request(guid, args)
+    config_updated = False
     if result is None or int(result["pnErrorResult"]) != 0:
         parser.error("Error while setting program options on mersenne.org")
     if "w" in result:
         config.set("primenet", "worktype", result["w"])
-        config_write(config)
+        config_updated = True
     if "DaysOfWork" in result:
         config.set("primenet", "days_work", result["DaysOfWork"])
-        config_write(config)
+        config_updated = True
     if config.has_option("primenet", "first_time") == False:
         config.set("primenet", "first_time", "false")
-        config_write(config)
+        config_updated = True
     if "w" in result or "DaysOfWork" in result:
         merge_config_and_options(config, options)
+    if config_updated:
         config_write(config)
 
 
