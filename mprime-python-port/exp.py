@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
 # Daniel Connelly
-# based off of Tdulcet's expect script
+# based off of Tdulcet's 'mprime.exp'
 # Python3 exp.py <User ID> <Computer name> <Type of work>
 
-# NOTE(s)
-'''
-* pexpect has quirks about nonempty ()s (e.g., (y)), *s, inline ''s, or +s.
-* this pexpect script cannot handle skipping past prompts like regular expect (something to fix, if possible).
-'''
+# Note: * pexpect has quirks about nonempty ()s (e.g., (y)), *s, inline ''s, or +s.
 
 import sys
+from time import sleep
 import time
+import subprocess
 
-# Installing dependency
+# Potentially installing dependency
 try:
     import pexpect
 except ImportError as error:
@@ -24,64 +22,27 @@ except ImportError as error:
 # Prerequisites, gained from mprime.py
 USERID, COMPUTER, TYPE  = sys.argv[1], sys.argv[2], sys.argv[3]
 
-# Pexpect script
 child = pexpect.spawn('./mprime -m') # starts shell to interact with
 child.logfile = sys.stdout.buffer # enables output to screen (Python 3)
-
-child.expect('Join Gimps?')
-time.sleep(1)
-child.sendline('y') # another acceptable version: child.send('y\r')
-child.expect("Use PrimeNet to get work and report results ()") # () is a subpattern
-time.sleep(1)
-child.sendline("y")
-child.expect("Your user ID or")
-time.sleep(1)
-child.sendline(USERID)
-child.expect("Optional computer name:")
-time.sleep(1)
-child.sendline(COMPUTER)
-child.expect("Computer uses a dial-up connection")
-time.sleep(1)
-child.sendline("N")
-child.expect("Use a proxy server")
-time.sleep(1)
-child.sendline("N")
-child.expect("Output debug info to prime.log")
-time.sleep(1)
-child.sendline("0")
-child.expect("Accept the answers above?")
-time.sleep(1)
-child.sendline("Y")
-child.expect("Hours per day this program will run")
-time.sleep(1)
-child.sendline("24")
-child.expect("Daytime P-1/ECM stage 2")
-time.sleep(1)
-child.sendline("8")
-child.expect("Nighttime P-1/ECM stage 2")
-time.sleep(1)
-child.sendline("8")
-child.expect("Accept the answers above")
-time.sleep(1)
-child.sendline("Y")
-child.expect("Number of workers to run")
-time.sleep(1)
-child.sendline("1")
-child.expect("Priority ()")
-time.sleep(1)
-child.sendline("10")
-child.expect("Type of work to get ()")
-time.sleep(1)
-child.sendline(TYPE)
-child.expect("CPU cores to use ()")
-time.sleep(1)
-child.sendline("2")
-child.expect("Use hyperthreading for trial factoring ()")
-time.sleep(1)
-child.sendline("Y")
-child.expect("Use hyperthreading for LL, P-1, ECM ()")
-time.sleep(1)
-child.sendline("N")
-child.expect("Accept the answers above?")
-time.sleep(1)
-child.sendline("Y")
+expects = (("Join Gimps?", "y"), ("Use PrimeNet to get work and report results ()", "y"),
+        ("Your user ID or", USERID), ("Optional computer name", COMPUTER),
+        ("Type of work to get", TYPE), ("Your choice:", "5"))
+index = 0
+while 1:
+    try:
+        if index != len(expects):
+            child.expect(expects[index][0], timeout=1)
+            sleep(1)
+            child.sendline(expects[index][1])
+            index += 1
+        else:
+            child.expect("Done communicating with server.")
+            child.sendline("\x03")
+            sleep(10)
+            child.expect("Choose Test/Continue to restart.")
+            sleep(1)
+            child.sendline("5")
+            child.expect(pexpect.EOF)
+            break
+    except pexpect.TIMEOUT:
+        child.sendline("")

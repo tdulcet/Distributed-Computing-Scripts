@@ -18,12 +18,10 @@ SUM = "EE54B56062FEB05C9F80963A4E3AE8555D0E59CA60DDBCBA65CE05225C9B9A79"
 
 def regex_check(reg, var, err):
     '''Checks cmdline args for proper bounds using regex
-
     Parameters:
     reg (string): regex string to check against
     var (string): variable to check against regex string
     err (string): output to put to STDERR if regex does not match
-
     Returns:
     None
     '''
@@ -40,10 +38,8 @@ def misc_check(condition, err):
 # There is no sha256sum in the hashlib library normally
 def sha256sum(filename):
     '''Completes a checksum of the folder
-
     Parameters:
     filename (string): directory to be checked
-
     Returns:
     The hash sum string in hexidecimal digits
     '''
@@ -111,11 +107,23 @@ subprocess.run(['tar', '-xzvf', FILE])
 #---Configuration---#
 args = [USERID, COMPUTER, TYPE]
 
+print("Setting up Prime95.")
+p = subprocess.Popen(['python3', "../exp.py"] + args,
+  stdout=subprocess.PIPE,
+  universal_newlines=True,
+  bufsize=0)
+
+# This code block reads the output from the pexpect script p
+for line in p.stdout:
+    line=line[:-1]
+    print(line)
+#---------------------------------------#
+
 #subprocess.run("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
 #subprocess.run("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- \"$USERID\" \"$COMPUTER\" \"$TYPE\"",shell=Tr
 
-p = subprocess.check_output("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
-print(p)
+#p = subprocess.check_output("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
+#print(p)
 
 #---------------------------------------#
 
@@ -126,4 +134,4 @@ subprocess.Popen("./mprime") # daemon process
 print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
 
 os.environ["TIME"] = TIME
-os.system("bash ../cron.sh")
+#os.system("bash ../cron.sh") # TODO -- uncomment
