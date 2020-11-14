@@ -4,9 +4,11 @@
 Automatic assignment handler for Mlucas and CUDALucas.
 
 [*] Revised by Teal Dulcet and Daniel Connelly for CUDALucas (2020)
-	Original Authorship(s):
-		* # EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py by teknohog and Mark Rose, with help rom Gord Palameta.
-		* # 2020: support for computer registration and assignment-progress via direct Primenet-v5-API calls by Loïc Le Loarer <loic@le-loarer.org>.
+    Original Authorship(s):
+     * # EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py 
+            by teknohog and Mark Rose, with help rom Gord Palameta.
+     * # 2020: support for computer registration and assignment-progress via
+            direct Primenet-v5-API calls by Loïc Le Loarer <loic@le-loarer.org>
 
 [*] List of supported v5 operations:
     * Update Comptuer Info (Register Assignment) (Credit: Loarer)
@@ -52,10 +54,9 @@ from hashlib import sha256
 import json
 import platform
 import logging
-import hashlib
 try:
     import requests
-except ImportError as error:
+except ImportError:
     print("Installing requests as dependency")
     subprocess.check_output("pip install requests", shell=True)
     print("The Requests library has been installed. Please run the program again")
@@ -78,7 +79,7 @@ except ImportError:
     from ConfigParser import ConfigParser, Error as ConfigParserError  # ver. < 3.0
 
 if sys.version_info[:2] >= (3, 7):
-    # If is OK to use dict in 3.7+ because insertion order is garantied to be preserved
+    # If is OK to use dict in 3.7+ because insertion order is guaranteed to be preserved
     # Since it is also faster, it is better to use raw dict()
     OrderedDict = dict
 else:
@@ -97,6 +98,7 @@ s = requests.Session()  # session that maintains our cookies
 
 # [***] Daniel Connelly's functions
 
+
 # get assignment
 def ga(guid):
     args = primenet_v5_bargs.copy()
@@ -105,6 +107,7 @@ def ga(guid):
     args["c"] = options.cpu
     args["a"] = ""
     return args
+
 
 # register assignment
 def ra(n):
@@ -117,6 +120,7 @@ def ra(n):
     args["n"] = n
     args["w"] = options.worktype
     return args
+
 
 # unreserve assignment
 def au(k):
@@ -134,15 +138,17 @@ def program_options(guid):
     args["t"] = "po"
     args["g"] = guid
     args["c"] = ""  # no value updates all cpu threads with given worktype
-    args["w"] = options.worktype if config.has_option("primenet", "first_time") == False or hasattr(opts_no_defaults, "worktype") else ""
-    #args["nw"] = 1
-    #args["Priority"] = 1
-    args["DaysOfWork"] = int(round(options.days_work)) if config.has_option("primenet", "first_time") == False or hasattr(opts_no_defaults, "days_work") else ""
-    #args["DayMemory"] = 8
-    #args["NightMemory"] = 8
-    #args["DayStartTime"] = 0
-    #args["NightStartTime"] = 0
-    #args["RunOnBattery"] = 1
+    args["w"] = options.worktype if config.has_option("primenet", "first_time") is False \
+        or hasattr(opts_no_defaults, "worktype") else ""
+    # args["nw"] = 1
+    # args["Priority"] = 1
+    args["DaysOfWork"] = int(round(options.days_work)) if config.has_option("primenet", "first_time") is False \
+        or hasattr(opts_no_defaults, "days_work") else ""
+    # args["DayMemory"] = 8
+    # args["NightMemory"] = 8
+    # args["DayStartTime"] = 0
+    # args["NightStartTime"] = 0
+    # args["RunOnBattery"] = 1
     result = send_request(guid, args)
     config_updated = False
     if result is None or int(result["pnErrorResult"]) != 0:
@@ -153,7 +159,7 @@ def program_options(guid):
     if "DaysOfWork" in result:
         config.set("primenet", "days_work", result["DaysOfWork"])
         config_updated = True
-    if config.has_option("primenet", "first_time") == False:
+    if config.has_option("primenet", "first_time") is False:
         config.set("primenet", "first_time", "false")
         config_updated = True
     if "w" in result or "DaysOfWork" in result:
@@ -312,17 +318,17 @@ def debug_print(text, file=sys.stdout):
         file.flush()
 
 
-def greplike(pattern, l):
+def greplike(pattern, lines):
     output = []
-    for line in l:
+    for line in lines:
         s = pattern.search(line)
         if s:
             output.append(s.group(0))
     return output
 
 
-def num_to_fetch(l, targetsize):
-    num_existing = len(l)
+def num_to_fetch(line, targetsize):
+    num_existing = len(line)
     num_needed = targetsize - num_existing
     return max(num_needed, 0)
 
@@ -338,10 +344,10 @@ def readonly_list_file(filename, mode="r"):
         return []
 
 
-def write_list_file(filename, l, mode="w"):
+def write_list_file(filename, line, mode="w"):
     # A "null append" is meaningful, as we can call this to clear the
     # lockfile. In this case the main file need not be touched.
-    if not ("a" in mode and len(l) == 0):
+    if not ("a" in mode and len(line) == 0):
         newline = b'\n' if 'b' in mode else '\n'
         content = newline.join(l) + newline
         with open(filename, mode) as File:
@@ -421,16 +427,16 @@ def primenet_fetch(num_to_get):
                     return []
                 # if options.worktype == LL
                 if r['w'] in set(['100', '102', '104']):
-                    tests.append("Test="+",".join([r[i] for i in ['k','n','sf','p1']]))
+                    tests.append("Test="+",".join([r[i] for i in ['k', 'n', 'sf', 'p1']]))
                 # if options.worktype == DC
                 elif r['w'] in set(['101']):
-                    tests.append("DoubleCheck="+",".join([r[i] for i in ['k','n','sf','p1']]))
+                    tests.append("DoubleCheck="+",".join([r[i] for i in ['k', 'n', 'sf', 'p1']]))
                 # if PRP type testing, first time
                 elif r['w'] in set(['150', '152', '153']):
-                    tests.append("PRP="+",".join([r[i] for i in ['k','b','n','c','sf','saved']]))
+                    tests.append("PRP="+",".join([r[i] for i in ['k', 'b', 'n', 'c', 'sf', 'saved']]))
                 # if PRP-DC (probable-primality double-check) testing
                 elif r['w'] in set(['151']):
-                    tests.append("PRP="+",".join([r[i] for i in ['k','b','n','c','sf','saved','base','rt']]))
+                    tests.append("PRP="+",".join([r[i] for i in ['k', 'b', 'n', 'c', 'sf', 'saved', 'base', 'rt']]))
 
             return tests
     except ConnectionError:
@@ -491,7 +497,7 @@ except ImportError:
 
 def parse_stat_file(p):
     statfile = 'p' + str(p) + '.stat'
-    if os.path.exists(statfile) == False:
+    if os.path.exists(statfile) is False:
         print("ERROR: stat file does not exist")
         return 0, None
 
