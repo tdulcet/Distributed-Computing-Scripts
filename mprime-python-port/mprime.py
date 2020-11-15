@@ -57,10 +57,6 @@ COMPUTER = sys.argv[2] if len(sys.argv) > 2 else socket.gethostname()
 TYPE = sys.argv[3] if len(sys.argv) > 3 else str(150)
 TIME = str(int(sys.argv[4]) * 60) if len(sys.argv) > 4 else str(10 * 60)
 
-#args = [USERID, COMPUTER, TYPE]
-#p = subprocess.check_output("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -q0 - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
-#print(p)
-#sys.exit()
 
 print("PrimeNet User ID:\t"+ USERID)
 print("Computer name:\t\t"+ COMPUTER)
@@ -119,14 +115,6 @@ for line in p.stdout:
     print(line)
 #---------------------------------------#
 
-#subprocess.run("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
-#subprocess.run("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- \"$USERID\" \"$COMPUTER\" \"$TYPE\"",shell=Tr
-
-#p = subprocess.check_output("wget https://raw.githubusercontent.com/Danc2050/Distributed-Computing-Scripts/master/mprime-python-port/exp.py -qO - -- " + args[0] + " " + args[1] + " " + args[2], shell=True)
-#print(p)
-
-#---------------------------------------#
-
 #---Starting Program---#
 print("Starting up Prime95.")
 subprocess.Popen("./mprime") # daemon process
@@ -134,4 +122,5 @@ subprocess.Popen("./mprime") # daemon process
 print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
 
 os.environ["TIME"] = TIME
-#os.system("bash ../cron.sh") # TODO -- uncomment
+subprocess.Popen("crontab -l | { cat; echo \"* * * * * if who -s | awk \'{ print \\$2 }\' | (cd /dev && xargs -r stat -c \'\\%U \\%X\') | awk \'{if (\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2<$TIME) { print \\$1\\\"\\t\\\"\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2; ++count }} END{if (count>0) { exit 1 }}\' > /dev/null; then pgrep mprime > /dev/null || (cd $DIR && nohup ./mprime &); else pgrep mprime > /dev/null && killall mprime; fi\"; } | crontab -", shell=True)
+#----------------------#
