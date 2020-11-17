@@ -8,7 +8,6 @@
 
 import sys
 from time import sleep
-import time
 import subprocess
 
 # Potentially installing dependency
