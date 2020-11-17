@@ -27,7 +27,11 @@ elif [[ $# -eq 2 ]]; then
 	KEY=$2
 	echo -e "Account Key:\t$KEY\n"
 fi
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+if [[ -e idletime.sh ]]; then
+	bash -- idletime.sh
+else
+	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+fi
 if command -v boinccmd >/dev/null; then
 	echo "Error: Boinc is already installed" >&2
 	exit 1

@@ -124,7 +124,6 @@ def ra(n):
 
 # unreserve assignment
 def au(k):
-    '''Note: this function is not used'''
     args = primenet_v5_bargs.copy()
     args["t"] = "au"
     args["g"] = get_guid(config)
@@ -142,7 +141,7 @@ def program_options(guid):
         or hasattr(opts_no_defaults, "worktype") else ""
     # args["nw"] = 1
     # args["Priority"] = 1
-    args["DaysOfWork"] = int(round(options.days_work)) if config.has_option("primenet", "first_time") is False \
+    args["DaysOfWork"] = options.days_work if config.has_option("primenet", "first_time") is False \
         or hasattr(opts_no_defaults, "days_work") else ""
     # args["DayMemory"] = 8
     # args["NightMemory"] = 8
@@ -168,8 +167,10 @@ def program_options(guid):
         config_write(config)
 
 
-# not used
-def unreserve_all():
+def unreserve_all(guid):
+    if guid is None:
+        debug_print("Cannot unreserve, the registration is not done",
+                    file=sys.stderr)
     w = readonly_list_file(workfile)
     tasks = greplike(workpattern, w)
     for task in tasks:
@@ -349,7 +350,7 @@ def write_list_file(filename, line, mode="w"):
     # lockfile. In this case the main file need not be touched.
     if not ("a" in mode and len(line) == 0):
         newline = b'\n' if 'b' in mode else '\n'
-        content = newline.join(l) + newline
+        content = newline.join(line) + newline
         with open(filename, mode) as File:
             File.write(content)
 
@@ -637,8 +638,8 @@ def register_instance(guid):
     print("CPU threads per core: {0}".format(options.hp))
     print("CPU frequency: {0} MHz".format(options.frequency))
     print("Total RAM: {0} MiB".format(options.memory))
-    print(u"If you want to change the value, please edit the " +
-          options.localfile + " file")
+    print(u"If you want to change the value, please edit the “" +
+          options.localfile + u"” file")
     print("You can see the result in this page:")
     print("https://www.mersenne.org/editcpu/?g={guid}".format(guid=guid))
     return
@@ -678,7 +679,7 @@ def merge_config_and_options(config, options):
     # which allow to copy all of them programmatically instead of having
     # one line per attribute. Only the attr_to_copy list need to be updated
     # when adding an option you want to copy from argument options to local.ini config.
-    attr_to_copy = ["workfile", "resultsfile", "localfile", "username", "password", "worktype", "num_cache", "days_work",
+    attr_to_copy = ["workfile", "resultsfile", "username", "password", "worktype", "num_cache", "days_work",
                     "hostname", "cpu_model", "features", "frequency", "memory", "L1", "L2", "np", "hp", "gpu"]
     updated = False
     for attr in attr_to_copy:
@@ -697,8 +698,8 @@ def merge_config_and_options(config, options):
                                        or config.get("primenet", attr) != str(attr_val)):
             # If an option is given (even default value) and it is not already
             # identical in local.ini, update local.ini
-            debug_print("update " + options.localfile +
-                        " with {0}={1}".format(attr, attr_val))
+            debug_print(u"update “" + options.localfile +
+                        u"” with {0}={1}".format(attr, attr_val))
             config.set("primenet", attr, str(attr_val))
             updated = True
 
@@ -1118,16 +1119,17 @@ parser.add_option("-T", "--worktype", dest="worktype", default="100", help="""Ty
                   )
 
 # parser.add_option("-g", "--gpu", action="store_true", dest="gpu", default=False,
-parser.add_option("-g", "--gpu", dest="gpu", help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas). This flag takes as argument your CUDALucas output file.")
+parser.add_option("-g", "--gpu", dest="gpu", help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas). This flag takes as an argument the CUDALucas output filename.")
 parser.add_option("-c", "--cpu_num", dest="cpu", type="int", default=0,
                   help="CPU core or GPU number to get assignments for, Default: %default")
 parser.add_option("-n", "--num_cache", dest="num_cache", type="int",
                   default=0, help="Number of assignments to cache, Default: %default")
-parser.add_option("-L", "--days_work", dest="days_work", type="float", default=3,
+parser.add_option("-L", "--days_work", dest="days_work", type="int", default=3,
                   help="Days of work to queue, Default: %default days. Add one to num_cache when the time left for the current assignment is less then this number of days.")
 
 parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60*60*6,
                   help="Seconds to wait between network updates, Default: %default seconds (6 hours). Use 0 for a single update without looping.")
+parser.add_option("--unreserve_all", action="store_true", dest="unreserve_all", default=False, help="Unreserve all assignments and exit. Requires that the instance is registered with PrimeNet.")
 
 group = optparse.OptionGroup(parser, "Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
 group.add_option("-H", "--hostname", dest="hostname",
@@ -1166,8 +1168,8 @@ localfile = os.path.join(workdir, options.localfile)
 workfile = os.path.join(workdir, options.workfile)
 resultsfile = os.path.join(workdir, options.resultsfile)
 
-print(opts_no_defaults)
-print(options)
+# print(opts_no_defaults)
+# print(options)
 
 
 
@@ -1266,6 +1268,10 @@ if config_updated:
 guid = get_guid(config)
 if options.username is None:
     parser.error("Username must be given")
+
+if options.unreserve_all:
+	unreserve_all(guid)
+	sys.exit(0)
 
 program = "CUDALucas" if options.gpu else "MLucas"
 while True:

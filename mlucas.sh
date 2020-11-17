@@ -2,24 +2,21 @@
 
 # Teal Dulcet
 # wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s --
-# ./mlucas.sh <PrimeNet Password> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
-# ./mlucas.sh <PrimeNet Password> "$USER" "$HOSTNAME" 100 10
-# ./mlucas.sh <PrimeNet Password> ANONYMOUS
+# ./mlucas.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+# ./mlucas.sh "$USER" "$HOSTNAME" 100 10
+# ./mlucas.sh ANONYMOUS
 
 DIR2="mlucas_v19"
 FILE2="mlucas_v19.txz"
-FILE3="primenet.tbz2"
-SUM2="10906d3f1f4206ae93ebdb045f36535c"
-SUM3="6fefeef5773a7d0de9f1d2c7983c20f0"
-if [[ $# -lt 1 || $# -gt 4 ]]; then
-	echo "Usage: $0 <PrimeNet Password> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]" >&2
+SUM="10906d3f1f4206ae93ebdb045f36535c"
+if [[ $# -gt 4 ]]; then
+	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]" >&2
 	exit 1
 fi
-PASSWORD=$1
-USERID=${2:-$USER}
-COMPUTER=${3:-$HOSTNAME}
-TYPE=${4:-100}
-TIME=${5:-10}
+USERID=${1:-$USER}
+COMPUTER=${2:-$HOSTNAME}
+TYPE=${3:-150}
+TIME=${4:-10}
 RE='^[0-9]{3}$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
@@ -31,11 +28,14 @@ if ! [[ $TIME =~ $RE ]]; then
 	exit 1
 fi
 echo -e "PrimeNet User ID:\t$USERID"
-echo -e "PrimeNet Password:\t$PASSWORD"
 echo -e "Computer name:\t\t$COMPUTER"
 echo -e "Type of work:\t\t$TYPE"
 echo -e "Idle time to run:\t$TIME minutes\n"
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+if [[ -e idletime.sh ]]; then
+	bash -- idletime.sh
+else
+	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+fi
 if [[ -d "$DIR2" ]]; then
 	echo "Error: Mlucas is already downloaded" >&2
 	exit 1
@@ -51,14 +51,14 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 # Adapted from: https://github.com/tdulcet/Linux-System-Information/blob/master/info.sh
 . /etc/os-release
 
-echo -e "Linux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
+echo -e "\nLinux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
 
 KERNEL=$(</proc/sys/kernel/osrelease) # uname -r
 echo -e "Linux Kernel:\t\t\t$KERNEL"
 
 mapfile -t CPU < <(sed -n 's/^model name[[:space:]]*: *//p' /proc/cpuinfo | uniq)
 if [[ -n "$CPU" ]]; then
-	echo -e "Processor (CPU):\t\t${CPU[0]}$([[ ${#CPU[*]} -gt 1 ]] && echo; printf '\t\t\t\t%s\n' "${CPU[@]:1}")"
+	echo -e "Processor (CPU):\t\t${CPU[0]}$([[ ${#CPU[*]} -gt 1 ]] && printf '\n\t\t\t\t%s' "${CPU[@]:1}")"
 fi
 
 CPU_THREADS=$(nproc --all) # $(lscpu | grep -i '^cpu(s)' | sed -n 's/^.\+:[[:blank:]]*//p')
@@ -102,28 +102,25 @@ if command -v lspci >/dev/null; then
 	mapfile -t GPU < <(lspci 2>/dev/null | grep -i 'vga\|3d\|2d' | sed -n 's/^.*: //p')
 fi
 if [[ -n "$GPU" ]]; then
-	echo -e "Graphics Processor (GPU):\t${GPU[0]}$([[ ${#GPU[*]} -gt 1 ]] && echo; printf '\t\t\t\t%s\n' "${GPU[@]:1}")"
+	echo -e "Graphics Processor (GPU):\t${GPU[0]}$([[ ${#GPU[*]} -gt 1 ]] && printf '\n\t\t\t\t%s' "${GPU[@]:1}")"
 fi
 
 echo -e "\nDownloading Mlucas\n"
 wget https://www.mersenneforum.org/mayer/src/$FILE2
-if [[ ! "$(md5sum $FILE2 | head -c 32)" == "$SUM2" ]]; then
-    echo "Error: md5sum does not match" >&2
-    echo "Please run \"rm -r $PWD\" and try running this script again" >&2
+if [[ ! "$(md5sum $FILE2 | head -c 32)" == "$SUM" ]]; then
+	echo "Error: md5sum does not match" >&2
+	echo "Please run \"rm -r '$PWD'\" and try running this script again" >&2
 	exit 1
 fi
 echo -e "\nDecompressing the files\n"
 tar -xvf $FILE2
 cd "$DIR2"
 echo -e "\nDownloading the PrimeNet script\n"
-wget https://www.mersenneforum.org/mayer/src/$FILE3
-if [[ ! "$(md5sum $FILE3 | head -c 32)" == "$SUM3" ]]; then
-    echo "Error: md5sum does not match" >&2
-    echo "Please run \"rm -r $PWD\" and try running this script again" >&2
-	exit 1
+if [[ -e ../primenet.py ]]; then
+	cp ../primenet.py .
+else
+	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 fi
-echo -e "\nDecompressing the files\n"
-tar -xvjf $FILE3
 mkdir obj
 cd obj
 DIR=$PWD
@@ -209,27 +206,36 @@ elif echo "${CPU[0]}" | grep -iq 'amd'; then
 	done
 else
 	for ((i=0; i<CPU_CORES; i+=4)); do
-		arg="$i:$(if [[ $(( i + 3 )) -lt $CPU_CORES ]]; then echo "$(( i + 3 ))"; else echo "$(( CPU_CORES - 1 ))"; fi)"
+		arg="$i:$(if [[ i + 3 -lt $CPU_CORES ]]; then echo "$(( i + 3 ))"; else echo "$(( CPU_CORES - 1 ))"; fi)"
 		RUNS+=( "$arg" )
 	done
 fi
 echo -e "Registering computer with PrimeNet\n"
-python3 ../primenet.py -d -T "$TYPE" -u "$USERID" -p "$PASSWORD" -r -H "$COMPUTER" -c "${CPU[0]}" --frequency="$(printf "%.0f" "$CPU_FREQ")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
+python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" -H "$COMPUTER" --cpu_model="${CPU[0]}" --frequency="$(printf "%.0f" "$CPU_FREQ")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 for i in "${!RUNS[@]}"; do
 	echo -e "\nCPU Core $i:"
 	mkdir "run$i"
-	pushd "run$i" > /dev/null
+	pushd "run$i" >/dev/null
 	ln -s ../mlucas.cfg .
 	echo -e "\tStarting PrimeNet\n"
 	ln -s ../local.ini .
-	nohup python3 ../../primenet.py -d &
+	nohup python3 ../../primenet.py -d -c "$i" &
 	sleep 1
 	echo -e "\n\tStarting Mlucas\n"
 	nohup nice ../Mlucas -cpu "${RUNS[i]}" &
 	sleep 1
-	popd > /dev/null
+	popd >/dev/null
 done
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done)"; } | crontab -
-#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python3 ../../primenet.py -d &); "; done)"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' > /dev/null; then pgrep Mlucas > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) pgrep -f '^python3 \.\./\.\./primenet\.py' > /dev/null || $(for i in "${!RUNS[@]}"; do echo -n "(cd $DIR/run$i && nohup python3 ../../primenet.py -d &); "; done) else pgrep Mlucas > /dev/null && killall Mlucas; fi"; } | crontab -
+#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done)"; } | crontab -
+#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i &); "; done)"; } | crontab -
+cat << EOF > Mlucas.sh
+#!/bin/bash
+
+# Start Mlucas
+# Run: $DIR/Mlucas.sh
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep Mlucas >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) }; pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i &); "; done) }; else pgrep Mlucas >/dev/null && killall Mlucas; fi
+EOF
+chmod +x Mlucas.sh
+crontab -l | { cat; echo "* * * * * \"$DIR\"/Mlucas.sh"; } | crontab -

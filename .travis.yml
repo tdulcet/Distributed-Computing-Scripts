@@ -12,9 +12,10 @@ matrix:
     - sed -i 's/\/$COMPUTE/\/--generate-code arch=compute_35,code=sm_35 --generate-code arch=compute_50,code=sm_50/' cudalucas.sh
     - sed -i '/^\.\/CUDALucas / s/^/# /' cudalucas.sh
     - sed -i '/^nohup / s/^/# /' cudalucas.sh
+    - sed -i '/^python3 / s/^/# /' cudalucas.sh
     - sed -i '/^crontab / s/^/# /' cudalucas.sh
     script:
-    - bash -e -- cudalucas.sh password ANONYMOUS
+    - bash -e -- cudalucas.sh ANONYMOUS
     - cd cudalucas && cppcheck --enable=all *.cu *.c *.h
   - name: "Mlucas (Intel)"
     arch: amd64
@@ -31,7 +32,7 @@ before_script:
     - sed -i '/^python3 / s/^/# /' mlucas.sh
     - sed -i '/^crontab / s/^/# /' mlucas.sh
 script:
-    - bash -e -- mlucas.sh password ANONYMOUS
+    - bash -e -- mlucas.sh ANONYMOUS
 after_script:
     - bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
 
