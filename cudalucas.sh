@@ -72,6 +72,10 @@ if [[ -e ../primenet.py ]]; then
 else
 	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 fi
+if command -v pip3 >/dev/null; then
+	echo -e "Installing the Requests library\n"
+	pip3 install requests
+fi
 echo -e "\nSetting up CUDALucas\n"
 # sed -i 's/\r//g' Makefile
 sed -i 's/^OptLevel = 1/OptLevel = 3/' Makefile

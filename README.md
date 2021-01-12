@@ -39,7 +39,7 @@ wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.
 
 ### PrimeNet
 
-Automatically gets assignments, reports assignment results and optionally progress to PrimeNet for both the CUDALucas and Mlucas GIMPS programs. Supports both Python 2 and 3 and Windows, macOS and Linux. Our [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download) by Loïc Le Loarer and Ernst W. Mayer.
+Automatically gets assignments, reports assignment results and optionally progress to PrimeNet for both the CUDALucas and Mlucas GIMPS programs. Supports both Python 2 and 3 and Windows, macOS and Linux. Requires the [Requests library](https://requests.readthedocs.io/en/master/), which is included with many Python 3 installations. The script will automatically install Requests on first run if it is not already installed. Our [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download) by Loïc Le Loarer and Ernst W. Mayer, which itself was adapted from primetools by [Mark Rose](https://github.com/MarkRose/primetools) and [teknohog](https://github.com/teknohog/primetools).
 
 #### Usage
 
@@ -82,14 +82,16 @@ Options:
   -T WORKTYPE, --worktype=WORKTYPE
                         Type of work, Default: 100, 100 (smallest available
                         first-time LL), 101 (double-check LL), 102 (world-
-                        record-sized first-time LL), 104 (100M digit number to
-                        LL test - not recommended), 150 (smallest available
-                        first-time PRP), 151 (double-check PRP), 152 (world-
-                        record-sized first-time PRP), 153 (100M digit number
-                        to PRP test)
+                        record-sized first-time LL), 104 (100M digit number LL
+                        - not recommended), 150 (smallest available first-time
+                        PRP), 151 (double-check PRP), 152 (world-record-sized
+                        first-time PRP), 153 (100M digit number PRP), 160
+                        (first time Mersenne cofactors PRP), 161 (double-check
+                        Mersenne cofactors PRP)
   -g GPU, --gpu=GPU     Get assignments for a GPU (CUDALucas) instead of the
-                        CPU (Mlucas). This flag takes as argument your
-                        CUDALucas output file.
+                        CPU (Mlucas). This flag takes as an argument the
+                        CUDALucas output filename.
+  --num_workers=NW      Number of worker threads (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu_num=CPU
                         CPU core or GPU number to get assignments for,
                         Default: 0
@@ -103,6 +105,8 @@ Options:
                         Seconds to wait between network updates, Default:
                         21600 seconds (6 hours). Use 0 for a single update
                         without looping.
+  --status              Output a status report and any expected completion
+                        dates for all assignments and exit.
   --unreserve_all       Unreserve all assignments and exit. Requires that the
                         instance is registered with PrimeNet.
 
@@ -174,18 +178,22 @@ PrimeNet script:
 * Support more GIMPS programs.
 * Support reserving exponents in a range (#4) or a specific exponent.
 * Support setting more of the program options.
-* Support different work types on different CPU cores or GPUs
+* Support getting different work types on different CPU cores or GPUs.
 * Improve the error handling of PrimeNet API calls.
+* Support the recovery of assignments if there is an error.
+* Check for new results to submit when the results file is updated.
 * Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
+	* Currently this requires using the Bash scripts.
 * Improve the performance.
-* Add an option to send the user an e-mail/text message if there is an error or if the GIMPS program has not made any progress in a while, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
-* Work with GIMPS to support using CUDALucas in the application version string.
+* Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has not made any progress in a while or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
+* Work with GIMPS to support using CUDALucas and other GIMPS programs in the application version string when registering with PrimeNet.
 	* Currently it only supports Mlucas v19.
+* Support [uploading PRP proofs](https://github.com/preda/gpuowl/blob/master/tools/upload.py) and downloading certification assignments.
 
 General:
 * Create script for the [GpuOwl](https://github.com/preda/gpuowl) GIMPS program
 * Add options for setting the maximum CPU time
 * Update CUDALucas to support PRP tests
-* Create a [Tensor Processing Unit](https://en.wikipedia.org/wiki/Tensor_Processing_Unit) (TPU) GIMPS program (#3)
+* Create a [Tensor Processing Unit](https://en.wikipedia.org/wiki/Tensor_Processing_Unit) (TPU) GIMPS program and Google Colab TPU notebook (#3)
 
 Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimNet API, for porting the Prime95 script to Python and for helping create and test the Google Colab Jupyter Notebooks!

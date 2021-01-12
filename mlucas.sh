@@ -121,6 +121,10 @@ if [[ -e ../primenet.py ]]; then
 else
 	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 fi
+if command -v pip3 >/dev/null; then
+	echo -e "Installing the Requests library\n"
+	pip3 install requests
+fi
 mkdir obj
 cd obj
 DIR=$PWD
@@ -206,12 +210,12 @@ elif echo "${CPU[0]}" | grep -iq 'amd'; then
 	done
 else
 	for ((i=0; i<CPU_CORES; i+=4)); do
-		arg="$i:$(if [[ i + 3 -lt $CPU_CORES ]]; then echo "$(( i + 3 ))"; else echo "$(( CPU_CORES - 1 ))"; fi)"
+		arg="$i:$(if [[ $(( i + 3 )) -lt $CPU_CORES ]]; then echo "$(( i + 3 ))"; else echo "$(( CPU_CORES - 1 ))"; fi)"
 		RUNS+=( "$arg" )
 	done
 fi
 echo -e "Registering computer with PrimeNet\n"
-python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" -H "$COMPUTER" --cpu_model="${CPU[0]}" --frequency="$(printf "%.0f" "$CPU_FREQ")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
+python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers "${#RUNS[@]}" -H "$COMPUTER" --cpu_model="${CPU[0]}" --frequency="$(printf "%.0f" "$CPU_FREQ")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 for i in "${!RUNS[@]}"; do
 	echo -e "\nCPU Core $i:"
 	mkdir "run$i"

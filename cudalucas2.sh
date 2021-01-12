@@ -125,6 +125,10 @@ else
 		wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 	fi
 fi
+if command -v pip3 >/dev/null; then
+	echo -e "Installing the Requests library\n"
+	pip3 install requests
+fi
 cp CUDALucas.ini "CUDALucas$N.ini"
 sed -i "s/^WorkFile=worktodo.txt/WorkFile=worktodo$N.txt/" "CUDALucas$N.ini"
 sed -i "s/^ResultsFile=results.txt/ResultsFile=results$N.txt/" "CUDALucas$N.ini"
