@@ -17,6 +17,7 @@ USERID=${1:-$USER}
 COMPUTER=${2:-$HOSTNAME}
 TYPE=${3:-150}
 TIME=${4:-10}
+decimal_point=$(locale decimal_point)
 RE='^[0-9]{3}$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
@@ -80,7 +81,7 @@ if [[ -z "$CPU_FREQS" ]]; then
 	done
 fi
 CPU_FREQ=$(printf '%s\n' "${CPU_FREQS[@]}" | sort -nr | head -n 1)
-echo -e "CPU frequency:\t\t\t$(printf "%'.0f" "$CPU_FREQ") MHz"
+echo -e "CPU frequency:\t\t\t$(printf "%'.0f" "${CPU_FREQ/./$decimal_point}") MHz"
 
 wait
 
@@ -168,56 +169,118 @@ make -j "$CPU_THREADS"
 make clean
 echo -e "\nTesting Mlucas\n"
 ./Mlucas -fftlen 192 -iters 100 -radset 0
+THREADS=()
 ARGS=()
 echo -e "\nOptimizing Mlucas for your computer\nThis may take awhile…\n"
 if echo "${CPU[0]}" | grep -iq 'intel'; then
-	echo -e "The CPU is Intel.\n"
-	if [[ $CPU_CORES -ne $CPU_THREADS && $CPU_CORES -gt 1 ]]; then
-		ARGS+=( -cpu "0$(for ((j=CPU_CORES; j<CPU_THREADS; j+=CPU_CORES)); do echo -n ",$j"; done)" )
-	fi
-elif echo "${CPU[0]}" | grep -iq 'amd'; then
-	echo -e "The CPU is AMD.\n"
-	if [[ $CPU_CORES -ne $CPU_THREADS && $CPU_THREADS -gt 1 ]]; then
-		# ARGS+=( -cpu "0:$(( CPU_THREADS - 1 )):$(( CPU_THREADS / CPU_CORES ))" )
-		ARGS+=( -cpu "0:$(( (CPU_THREADS / CPU_CORES) - 1 ))" )
-	fi
-else
-	ARGS+=( -cpu "0:$(( CPU_CORES - 1 ))" )
-fi
-./Mlucas -s m "${ARGS[@]}"
-RUNS=()
-if echo "${CPU[0]}" | grep -iq 'intel'; then
 	echo -e "The CPU is Intel."
-	for ((i=0; i<CPU_CORES; ++i)); do
-		if [[ $CPU_CORES -ne $CPU_THREADS ]]; then
-			arg="$i$(for ((j=i+CPU_CORES; j<CPU_THREADS; j+=CPU_CORES)); do echo -n ",$j"; done)"
-		else
-			arg=$i
-		fi
-		RUNS+=( "$arg" )
+	for ((k=1; k<=HP; k*=2)); do
+		for ((l=CPU_CORES; l>=1; l/=2)); do
+			args=()
+			for ((i=0; i<CPU_CORES; i+=l)); do
+				arg=$i
+				if [[ $l -gt 1 ]]; then
+					arg+=":$(( i + l - 1 ))"
+				fi
+				for ((j=i+CPU_CORES; j<k*CPU_CORES; j+=CPU_CORES)); do
+					arg+=",$j"
+					if [[ $l -gt 1 ]]; then
+						arg+=":$(( j + l - 1 ))"
+					fi
+				done
+				args+=( "$arg" )
+			done
+			THREADS+=( "$((l*k)), $k per core" )
+			ARGS+=( "${args[*]}" )
+		done
 	done
 elif echo "${CPU[0]}" | grep -iq 'amd'; then
 	echo -e "The CPU is AMD."
-	for ((i=0; i<CPU_CORES; ++i)); do
-		if [[ $CPU_CORES -ne $CPU_THREADS ]]; then
-			temp=$(( CPU_THREADS / CPU_CORES ))
-			# arg=$(( i * (CPU_THREADS / CPU_CORES) ))
-			arg="$(( i * temp )):$(( (i * temp) + temp - 1 ))"
-		else
-			arg=$i
-		fi
-		RUNS+=( "$arg" )
+	for ((k=1; k<=HP; k*=2)); do
+		for ((l=CPU_CORES; l>=1; l/=2)); do
+			args=()
+			for ((i=0; i<CPU_THREADS; i+=l*HP)); do
+				arg=$i
+				if [[ $k -gt 1 || $l -gt 1 ]]; then
+					arg+=":$(( i + (l * HP) - 1 ))"
+					if [[ $k -ne $HP ]]; then
+						arg+=":$(( HP / k ))"
+					fi
+				fi
+				args+=( "$arg" )
+			done
+			THREADS+=( "$((l*k)), $k per core" )
+			ARGS+=( "${args[*]}" )
+		done
 	done
 else
-	for ((i=0; i<CPU_CORES; i+=4)); do
-		arg="$i:$(if [[ $(( i + 3 )) -lt $CPU_CORES ]]; then echo "$(( i + 3 ))"; else echo "$(( CPU_CORES - 1 ))"; fi)"
-		RUNS+=( "$arg" )
+	for ((l=CPU_CORES; l>=1; l/=2)); do
+		args=()
+		for ((i=0; i<CPU_CORES; i+=l)); do
+			arg=$i
+			if [[ $l -gt 1 ]]; then
+				temp=$(( i + l - 1 ))
+				if [[ $temp -lt $CPU_CORES ]]; then
+					arg+=":$temp"
+				else
+					arg+=":$(( CPU_CORES - 1 ))"
+				fi
+			fi
+			args+=( "$arg" )
+		done
+		THREADS+=( "$l" )
+		ARGS+=( "${args[*]}" )
 	done
 fi
+echo "Combinations of CPU cores/threads"
+{
+	echo -e "#\tWorkers/Runs\tThreads\t-cpu arguments"
+	for i in "${!ARGS[@]}"; do
+		args=( ${ARGS[i]} )
+		printf "%'d\t%'d\t%s\t%s\n" $((i+1)) "${#args[@]}" "${THREADS[i]}" "${args[*]}"
+	done
+} | column -t -s $'\t'
+echo
+CONFIGS=()
+for i in "${!ARGS[@]}"; do
+	args=( ${ARGS[i]} )
+	printf "#%'d\tThreads: %s\t(-cpu argument: %s)\n\n" $((i+1)) "${THREADS[i]}" "${args[0]}"
+	time ./Mlucas -s m -cpu "${args[0]}"
+	CONFIGS+=( "$(awk 'BEGIN { fact='"$((CPU_CORES / ${#args[@]}))"' } /^[[:space:]]*#/ || NF<4 { next } { printf "%.15g\n", $4*fact }' mlucas.cfg)" )
+	mv mlucas.cfg "mlucas.$i.cfg"
+done
+MIN=0
+for i in "${!CONFIGS[@]}"; do
+	if [[ $i -gt 0 ]]; then
+		mean=$(paste <(echo "${CONFIGS[MIN]}") <(echo "${CONFIGS[i]}") | awk '{ sum+=$1/$2 } END { printf "%.15g\n", sum / NR }')
+		if (( $(echo "$mean" | awk '{ print ($1>1) }') )); then
+			MIN=$i
+		fi
+	fi
+done
+RUNS=( ${ARGS[MIN]} )
+ln -s "mlucas.$MIN.cfg" mlucas.cfg
+echo -e "\nSummary\n"
+echo "Fastest combination"
+{
+	echo -e "#\tWorkers/Runs\tThreads\tFirst -cpu argument\tAdjusted msec/iter times"
+	printf "%'d\t%'d\t%s\t%s\t%s\n" $((MIN+1)) "${#RUNS[@]}" "${THREADS[MIN]}" "${RUNS[0]}" "${CONFIGS[MIN]//$'\n'/  }"
+} | column -t -s $'\t'
+echo
+{
+	echo -e "Mean/Average  faster\t#\tWorkers/Runs\tThreads\tFirst -cpu argument\tAdjusted msec/iter times"
+	for i in "${!ARGS[@]}"; do
+		if [[ $i -ne $MIN ]]; then
+			args=( ${ARGS[i]} )
+			array=( $(paste <(echo "${CONFIGS[i]}") <(echo "${CONFIGS[MIN]}") | awk '{ sum+=$1/$2; sumsq+=($1/$2)^2 } END { mean=sum/NR; variance=sumsq/NR-mean^2; printf "%.15g\t%.15g\t%.15g\n", mean, sqrt(variance<0 ? 0 : variance), mean * 100 }') )
+			printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i+1)) "${#args[@]}" "${THREADS[i]}" "${args[0]}" "${CONFIGS[i]//$'\n'/  }"
+		fi
+	done
+} | column -t -s $'\t'
 echo -e "Registering computer with PrimeNet\n"
-python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers "${#RUNS[@]}" -H "$COMPUTER" --cpu_model="${CPU[0]}" --frequency="$(printf "%.0f" "$CPU_FREQ")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
+python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers "${#RUNS[@]}" -H "$COMPUTER" --cpu_model="${CPU[0]}" --frequency="$(printf "%.0f" "${CPU_FREQ/./$decimal_point}")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 for i in "${!RUNS[@]}"; do
-	echo -e "\nCPU Core $i:"
+	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" "$i" "${RUNS[i]}"
 	mkdir "run$i"
 	pushd "run$i" >/dev/null
 	ln -s ../mlucas.cfg .
