@@ -42,7 +42,7 @@ if [[ -d "$DIR" ]]; then
 fi
 if ! command -v expect >/dev/null; then
 	echo -e "Installing Expect"
-	echo -e "Please enter your password when prompted.\n"
+	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
 	sudo apt-get install expect -y
 fi

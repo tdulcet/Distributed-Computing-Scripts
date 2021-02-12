@@ -37,7 +37,7 @@ if command -v boinccmd >/dev/null; then
 	exit 1
 fi
 echo -e "Downloading and installing Boinc"
-echo -e "Please enter your password when prompted.\n"
+echo -e "Please enter your password if prompted.\n"
 sudo apt-get update -y
 sudo apt-get install boinc -y
 echo -e "\nSetting up Boinc\n"

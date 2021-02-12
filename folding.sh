@@ -57,7 +57,7 @@ wget https://download.foldingathome.org/releases/public/release/fahclient/debian
 wget https://download.foldingathome.org/releases/public/release/fahcontrol/debian-stable-64bit/v7.5/fahcontrol_7.5.1-1_all.deb
 wget https://download.foldingathome.org/releases/public/release/fahviewer/debian-stable-64bit/v7.5/fahviewer_7.5.1_amd64.deb
 echo -e "\nInstalling Folding@home"
-echo -e "Please enter your password when prompted.\n"
+echo -e "Please enter your password if prompted.\n"
 
 # Adapted from: https://www.linuxquestions.org/questions/blog/bittner-195120/howto-automate-interactive-debian-package-installations-debconf-preseeding-2879/
 # dpkg-deb -e fahclient_7.5.1_amd64.deb control_files/

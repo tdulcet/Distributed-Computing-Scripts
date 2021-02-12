@@ -18,7 +18,7 @@ COMPUTER=${2:-$HOSTNAME}
 TYPE=${3:-150}
 TIME=${4:-10}
 decimal_point=$(locale decimal_point)
-RE='^[0-9]{3}$'
+RE='^1(0[0124]|5[0123])$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
 	exit 1
@@ -39,7 +39,7 @@ else
 fi
 if ! command -v make >/dev/null || ! command -v gcc >/dev/null; then
 	echo -e "Installing Make and the GNU C compiler"
-	echo -e "Please enter your password when prompted.\n"
+	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
 	sudo apt-get install build-essential -y
 fi
@@ -515,7 +515,7 @@ for i in "${!RUNS[@]}"; do
 	ln -s ../mlucas.$((${#threads[*]}==1 || (threads[0]<threads[1] && i==0) || (threads[0]>threads[1] && i<${#RUNS[*]}-1) ? 0 : 1)).cfg mlucas.cfg
 	echo -e "\tStarting PrimeNet\n"
 	ln -s ../local.ini .
-	nohup python3 ../../primenet.py -d -c "$i" &
+	nohup python3 ../../primenet.py -d -c "$i" >> "primenet.out" &
 	sleep 1
 	echo -e "\n\tStarting Mlucas\n"
 	nohup nice ../Mlucas -cpu "${RUNS[i]}" &
@@ -523,14 +523,14 @@ for i in "${!RUNS[@]}"; do
 	popd >/dev/null
 done
 #crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done)"; } | crontab -
-#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i &); "; done)"; } | crontab -
+#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i >> \"primenet.out\" &); "; done)"; } | crontab -
 cat << EOF > Mlucas.sh
 #!/bin/bash
 
 # Start Mlucas
 # Run: $DIR/Mlucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep Mlucas >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) }; pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i &); "; done) }; else pgrep Mlucas >/dev/null && killall Mlucas; fi
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep Mlucas >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) }; pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i >> \"primenet.out\" &); "; done) }; else pgrep Mlucas >/dev/null && killall Mlucas; fi
 EOF
 chmod +x Mlucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
