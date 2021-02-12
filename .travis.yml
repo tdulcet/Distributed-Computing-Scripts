@@ -17,10 +17,25 @@ matrix:
     script:
     - bash -e -- cudalucas.sh ANONYMOUS
     - cd cudalucas && cppcheck --enable=all *.cu *.c *.h
-  - name: "Mlucas (Intel)"
+  - name: "Mlucas (Intel, gcc)"
+    language: c
+    compiler: gcc
     arch: amd64
     virt: vm
-  - name: "Mlucas (ARM)"
+  - name: "Mlucas (Intel, clang)"
+    language: c
+    compiler: clang
+    arch: amd64
+    virt: vm
+  - name: "Mlucas (ARM, gcc)"
+    language: c
+    compiler: gcc
+    # arch: arm64
+    arch: arm64-graviton2
+    virt: vm
+  - name: "Mlucas (ARM, clang)"
+    language: c
+    compiler: clang
     # arch: arm64
     arch: arm64-graviton2
     virt: vm
@@ -30,7 +45,6 @@ before_script:
     - sudo apt-get -yqq install xz-utils
     - sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
     - sed -i '/^python3 / s/^/# /' mlucas.sh
-    - sed -i '/^crontab / s/^/# /' mlucas.sh
 script:
     - bash -e -- mlucas.sh ANONYMOUS
 after_script:

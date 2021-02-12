@@ -2,13 +2,13 @@
 
 # Teal Dulcet
 # wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas2.sh -qO - | bash -s --
-# ./cudalucas2.sh <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+# ./cudalucas2.sh <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./cudalucas2.sh <N> "$USER" "$HOSTNAME" 100 10
 # ./cudalucas2.sh <N> ANONYMOUS
 
 DIR1="cudalucas"
 if [[ $# -lt 1 || $# -gt 5 ]]; then
-	echo "Usage: $0 <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]" >&2
+	echo "Usage: $0 <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
 fi
 N=$1
@@ -152,7 +152,7 @@ python3 primenet.py -d -t 0 -T "$TYPE" -u "$USERID" -i "worktodo$N.txt" -r "resu
 echo -e "\nStarting PrimeNet\n"
 nohup python3 primenet.py -d -l "local$N.ini" &
 sleep 1
-echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take awhile…\n"
+echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take a while…\n"
 ./CUDALucas -cufftbench 1024 8192 5
 ./CUDALucas -threadbench 1024 8192 5 0
 # echo -e "\nRunning self tests\nThis will take awhile…\n"

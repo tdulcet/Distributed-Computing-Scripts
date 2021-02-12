@@ -39,7 +39,6 @@ jobs:
       run: |
         sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
         sed -i '/^python3 / s/^/# /' mlucas.sh
-        sed -i '/^crontab / s/^/# /' mlucas.sh
     - name: Script
       run: bash -e -- mlucas.sh ANONYMOUS
     - name: ShellCheck

@@ -15,7 +15,7 @@ Copyright © 2018 Teal Dulcet and Daniel Connelly
 Downloads, sets up and runs [Prime95](https://www.mersenne.org/download/#download). Supports only x86 CPUs.
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
 To run Prime95 for Stress/Torture Testing, see the [Testing and Benchmarking](https://github.com/tdulcet/Testing-and-Benchmarking-Scripts) scripts.
@@ -25,7 +25,7 @@ To run Prime95 for Stress/Torture Testing, see the [Testing and Benchmarking](ht
 Downloads, builds, sets up and runs [CUDALucas](https://sourceforge.net/p/cudalucas/code/HEAD/tree/trunk/). Downloads, sets up and runs our [PrimeNet Python script](#primenet) for automated PrimeNet assignments.
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
 ### Mlucas
@@ -34,7 +34,7 @@ Downloads, builds, sets up and runs [Mlucas](https://www.mersenneforum.org/mayer
 This script follows the recommended instructions on the [Mlucas README](https://www.mersenneforum.org/mayer/README.html) for each architecture and CPU.
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
 ### PrimeNet
@@ -192,6 +192,7 @@ PrimeNet script:
 
 General:
 * Create script for the [GpuOwl](https://github.com/preda/gpuowl) GIMPS program
+* Update install scripts to support CLI options
 * Add options for setting the maximum CPU time
 * Update CUDALucas to support PRP tests
 * Create a [Tensor Processing Unit](https://en.wikipedia.org/wiki/Tensor_Processing_Unit) (TPU) GIMPS program and Google Colab TPU notebook (#3)

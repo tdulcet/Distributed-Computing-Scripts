@@ -643,6 +643,11 @@ def primenet_fetch(num_to_get, retry_count=0):
                     if 'sf' in r or 'saved' in r:
                         test += "," + ",".join([r[i] for i in ['sf', 'saved']])
                         if 'base' in r or 'rt' in r:
+                            if not options.gpu and (int(r['base']) != 3 or int(r['rt']) not in [1, 5]):
+                                debug_print(
+                                    "ERROR: PRP base is not 3 or residue type is not 1 or 5")
+                                # TODO: Unreserve assignment
+                                # unreserve(test)
                             test += "," + ",".join([r[i]
                                                     for i in ['base', 'rt']])
                     if 'kf' in r:
@@ -836,8 +841,8 @@ def send_request(guid, args):
         debug_print(e, file=sys.stderr)
         return None
     except ConnectionError as e:
-        debug_print("ERROR connecting to server for request: " +
-                    r.url, file=sys.stderr)
+        debug_print("ERROR connecting to server for request: ",
+                    file=sys.stderr)
         debug_print(e, file=sys.stderr)
         return None
     return result
