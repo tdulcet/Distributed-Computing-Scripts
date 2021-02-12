@@ -44,6 +44,7 @@ before_script:
     - sudo apt-get -yqq update
     - sudo apt-get -yqq install xz-utils
     - sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
+    - sed -i '/^[[:blank:]]*pip3 / s/^/# /' mlucas.sh
     - sed -i '/^python3 / s/^/# /' mlucas.sh
 script:
     - bash -e -- mlucas.sh ANONYMOUS
