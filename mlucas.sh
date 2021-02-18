@@ -47,6 +47,10 @@ if [[ -n "$CC" ]] && ! command -v "$CC" >/dev/null; then
 	echo "Error: $CC is not installed." >&2
 	exit 1
 fi
+if ! command -v python3 >/dev/null; then
+	echo "Error: Python 3 is not installed." >&2
+	exit 1
+fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
 # Adapted from: https://github.com/tdulcet/Linux-System-Information/blob/master/info.sh
@@ -192,6 +196,8 @@ fi
 if command -v pip3 >/dev/null; then
 	echo -e "\nInstalling the Requests library\n"
 	pip3 install requests
+else
+	echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
 fi
 cd obj
 DIR=$PWD
@@ -329,7 +335,7 @@ echo "Combinations of CPU cores/threads"
 	echo -e "#\tWorkers/Runs\tThreads\t-cpu arguments"
 	for i in "${!ARGS[@]}"; do
 		args=( ${ARGS[i]} )
-		printf "%'d\t%'d\t%s\t%s\n" $((i+1)) "${#args[*]}" "${THREADS[i]// /, }" "${args[*]}"
+		printf "%'d\t%'d\t%s\t%s\n" $((i+1)) ${#args[*]} "${THREADS[i]// /, }" "${args[*]}"
 	done
 } | column -t -s $'\t'
 echo
@@ -359,10 +365,10 @@ for i in "${!ARGS[@]}"; do
 					# time ./Mlucas -s $fft -cpu "${args[index]}"
 				# done
 			# done
-			time ./Mlucas -s m -cpu "${args[index]}" 2>&1 | tee "test.$i.log" | grep -i 'error\|warn\|info'
+			time ./Mlucas -s m -cpu "${args[index]}" 2>&1 | tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|info'
 			mv mlucas.cfg "$file"
 		fi
-		times+=( "$(awk 'BEGIN { fact='"$((CPU_CORES / ${#args[*]}))"' } /^[[:space:]]*#/ || NF<4 { next } { printf "%.15g\n", $4*fact }' "$file")" )
+		times+=( "$(awk 'BEGIN { fact='$(( ${#CORES[*]} == 0 ? threads[j] : threads[j] / CORES[i] ))'/'$(( ${#threads[*]}==1 ? ${#args[*]} : ((threads[0]<threads[1] && j==0) || (threads[0]>threads[1] && j==1) ? 1 : ${#args[*]}-1) ))' } /^[[:space:]]*#/ || NF<4 { next } { printf "%.15g\n", $4*fact }' "$file")" )
 		ffts+=( "$(awk '/^[[:space:]]*#/ || NF<4 { next } { print $1 }' "$file")" )
 		radices+=( "$(awk '/^[[:space:]]*#/ || NF<4 { next } { for(i=11;i<=NF && $i!=0;++i) printf "%s%s", $i, i==NF || $(i+1)==0 ? RS : OFS }' "$file")" )
 	done
@@ -372,12 +378,12 @@ for i in "${!ARGS[@]}"; do
 		RADICES+=( "${radices[0]// /,}" )
 	else
 		mapfile -t atimes <<< "${times[0]}"
-		# mapfile -t times <<< "${times[1]}"
+		mapfile -t times <<< "${times[1]}"
 		mapfile -t affts <<< "${ffts[0]}"
 		mapfile -t ffts <<< "${ffts[1]}"
 		mapfile -t aradices <<< "${radices[0]}"
 		mapfile -t radices <<< "${radices[1]}"
-		TIMES+=( "$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then echo "${atimes[k]}"; break; fi; done; done)" )
+		TIMES+=( "$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then echo "${atimes[k]} ${times[j]}"; break; fi; done; done | awk '{ printf "%.15g\n", ($1 + $2) / 2 }')" )
 		FFTS+=( "$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then echo "${affts[k]}"; break; fi; done; done)" )
 		RADICES+=( "$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${aradices[k]// /,}" "${radices[j]// /,}"; break; fi; done; done)" )
 	fi
@@ -476,7 +482,7 @@ echo -e "\tAdjusted msec/iter times (ms/iter) vs Actual iters/sec total throughp
 				fi
 			done
 			if [[ $j -ge 0 ]]; then
-				printf "%s\t%'.3f\t" "${times[j]}" "${iters[j]/./$decimal_point}"
+				printf "%'g\t%'.3f\t" "${times[j]/./$decimal_point}" "${iters[j]/./$decimal_point}"
 			else
 				printf -- '-\t-\t'
 			fi
@@ -488,7 +494,7 @@ echo
 echo "Fastest combination"
 {
 	echo -e "#\tWorkers/Runs\tThreads\tFirst -cpu argument"
-	printf "%'d\t%'d\t%s\t%s\n" $((MAX+1)) "${#RUNS[*]}" "${THREADS[MAX]// /, }" "${RUNS[0]}"
+	printf "%'d\t%'d\t%s\t%s\n" $((MAX+1)) ${#RUNS[*]} "${THREADS[MAX]// /, }" "${RUNS[0]}"
 } | column -t -s $'\t'
 echo
 if [[ ${#ARGS[*]} -gt 1 ]]; then
@@ -501,13 +507,13 @@ if [[ ${#ARGS[*]} -gt 1 ]]; then
 				iters=( ${ITERS[i]} )
 				# join -o 1.2,2.2 <(paste <(echo "${FFTS[MAX]}") <(echo "${ITERS[MAX]}")) <(paste <(echo "${FFTS[i]}") <(echo "${ITERS[i]}"))
 				array=( $(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${aiters[k]}" "${iters[j]}"; break; fi; done; done | awk '{ sum+=$1/$2; sumsq+=($1/$2)^2 } END { mean=sum/NR; variance=sumsq/NR-mean^2; printf "%.15g\t%.15g\t%.15g\n", mean, sqrt(variance<0 ? 0 : variance), (mean * 100) - 100 }') )
-				printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i+1)) "${#args[*]}" "${THREADS[i]// /, }" "${args[0]}"
+				printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i+1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}"
 			fi
 		done
 	} | column -t -s $'\t'
 fi
 echo -e "\nRegistering computer with PrimeNet\n"
-python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers "${#RUNS[*]}" -H "$COMPUTER" --cpu_model="${CPU[0]}" --frequency="$(printf "%.0f" "${CPU_FREQ/./$decimal_point}")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
+python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(printf "%.0f" "${CPU_FREQ/./$decimal_point}")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" "$i" "${RUNS[i]}"
 	mkdir "run$i"
@@ -527,7 +533,7 @@ done
 cat << EOF > Mlucas.sh
 #!/bin/bash
 
-# Start Mlucas
+# Start Mlucas and the PrimeNet script
 # Run: $DIR/Mlucas.sh
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep Mlucas >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) }; pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i >> \"primenet.out\" &); "; done) }; else pgrep Mlucas >/dev/null && killall Mlucas; fi

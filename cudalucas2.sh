@@ -63,6 +63,10 @@ if ! command -v nvcc >/dev/null; then
 	sudo apt-get update -y
 	sudo apt-get install nvidia-cuda-toolkit -y
 fi
+if ! command -v python3 >/dev/null; then
+	echo "Error: Python 3 is not installed." >&2
+	exit 1
+fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 if [[ -d "$DIR1" && -x "$DIR1/CUDALucas" ]]; then
 	echo -e "CUDALucas is already downloaded\n"
@@ -126,8 +130,10 @@ else
 	fi
 fi
 if command -v pip3 >/dev/null; then
-	echo -e "Installing the Requests library\n"
+	echo -e "\nInstalling the Requests library\n"
 	pip3 install requests
+else
+	echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
 fi
 cp CUDALucas.ini "CUDALucas$N.ini"
 sed -i "s/^WorkFile=worktodo.txt/WorkFile=worktodo$N.txt/" "CUDALucas$N.ini"

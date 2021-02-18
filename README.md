@@ -199,3 +199,5 @@ General:
 * Create a [Tensor Processing Unit](https://en.wikipedia.org/wiki/Tensor_Processing_Unit) (TPU) GIMPS program and Google Colab TPU notebook (#3)
 
 Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimNet API, for porting the Prime95 script to Python and for helping create and test the Google Colab Jupyter Notebooks!
+
+Thanks to Ernst W. Mayer for helping test and for providing feedback on the Mlucas install script.

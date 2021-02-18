@@ -61,6 +61,10 @@ if ! command -v nvcc >/dev/null; then
 	sudo apt-get update -y
 	sudo apt-get install nvidia-cuda-toolkit -y
 fi
+if ! command -v python3 >/dev/null; then
+	echo "Error: Python 3 is not installed." >&2
+	exit 1
+fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 echo -e "Downloading CUDALucas\n"
 svn checkout https://svn.code.sf.net/p/cudalucas/code/trunk "$DIR1"
@@ -73,8 +77,10 @@ else
 	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 fi
 if command -v pip3 >/dev/null; then
-	echo -e "Installing the Requests library\n"
+	echo -e "\nInstalling the Requests library\n"
 	pip3 install requests
+else
+	echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
 fi
 echo -e "\nSetting up CUDALucas\n"
 # sed -i 's/\r//g' Makefile

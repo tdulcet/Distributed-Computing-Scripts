@@ -257,7 +257,7 @@ def get_cpu_name(signature):
 
 
 cpu_signature = get_cpu_signature()
-cpu_brand = get_cpu_name(cpu_signature)
+# cpu_brand = get_cpu_name(cpu_signature)
 
 # END Daniel's Functions
 
@@ -1565,8 +1565,7 @@ group = optparse.OptionGroup(parser, "Registering Options: sent to PrimeNet/GIMP
 group.add_option("-H", "--hostname", dest="hostname",
                  default=platform.node()[:20], help="Computer name, Default: %default")
 # TODO: add detection for most parameter, including automatic change of the hardware
-# "cpu.unknown"
-group.add_option("--cpu_model", dest="cpu_model", default=cpu_signature,
+group.add_option("--cpu_model", dest="cpu_model", default=cpu_signature if cpu_signature else "cpu.unknown",
                  help="Processor (CPU) model, Default: %default")
 group.add_option("--features", dest="features", default="",
                  help="CPU features, Default: '%default'")
