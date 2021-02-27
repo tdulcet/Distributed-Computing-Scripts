@@ -71,11 +71,11 @@ except ImportError:
     sys.exit(0)
 
 try:
-    # Python3
+    # Python 3
     from urllib.parse import urlencode
     from requests.exceptions import ConnectionError, HTTPError
 except ImportError:
-    # Python2
+    # Python 2
     from urllib import urlencode
     from urllib2 import URLError as ConnectionError
     from urllib2 import HTTPError
@@ -94,12 +94,12 @@ else:
     try:
         from collections import OrderedDict
     except ImportError:
-        # For python2.6 and before which don't have OrderedDict
+        # For Python 2.6 and before which don't have OrderedDict
         try:
             from ordereddict import OrderedDict
         except ImportError:
             # Tests will not work correctly but it doesn't affect the
-            # functionnality
+            # functionality
             OrderedDict = dict
 
 try:
@@ -133,7 +133,6 @@ def program_options(guid, first_time, retry_count=0):
     args = primenet_v5_bargs.copy()
     args["t"] = "po"
     args["g"] = guid
-    # no value updates all cpu threads with given worktype
     args["c"] = options.cpu
     args["w"] = options.worktype if first_time \
         or hasattr(opts_no_defaults, "worktype") else ""
@@ -625,17 +624,14 @@ def primenet_fetch(num_to_get, retry_count=0):
                     # TODO: Unreserve assignment
                     # unreserve(test)
                     break
-                # if options.worktype == LL
                 if w is primenet_api.PRIMENET_WORK_TYPE_FIRST_LL:
                     work_type_str = "LL"
                     test = "Test=" + ",".join([r[i]
                                                for i in ['k', 'n', 'sf', 'p1']])
-                # if options.worktype == DC
                 elif w is primenet_api.PRIMENET_WORK_TYPE_DBLCHK:
                     work_type_str = "Double check"
                     test = "DoubleCheck=" + \
                         ",".join([r[i] for i in ['k', 'n', 'sf', 'p1']])
-                # if PRP type testing
                 elif w is primenet_api.PRIMENET_WORK_TYPE_PRP:
                     work_type_str = "PRPDC" if 'dc' in r else "PRP"
                     test = "PRP" + ("DC" if 'dc' in r else "") + "=" + \
@@ -683,7 +679,6 @@ def get_assignment(progress):
         time_left = timedelta(seconds=time_left)
         days_work = timedelta(days=options.days_work)
         if time_left <= days_work:
-            # time_left and percent increase are exclusive (don't want to do += 2)
             num_cache += 1
             debug_print("Time_left is {0} and smaller than limit ({1}), so num_cache is increased by one to {2:n}".format(
                 str(time_left), str(days_work), num_cache))
@@ -736,6 +731,7 @@ except ImportError:
 
 
 def parse_stat_file(p):
+    # Mlucas
     statfile = os.path.join(workdir, 'p' + str(p) + '.stat')
     if not os.path.exists(statfile):
         debug_print("stat file “" + statfile + "” does not exist")
@@ -809,9 +805,6 @@ def secure_v5_url(guid, args):
 
 
 def send_request(guid, args):
-    # to mimic mprime, it is necessary to add safe='"{}:,' argument to urlencode, in
-    # particular to encode JSON in result submission. But safe is not
-    # supported by python2...
     try:
         if idx:
             args["ss"] = 19191919
@@ -858,14 +851,14 @@ def register_instance(guid):
         parser.error(
             "To register the instance, --username is required")
     hardware_id = md5((options.cpu_model + str(uuid.getnode())).encode(
-        "utf-8")).hexdigest()  # similar as mprime
+        "utf-8")).hexdigest()  # similar as MPrime
     args = primenet_v5_bargs.copy()
     args["t"] = "uc"					# update compute command
     if guid is None:
         guid = create_new_guid()
     args["g"] = guid
     args["hg"] = hardware_id			# 32 hex char (128 bits)
-    args["wg"] = ""						# only filled on Windows by mprime
+    args["wg"] = ""						# only filled on Windows by MPrime
     args["a"] = "{0},{1},v{2}{3}".format(platform.system() + ('64' if platform.machine().endswith('64') else ''), programs[idx]
                                          ["name"], programs[idx]["version"], ",build " + str(programs[idx]["build"]) if "build" in programs[idx] else '')
     if config.has_option("primenet", "sw_version"):
@@ -981,11 +974,9 @@ def merge_config_and_options(config, options):
             config.set("primenet", attr, str(attr_val))
             updated = True
 
-    global localfile
     global workfile
     global resultsfile
 
-    localfile = os.path.join(workdir, options.localfile)
     workfile = os.path.join(workdir, options.workfile)
     resultsfile = os.path.join(workdir, options.resultsfile)
     return updated
@@ -1027,8 +1018,8 @@ def update_progress_all():
     # The idea is that the first assignment is having a .stat file with correct values
     # Most of the time, a later assignment would not have a .stat file to obtain information,
     # but if it has, it may come from an other computer if the user moved the files, and so
-    # it doesn't have revelant values for speed estimation.
-    # Using msec_per_iter from one p to another is a good estimation if both p are close enougth
+    # it doesn't have relevant values for speed estimation.
+    # Using msec_per_iter from one p to another is a good estimation if both p are close enough
     # if there is big gap, it will be other or under estimated.
     # Any idea for a better estimation of assignment duration when only p and
     # type (LL or PRP) is known ?
@@ -1130,7 +1121,7 @@ def parse_assignment(task):
 
 
 def parse_stat_file_cuda(p):
-    # CUDALucas only function
+    # CUDALucas
     # appended line by line, no lock needed
     gpu = os.path.join(workdir, options.gpu)
     if not os.path.exists(gpu):
@@ -1153,9 +1144,6 @@ def parse_stat_file_cuda(p):
         ms_res = re.findall(ms_per_regex, line)
         eta_res = re.findall(eta_regex, line)
         fft_res = re.findall(fft_regex, line)
-        # regex matches, but not when CUDALucas is continuing
-        # if iter_res and ms_res and "Compatibility" not in line and
-        # "Continuing" not in line and "M(" not in line:
         if num_res and iter_res and ms_res and eta_res and fft_res:
             if int(num_res[0]) != p:
                 if found == 0:
@@ -1204,8 +1192,8 @@ def send_progress(assignment, percent, time_left,
     #
     args = primenet_v5_bargs.copy()
     args["t"] = "ap"  # update compute command
-    # k= the assignment ID (32 chars, follows '=' in Primenet-geerated workfile entries)
     args["g"] = guid
+    # k= the assignment ID (32 chars, follows '=' in Primenet-generated workfile entries)
     args["k"] = assignment.uid
     # p= progress in %-done, 4-char format = xy.z
     args["p"] = "{0:.4f}".format(percent)
@@ -1213,8 +1201,7 @@ def send_progress(assignment, percent, time_left,
     args["d"] = options.timeout if options.timeout else 24 * 60 * 60
     # e= the ETA of completion in seconds, if unknown, just put 1 week
     args["e"] = int(time_left) if time_left is not None else 7 * 24 * 60 * 60
-    # c= the worker thread of the machine ... always sets = 0 for now,
-    # elaborate later if desired
+    # c= the worker thread of the machine
     args["c"] = options.cpu
     # stage= LL in this case, although an LL test may be doing TF or P-1 work
     # first so it's possible to be something besides LL
@@ -1262,7 +1249,7 @@ def send_progress(assignment, percent, time_left,
 
 
 def get_cuda_ar_object(sendline):
-    # CUDALucas only function
+    # CUDALucas
 
     # sendline example: 'M( 108928711 )C, 0x810d83b6917d846c, offset = 106008371, n = 6272K, CUDALucas v2.06, AID: 02E4F2B14BB23E2E4B95FC138FC715A8'
     # sendline example: 'M( 108928711 )P, offset = 106008371, n = 6272K, CUDALucas v2.06, AID: 02E4F2B14BB23E2E4B95FC138FC715A8'
@@ -1583,9 +1570,6 @@ group.add_option("--hp", dest="hp", type="int", default=0,
                  help="Number of CPU threads per core (0 is unknown), Default: %default")
 parser.add_option_group(group)
 
-#(options, args) = parser.parse_args()
-# print(options)
-
 opts_no_defaults = optparse.Values()
 __, args = parser.parse_args(values=opts_no_defaults)
 options = optparse.Values(parser.get_default_values().__dict__)
@@ -1602,50 +1586,6 @@ resultsfile = os.path.join(workdir, options.resultsfile)
 # A cumulative backup
 sentfile = os.path.join(workdir, "results_sent.txt")
 
-# Good refs re. Python regexp: https://www.geeksforgeeks.org/pattern-matching-python-regex/, https://www.python-course.eu/re.php
-# pre-v19 only handled LL-test assignments starting with either DoubleCheck or Test, followed by =, and ending with 3 ,number pairs:
-#
-#	workpattern = r"(DoubleCheck|Test)=.*(,[0-9]+){3}"
-#
-# v19 we add PRP-test support - both first-time and DC of these start with PRP=, the DCs tack on 2 more ,number pairs representing
-# the PRP base to use and the PRP test-type (the latter is a bit complex to explain here). Sample of the 4 worktypes supported by v19:
-#
-#	Test=7A30B8B6C0FC79C534A271D9561F7DCC,89459323,76,1
-#	DoubleCheck=92458E009609BD9E10577F83C2E9639C,50549549,73,1
-#	PRP=BC914675C81023F252E92CF034BEFF6C,1,2,96364649,-1,76,0
-#	PRP=51D650F0A3566D6C256B1679C178163E,1,2,81348457,-1,75,0,3,1
-#
-# and the obvious regexp pattern-modification is
-#
-#	workpattern = r"(DoubleCheck|Test|PRP)=.*(,[0-9]+){3}"
-#
-# Here is where we get to the kind of complication the late baseball-philosopher Yogi Berra captured via his aphorism,
-# "In theory, theory and practice are the same. In practice, they're different". Namely, while the above regexp pattern
-# should work on all 4 assignment patterns, since each has a string of at least 3 comma-separated nonnegative ints somewhere
-# between the 32-hexchar assignment ID and end of the line, said pattern failed on the 3rd of the above 4 assignments,
-# apparently because when the regexp is done via the 'greplike' below, the (,[0-9]+){3} part of the pattern gets implicitly
-# tiled to the end of the input line. Assignment # 3 above happens to have a negative number among the final 3, thus the
-# grep fails. This weird behavior is not reproducible running Python in console mode:
-#
-#	>>> import re
-#	>>> s1 = "DoubleCheck=92458E009609BD9E10577F83C2E9639C,50549549,73,1"
-#	>>> s2 = "Test=7A30B8B6C0FC79C534A271D9561F7DCC,89459323,76,1"
-#	>>> s3 = "PRP=BC914675C81023F252E92CF034BEFF6C,1,2,96364649,-1,76,0"
-#	>>> s4 = "PRP=51D650F0A3566D6C256B1679C178163E,1,2,81348457,-1,75,0,3,1"
-#	>>> print re.search(r"(DoubleCheck|Test|PRP)=.*(,[0-9]+){3}" , s1)
-#	<_sre.SRE_Match object at 0x1004bd250>
-#	>>> print re.search(r"(DoubleCheck|Test|PRP)=.*(,[0-9]+){3}" , s2)
-#	<_sre.SRE_Match object at 0x1004bd250>
-#	>>> print re.search(r"(DoubleCheck|Test|PRP)=.*(,[0-9]+){3}" , s3)
-#	<_sre.SRE_Match object at 0x1004bd250>.
-#	>> print re.search(r"(DoubleCheck|Test|PRP)=.*(,[0-9]+){3}" , s4)
-#	<_sre.SRE_Match object at 0x1004bd250>
-#
-# Anyhow, based on that I modified the grep pattern to work around the weirdness, by appending .* to the pattern, thus
-# changing things to "look for 3 comma-separated nonnegative ints somewhere in the assignment, followed by anything",
-# also now to specifically look for a 32-hexchar assignment ID preceding such a triplet, and to allow whitespace around
-# the =. The latter bit is not needed based on current server assignment format, just a personal aesthetic bias of mine:
-#
 # r'^(?:(Test|DoubleCheck)=([0-9A-F]{32})(,\d+){3}|(PRP(?:DC)?)=([0-9A-F]{32})(,-?\d+){4,8}(,"\d+(?:,\d+)*")?|(Cert)=([0-9A-F]{32})(,-?\d+){5})$'
 workpattern = re.compile(
     r'^(Test|DoubleCheck|PRP(?:DC)?|Cert)\s*=\s*([0-9A-F]{32})(,(?:-?\d+|"\d+(?:,\d+)*")){3,9}$')
@@ -1750,7 +1690,6 @@ while True:
                 if options.timeout <= 0:
                     break
             # worktype has changed, update worktype preference in program_options()
-            # if config_updated:
             elif config_updated:
                 program_options(guid, False)
     except HTTPError as e:
