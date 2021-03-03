@@ -39,6 +39,9 @@ matrix:
     # arch: arm64
     arch: arm64-graviton2
     virt: vm
+  allow_failures:
+  - language: c
+    compiler: clang
 
 before_script:
     - sudo apt-get -yqq update

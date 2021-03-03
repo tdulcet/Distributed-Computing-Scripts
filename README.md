@@ -189,15 +189,16 @@ PrimeNet script:
 * Work with GIMPS to support using CUDALucas and other GIMPS programs in the application version string when registering with PrimeNet.
 	* Currently it only supports Mlucas v19.
 * Support reporting interim residues.
-* Support [uploading PRP proofs](https://github.com/preda/gpuowl/blob/master/tools/upload.py) and downloading certification assignments.
+* Support reporting P-1 results, [uploading PRP proofs](https://github.com/preda/gpuowl/blob/master/tools/upload.py) and downloading certification assignments.
 
 General:
 * Create install script for the [GpuOwl](https://github.com/preda/gpuowl) GIMPS program
 * Update install scripts to support CLI options
 * Add options for setting the maximum CPU time
 * Update CUDALucas to support PRP tests and the Jacobi error check for LL tests
+* Update Mlucas to support the Jacobi error check for LL tests
 * Create a [Tensor Processing Unit](https://en.wikipedia.org/wiki/Tensor_Processing_Unit) (TPU) GIMPS program and Google Colab TPU notebook (#3)
 
-Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimNet API, for porting the Prime95 script to Python and for helping create and test the Google Colab Jupyter Notebooks!
+Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimeNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimeNet API, for porting the Prime95 script to Python and for helping create and test the Google Colab Jupyter Notebooks!
 
 Thanks to Ernst W. Mayer for helping test and for providing feedback on the Mlucas install script.

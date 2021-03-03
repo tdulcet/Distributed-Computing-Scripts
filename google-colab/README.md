@@ -9,7 +9,7 @@ Each notebook makes use of Google Drive storage, which is provided to all Google
 ## How to Use
 **Please Note:** you must keep each notebook **OPEN** in your browser to prevent it from disconnecting due to being perceived as idle. [Pin the tab(s)](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) or move them to a dedicated window for easy access to your notebook(s).
 
-1. **Choose a Persistent Storage Option** Recommend Method: Copy the source of our respective [“GPU and CPU” notebook](GoogleColabGPU.ipynb) and/or [“CPU” notebook](GoogleColabCPU.ipynb), pasting them into one or more [new notebooks](http://colab.research.google.com/#create=true) in Colab. Then, uniquely name and save the notebook(s) (<kbd>Ctrl</kbd> + <kbd>s</kbd>). Next, on the upper right, click “Connect”. Then, on the far left, click “📁”, the “Mount Drive” button and select “CONNECT TO GOOGLE DRIVE”. Your Drive storage should automatically remount each time you run the notebook(s). See the official [video](https://video.twimg.com/tweet_video/EQbtltjVAAA2qTs.mp4) for a walkthrough.
+1. **Choose a Persistent Storage Option** Recommend Method: Copy the source of our respective [“GPU and CPU” notebook](GoogleColabGPU.ipynb) and/or [“CPU” notebook](GoogleColabCPU.ipynb), pasting them into one or more [new notebooks](http://colab.research.google.com/#create=true) in Colab. Then, uniquely name and save the notebook(s) (<kbd>Ctrl</kbd> + <kbd>s</kbd>). Next, on the upper right, click “Connect”. Then, on the far left, click “📁”, the “Mount Drive” folder button and select “CONNECT TO GOOGLE DRIVE”. Your Drive storage should automatically remount each time you run the notebook(s). See the official [video](https://video.twimg.com/tweet_video/EQbtltjVAAA2qTs.mp4) for a walkthrough.
 <details>
     <summary>Alternative Method</summary>
     Open “GPU and CPU” notebook: <a href="https://colab.research.google.com/github/tdulcet/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabGPU.ipynb"> <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="GPU-CPU-Notebook"></a> and/or the “CPU” notebook: <a href="https://colab.research.google.com/github/tdulcet/Distributed-Computing-Scripts/blob/master/google-colab/GoogleColabCPU.ipynb"> <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="CPU-Notebook"></a> in Colab. Then, uniquely name and save a copy to your Drive (<kbd>Ctrl</kbd> + <kbd>s</kbd>) to avoid a warning each time you run the notebook. *WARNINGS*: This method will continually require an authorization step each time you run the notebook(s). After step 4 below, follow the link Google provides to authorize the login to your Drive and copy-and-paste the authorization string into the textbox Google provides within the notebook's output box.
@@ -17,7 +17,7 @@ Each notebook makes use of Google Drive storage, which is provided to all Google
 
 2. **If Running the GPU** notebook, you must enable the GPU runtime. On the upper left, click “Runtime” → “Change runtime type”, under “Hardware accelerator” select “GPU” and click “SAVE”.
 
-3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes will use several GiB of your Drive storage and are thus not recommended.
+3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes will use several GiB of your Drive storage. The number of PRP tests done should be balanced with your available Drive storage.
 
 4. **Click** “▶” to run the notebook.
 
@@ -60,7 +60,7 @@ Though each GPU works well and will complete most assignments in a matter of day
 ## Acknowledgements
 We acknowledge the following projects, which enabled and encouraged us to create these notebooks:
 * [Our Bash install scripts](/../../#organizations), which automatically download, build and setup the respective GIMPS programs on Colab.
-* [Our PrimeNet Python script](/../../#primenet), which automatically gets assignments, reports assignment results and progress for CUDALucas using the PrimNet API. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by Loïc Le Loarer and Ernst W. Mayer.
+* [Our PrimeNet Python script](/../../#primenet), which automatically gets assignments, reports assignment results and progress for CUDALucas using the PrimeNet API. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by Loïc Le Loarer and Ernst W. Mayer.
 * The [GPU72 notebook](https://github.com/chalsall/GPU72_CoLab), whose work encouraged us to also use the [form](https://colab.research.google.com/notebooks/forms.ipynb) format.
 * The [Linux System Information script](https://github.com/tdulcet/Linux-System-Information), which outputs the system information for the Colab VMs.
 

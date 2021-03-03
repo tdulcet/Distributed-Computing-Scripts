@@ -10,11 +10,14 @@ jobs:
   CUDALucas:
     name: CUDALucas
 
-    runs-on: ubuntu-latest
-
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
+      fail-fast: false
     steps:
-    - uses: actions/checkout@v1
-    - name: Before
+    - uses: actions/checkout@v2
+    - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
         sed -i '/^if ! COMPUTE=/,/^fi/ s/^/# /' cudalucas.sh
@@ -25,6 +28,11 @@ jobs:
         sed -i '/^crontab / s/^/# /' cudalucas.sh
     - name: Script
       run: bash -e -- cudalucas.sh ANONYMOUS
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }} _cudalucas
+        path: |
+          cudalucas
     - name: ShellCheck
       run: bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
 
@@ -32,6 +40,7 @@ jobs:
     name: Mlucas
 
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.cc == 'clang' }}
     strategy:
       matrix:
         os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
@@ -40,14 +49,19 @@ jobs:
     env:
       CC: ${{ matrix.cc }}
     steps:
-    - uses: actions/checkout@v1
-    - name: Before
+    - uses: actions/checkout@v2
+    - name: Before script
       run: |
         sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
         sed -i '/^python3 / s/^/# /' mlucas.sh
         $CC --version
     - name: Script
       run: bash -e -- mlucas.sh ANONYMOUS
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }} _ ${{ matrix.cc }} _mlucas
+        path: |
+          mlucas
     - name: ShellCheck
       run: bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
 
