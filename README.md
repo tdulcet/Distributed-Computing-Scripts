@@ -6,6 +6,8 @@ Distributed Computing Scripts
 
 Copyright © 2018 Teal Dulcet and Daniel Connelly
 
+❤️ Please visit [tealdulcet.com](https://www.tealdulcet.com/) to support these script and my other software development.
+
 ## Great Internet Mersenne Prime Search (GIMPS)
 
 🆕 Thanks to Google's [Colaboratory](https://colab.research.google.com/) (Colab) service, anyone with an internet connection can now contribute to GIMPS for 🆓, without downloading or installing anything! Please see our [google-colab](google-colab) directory for instructions.
@@ -188,6 +190,7 @@ PrimeNet script:
 * Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has not made any progress in a while or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
 * Work with GIMPS to support using CUDALucas and other GIMPS programs in the application version string when registering with PrimeNet.
 	* Currently it only supports Mlucas v19.
+* Add a quit GIMPS feature, where it will not download any new assignments, but will still finish and report the existing ones.
 * Support reporting interim residues.
 * Support reporting P-1 results, [uploading PRP proofs](https://github.com/preda/gpuowl/blob/master/tools/upload.py) and downloading certification assignments.
 

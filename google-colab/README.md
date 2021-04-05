@@ -17,7 +17,7 @@ Each notebook makes use of Google Drive storage, which is provided to all Google
 
 2. **If Running the GPU** notebook, you must enable the GPU runtime. On the upper left, click “Runtime” → “Change runtime type”, under “Hardware accelerator” select “GPU” and click “SAVE”.
 
-3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes will use several GiB of your Drive storage. The number of PRP tests done should be balanced with your available Drive storage.
+3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes can use several GiB of your Drive storage. The number of PRP tests done should be balanced with your available Drive storage.
 
 4. **Click** “▶” to run the notebook.
 

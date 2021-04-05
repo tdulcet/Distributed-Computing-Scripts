@@ -61,7 +61,7 @@ echo -e "\nLinux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
 KERNEL=$(</proc/sys/kernel/osrelease) # uname -r
 echo -e "Linux Kernel:\t\t\t$KERNEL"
 
-mapfile -t CPU < <(sed -n 's/^model name[[:space:]]*: *//p' /proc/cpuinfo | uniq)
+mapfile -t CPU < <(sed -n 's/^model name[[:blank:]]*: *//p' /proc/cpuinfo | uniq)
 if [[ -n "$CPU" ]]; then
 	echo -e "Processor (CPU):\t\t${CPU[0]}$([[ ${#CPU[*]} -gt 1 ]] && printf '\n\t\t\t\t%s' "${CPU[@]:1}")"
 fi
@@ -75,7 +75,7 @@ fi
 
 sleep 1
 
-CPU_FREQS=( $(sed -n 's/^cpu MHz[[:space:]]*: *//p' /proc/cpuinfo) )
+CPU_FREQS=( $(sed -n 's/^cpu MHz[[:blank:]]*: *//p' /proc/cpuinfo) )
 if [[ -z "$CPU_FREQS" ]]; then
 	for file in /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq; do
 		if [[ -r "$file" ]]; then
@@ -368,7 +368,7 @@ for i in "${!ARGS[@]}"; do
 			time ./Mlucas -s m -cpu "${args[index]}" 2>&1 | tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|info'
 			mv mlucas.cfg "$file"
 		fi
-		times+=( "$(awk 'BEGIN { fact='$(( ${#CORES[*]} == 0 ? threads[j] : threads[j] / CORES[i] ))'/'$(( ${#threads[*]}==1 ? ${#args[*]} : ((threads[0]<threads[1] && j==0) || (threads[0]>threads[1] && j==1) ? 1 : ${#args[*]}-1) ))' } /^[[:space:]]*#/ || NF<4 { next } { printf "%.15g\n", $4*fact }' "$file")" )
+		times+=( "$(awk 'BEGIN { fact='$(( (${#CORES[*]} == 0 ? threads[j] : threads[j] / CORES[i]) * (${#threads[*]}==1 ? ${#args[*]} : ((threads[0]<threads[1] && j==0) || (threads[0]>threads[1] && j==1) ? 1 : ${#args[*]}-1)) ))'/'${#args[*]}' } /^[[:space:]]*#/ || NF<4 { next } { printf "%.15g\n", $4*fact }' "$file")" )
 		ffts+=( "$(awk '/^[[:space:]]*#/ || NF<4 { next } { print $1 }' "$file")" )
 		radices+=( "$(awk '/^[[:space:]]*#/ || NF<4 { next } { for(i=11;i<=NF && $i!=0;++i) printf "%s%s", $i, i==NF || $(i+1)==0 ? RS : OFS }' "$file")" )
 	done
@@ -383,7 +383,7 @@ for i in "${!ARGS[@]}"; do
 		mapfile -t ffts <<< "${ffts[1]}"
 		mapfile -t aradices <<< "${radices[0]}"
 		mapfile -t radices <<< "${radices[1]}"
-		TIMES+=( "$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then echo "${atimes[k]} ${times[j]}"; break; fi; done; done | awk '{ printf "%.15g\n", ($1 + $2) / 2 }')" )
+		TIMES+=( "$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then echo "${atimes[k]} ${times[j]}"; break; fi; done; done | awk '{ printf "%.15g\n", $1 + $2 }')" )
 		FFTS+=( "$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then echo "${affts[k]}"; break; fi; done; done)" )
 		RADICES+=( "$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${aradices[k]// /,}" "${radices[j]// /,}"; break; fi; done; done)" )
 	fi
@@ -494,7 +494,7 @@ echo
 echo "Fastest combination"
 {
 	echo -e "#\tWorkers/Runs\tThreads\tFirst -cpu argument"
-	printf "%'d\t%'d\t%s\t%s\n" $((MAX+1)) ${#RUNS[*]} "${THREADS[MAX]// /, }" "${RUNS[0]}"
+	printf "%'d\t%'d\t%s\t%s\n" $((MAX+1)) ${#RUNS[*]} "${THREADS[MAX]// /, }" "${RUNS[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${RUNS[-1]}"; fi)"
 } | column -t -s $'\t'
 echo
 if [[ ${#ARGS[*]} -gt 1 ]]; then
@@ -503,11 +503,12 @@ if [[ ${#ARGS[*]} -gt 1 ]]; then
 		for i in "${!ARGS[@]}"; do
 			if [[ $i -ne $MAX ]]; then
 				args=( ${ARGS[i]} )
+				threads=( ${THREADS[i]} )
 				mapfile -t ffts <<< "${FFTS[i]}"
 				iters=( ${ITERS[i]} )
 				# join -o 1.2,2.2 <(paste <(echo "${FFTS[MAX]}") <(echo "${ITERS[MAX]}")) <(paste <(echo "${FFTS[i]}") <(echo "${ITERS[i]}"))
 				array=( $(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${aiters[k]}" "${iters[j]}"; break; fi; done; done | awk '{ sum+=$1/$2; sumsq+=($1/$2)^2 } END { mean=sum/NR; variance=sumsq/NR-mean^2; printf "%.15g\t%.15g\t%.15g\n", mean, sqrt(variance<0 ? 0 : variance), (mean * 100) - 100 }') )
-				printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i+1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}"
+				printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i+1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${args[-1]}"; fi)"
 			fi
 		done
 	} | column -t -s $'\t'
