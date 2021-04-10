@@ -154,7 +154,7 @@ if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=( -m "${TOTAL_GPU_MEM[0]}" )
 	fi
 fi
-python3 primenet.py -d -t 0 -T "$TYPE" -u "$USERID" -i "worktodo$N.txt" -r "results$N.txt" -l "local$N.ini" -g "cudalucas$N.out" -H "$COMPUTER" "${ARGS[@]}"
+python3 primenet.py -d -t 0 -T "$TYPE" -u "$USERID" -i "worktodo$N.txt" -r "results$N.txt" -l "local$N.ini" --cudalucas "cudalucas$N.out" -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting PrimeNet\n"
 nohup python3 primenet.py -d -l "local$N.ini" >> "primenet$N.out" &
 sleep 1

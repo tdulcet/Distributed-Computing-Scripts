@@ -19,7 +19,7 @@ Each notebook makes use of Google Drive storage, which is provided to all Google
 
 3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes can use several GiB of your Drive storage. The number of PRP tests done should be balanced with your available Drive storage.
 
-4. **Click** “▶” to run the notebook.
+4. **Click** “▶️” to run the notebook.
 
 5. **When the Notebook Disconnects** – for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
 usage limit, a bad internet connection, Google requiring your GPU type, etc. – follow step 4 again to continue where you left off.
@@ -52,7 +52,7 @@ Tesla K80
 Tesla T4
 Tesla P4
 ```
-See the [gpu_optimizations](gpu_optimizations) directory for more information about each GPU, including the ms/iter speeds at different FFT lengths.
+See the [gpu_optimizations](gpu_optimizations) directory for more information about each GPU, including the ms/iter speeds for CUDALucas at different FFT lengths.
 
 Though each GPU works well and will complete most assignments in a matter of days, one may use the following method to attain a new GPU:
 `Runtime → Factory reset runtime → YES`. After repeating 1-3 times, Google will usually assign a new GPU.
@@ -60,7 +60,7 @@ Though each GPU works well and will complete most assignments in a matter of day
 ## Acknowledgements
 We acknowledge the following projects, which enabled and encouraged us to create these notebooks:
 * [Our Bash install scripts](/../../#organizations), which automatically download, build and setup the respective GIMPS programs on Colab.
-* [Our PrimeNet Python script](/../../#primenet), which automatically gets assignments, reports assignment results and progress for CUDALucas using the PrimeNet API. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by Loïc Le Loarer and Ernst W. Mayer.
+* [Our PrimeNet Python script](/../../#primenet), which automatically gets assignments, reports assignment results and progress for CUDALucas and GpuOwl using the PrimeNet API. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by Loïc Le Loarer and Ernst W. Mayer.
 * The [GPU72 notebook](https://github.com/chalsall/GPU72_CoLab), whose work encouraged us to also use the [form](https://colab.research.google.com/notebooks/forms.ipynb) format.
 * The [Linux System Information script](https://github.com/tdulcet/Linux-System-Information), which outputs the system information for the Colab VMs.
 

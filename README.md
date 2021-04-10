@@ -6,7 +6,7 @@ Distributed Computing Scripts
 
 Copyright © 2018 Teal Dulcet and Daniel Connelly
 
-❤️ Please visit [tealdulcet.com](https://www.tealdulcet.com/) to support these script and my other software development.
+❤️ Please visit [tealdulcet.com](https://www.tealdulcet.com/) to support these scripts and my other software development.
 
 ## Great Internet Mersenne Prime Search (GIMPS)
 
@@ -41,7 +41,7 @@ wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.
 
 ### PrimeNet
 
-Automatically gets assignments, reports assignment results and optionally progress to PrimeNet for both the CUDALucas and Mlucas GIMPS programs. Supports both Python 2 and 3 and Windows, macOS and Linux. Requires the [Requests library](https://requests.readthedocs.io/en/master/), which is included with many Python 3 installations. The script will automatically install Requests on first run if it is not already installed. Our [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by Loïc Le Loarer and Ernst W. Mayer, which itself was adapted from primetools by [Mark Rose](https://github.com/MarkRose/primetools) and [teknohog](https://github.com/teknohog/primetools).
+Automatically gets assignments, reports assignment results and optionally progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. Supports both Python 2 and 3 and Windows, macOS and Linux. Requires the [Requests library](https://requests.readthedocs.io/en/master/), which is included with many Python 3 installations. The script will automatically install Requests on first run if it is not already installed. Our [GpuOwl](#gpuowl), [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by Loïc Le Loarer and Ernst W. Mayer, which itself was adapted from primetools by [Mark Rose](https://github.com/MarkRose/primetools) and [teknohog](https://github.com/teknohog/primetools).
 
 #### Usage
 
@@ -49,11 +49,11 @@ Automatically gets assignments, reports assignment results and optionally progre
 Usage: primenet.py [options]
 
 This program will automatically get assignments, report assignment results and
-optionally progress to PrimeNet for both the CUDALucas and Mlucas GIMPS
+optionally progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS
 programs. It also saves its configuration to a “local.ini” file, so it is only
 necessary to give most of the arguments the first time it is run. The first
 time it is run, if a password is NOT provided, it will register the current
-CUDALucas/Mlucas instance with PrimeNet (see below). Then, it will get
+GpuOwl/CUDALucas/Mlucas instance with PrimeNet (see below). Then, it will get
 assignments, report the results and progress, if registered, to PrimeNet on a
 “timeout” interval, or only once if timeout is 0.
 
@@ -82,15 +82,19 @@ Options:
                         recommend). This was the default behavior for old
                         versions of this script.
   -T WORKTYPE, --worktype=WORKTYPE
-                        Type of work, Default: 100, 100 (smallest available
-                        first-time LL), 101 (double-check LL), 102 (world-
-                        record-sized first-time LL), 104 (100M digit number LL
-                        - not recommended), 150 (smallest available first-time
-                        PRP), 151 (double-check PRP), 152 (world-record-sized
-                        first-time PRP), 153 (100M digit number PRP), 160
-                        (first time Mersenne cofactors PRP), 161 (double-check
-                        Mersenne cofactors PRP)
-  -g GPU, --gpu=GPU     Get assignments for a GPU (CUDALucas) instead of the
+                        Type of work, Default: 100, 4 (P-1 factoring), 100
+                        (smallest available first-time LL), 101 (double-check
+                        LL), 102 (world-record-sized first-time LL), 104 (100M
+                        digit number LL - not recommended), 150 (smallest
+                        available first-time PRP), 151 (double-check PRP), 152
+                        (world-record-sized first-time PRP), 153 (100M digit
+                        number PRP), 155 (double-check using PRP with proof),
+                        160 (first time Mersenne cofactors PRP), 161 (double-
+                        check Mersenne cofactors PRP)
+  -g, --gpuowl          Get assignments for a GPU (GpuOwl) instead of the CPU
+                        (Mlucas).
+  --cudalucas=CUDALUCAS
+                        Get assignments for a GPU (CUDALucas) instead of the
                         CPU (Mlucas). This flag takes as an argument the
                         CUDALucas output filename.
   --num_workers=NW      Number of worker threads (CPU Cores/GPUs), Default: 1
@@ -104,9 +108,9 @@ Options:
                         num_cache when the time left for the current
                         assignment is less then this number of days.
   -t TIMEOUT, --timeout=TIMEOUT
-                        Seconds to wait between network updates, Default:
-                        21600 seconds (6 hours). Use 0 for a single update
-                        without looping.
+                        Seconds to wait between network updates, Default: 3600
+                        seconds (1 hour). Use 0 for a single update without
+                        looping.
   --status              Output a status report and any expected completion
                         dates for all assignments and exit.
   --unreserve_all       Unreserve all assignments and exit. Requires that the
