@@ -138,7 +138,7 @@ def program_options(guid, first_time, retry_count=0):
         opts_no_defaults, "worktype") else ""
     args["nw"] = options.nw
     # args["Priority"] = 1
-    args["DaysOfWork"] = options.days_work if first_time \
+    args["DaysOfWork"] = int(round(options.days_work)) if first_time \
         or hasattr(opts_no_defaults, "days_work") else ""
     # args["DayMemory"] = 8
     # args["NightMemory"] = 8
@@ -970,7 +970,10 @@ def merge_config_and_options(config, options):
                 and config.has_option("primenet", attr):
             # If no option is given and the option exists in local.ini, take it
             # from local.ini
-            new_val = config.get("primenet", attr)
+            if isinstance(attr_val, bool):
+                new_val = config.getboolean("primenet", attr)
+            else:
+                new_val = config.get("primenet", attr)
             # config file values are always str()
             # they need to be converted to the expected type from options
             if attr_val is not None:
@@ -1595,7 +1598,7 @@ parser.add_option("-c", "--cpu_num", dest="cpu", type="int", default=0,
                   help="CPU core or GPU number to get assignments for, Default: %default")
 parser.add_option("-n", "--num_cache", dest="num_cache", type="int",
                   default=0, help="Number of assignments to cache, Default: %default")
-parser.add_option("-L", "--days_work", dest="days_work", type="int", default=3,
+parser.add_option("-L", "--days_work", dest="days_work", type="float", default=3.0,
                   help="Days of work to queue (1-90 days), Default: %default days. Adds one to num_cache when the time left for the current assignment is less then this number of days.")
 
 parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60 * 60,
