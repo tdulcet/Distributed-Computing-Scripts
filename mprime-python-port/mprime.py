@@ -11,6 +11,7 @@ import os
 import socket
 import re # regular expression matching
 import hashlib # sha256
+import time
 
 DIR = "mprime"
 FILE = "p95v303b6.linux64.tar.gz"
@@ -71,14 +72,13 @@ try:
     import wget
 except ImportError as error:
     print("Installing wget dependency")
-    p = subprocess.run('pip install wget', shell=True)
+    p = subprocess.run('pip3 install wget', shell=True)
     import wget
 except Exception as error:
-    misc_check(true, "Unexpected error occured when installing Python dependency:\n\n" + error)
+    misc_check(True, "Unexpected error occured when installing Python dependency:\n\n" + str(error) + "\n")
 #----------------------------#
-
 #---Command Line Checks------#
-misc_check(len(sys.argv) > 4, "Usage: " + sys.argv[0]+ " [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]")
+misc_check(len(sys.argv) > 5, "Usage: " + sys.argv[0]+ " [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]")
 regex_check(r'^([024568]|1(0[0124]|5[0123]|6[01])?)$', TYPE, "Usage: [Type of work] is not a valid number")
 regex_check(r'^([0-9]*[.])?[0-9]+$', TIME, err="Usage: [Idle time to run] must be a number")
 #----------------------------#
