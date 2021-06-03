@@ -248,13 +248,6 @@ def get_cpu_signature():
     return output
 
 
-def get_cpu_name(signature):
-    '''Note: Not used'''
-    search = re.search(
-        r'\bPHENOM\b|\bAMD\b|\bATOM\b|\bCore 2\b|\bCore(TM)2\b|\bCORE(TM) i7\b|\bPentium(R) M\b|\bCore\b|\bIntel\b|\bUnknown\b|\bK5\b|\bK6\b', signature)
-    return search.group(0) if search else ""
-
-
 cpu_signature = get_cpu_signature()
 # cpu_brand = get_cpu_name(cpu_signature)
 
@@ -795,7 +788,7 @@ __v5salt_ = 0
 def secure_v5_url(guid, args):
     k = bytearray(md5(guid.encode("utf-8")).digest())
 
-    for i in range(0, 16):
+    for i in range(16):
         k[i] ^= k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) %
                   16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256)
 

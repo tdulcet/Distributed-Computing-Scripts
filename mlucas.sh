@@ -84,7 +84,7 @@ if [[ -z "$CPU_FREQS" ]]; then
 		break
 	done
 fi
-CPU_FREQ=$(printf '%s\n' "${CPU_FREQS[@]}" | sort -nr | head -n 1)
+CPU_FREQ=${CPU_FREQ:+$(printf '%s\n' "${CPU_FREQS[@]}" | sort -nr | head -n 1)}
 echo -e "CPU frequency:\t\t\t$(printf "%'.0f" "${CPU_FREQ/./$decimal_point}") MHz"
 
 wait
@@ -514,7 +514,7 @@ if [[ ${#ARGS[*]} -gt 1 ]]; then
 	} | column -t -s $'\t'
 fi
 echo -e "\nRegistering computer with PrimeNet\n"
-python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(printf "%.0f" "${CPU_FREQ/./$decimal_point}")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
+python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency=$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi) -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" "$i" "${RUNS[i]}"
 	mkdir "run$i"
@@ -534,10 +534,11 @@ done
 cat << EOF > Mlucas.sh
 #!/bin/bash
 
+# Copyright © 2020 Teal Dulcet
 # Start Mlucas and the PrimeNet script
 # Run: $DIR/Mlucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep Mlucas >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) }; pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i >> \"primenet.out\" &); "; done) }; else pgrep Mlucas >/dev/null && killall Mlucas; fi
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x Mlucas >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) }; pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i >> \"primenet.out\" &); "; done) }; else pgrep -x Mlucas >/dev/null && killall Mlucas; fi
 EOF
 chmod +x Mlucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
