@@ -24,21 +24,26 @@ PROOF_CERTIFICATION_WORK = "n"
 
 child = pexpect.spawn('./mprime -m') # starts shell to interact with
 child.logfile = sys.stdout.buffer # enables output to screen (Python 3)
-expects = ["Join Gimps?", "Use PrimeNet to get work and report results ()", "Your user ID or", 
-           "Optional computer name", "Type of work to get", "CPU cores to use", 
-           "Your choice:", pexpect.TIMEOUT, "Done communicating with server.",
-           "Choose Test/Continue to restart","Upload bandwidth limit in Mbps", "Skip advanced resource settings",
-           "stage 2 memory in GB", "Max emergency memory in GB/worker", "Get occasional proof certification work"]
-responses = ["y", "y", USERID, 
-             COMPUTER, TYPE, "", 
-             "5", "", "\x03", 
-             "5", "10000", "n", 
-             "12", "3", "n"]
+
+expectDict = {"Join Gimps?": "y",
+        "Use PrimeNet to get work and report results ()": "y",
+        "Your user ID or": USERID,
+        "Optional computer name": COMPUTER,
+        "Type of work to get": TYPE, 
+        "Your choice:": 5, 
+        pexpect.TIMEOUT: "", 
+        "Use the following values to select a work type": "",
+        "Done communicating with server.": "\x03",
+        "Choose Test/Continue to restart": "5",
+        "Get occasional proof certification work": PROOF_CERTIFICATION_WORK}
+
+expects = list(expectDict.keys())
+responses = list(expectDict.values())
 
 while 1:
     try:
-        sleep(1)
-        index = child.expect(expects, timeout = 3)
-        child.sendline(responses[index])
+        sleep(2)
+        index = child.expect(expects, timeout = 2)
+        child.sendline(str(responses[index]))
     except pexpect.exceptions.EOF:
         break
