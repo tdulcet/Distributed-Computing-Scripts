@@ -20,7 +20,6 @@ except ImportError as error:
 
 # Prerequisites, gained from mprime.py
 USERID, COMPUTER, TYPE  = sys.argv[1], sys.argv[2], sys.argv[3]
-PROOF_CERTIFICATION_WORK = "n"
 
 child = pexpect.spawn('./mprime -m') # starts shell to interact with
 child.logfile = sys.stdout.buffer # enables output to screen (Python 3)
@@ -34,8 +33,7 @@ expectDict = {"Join Gimps?": "y",
         pexpect.TIMEOUT: "", 
         "Use the following values to select a work type": "",
         "Done communicating with server.": "\x03",
-        "Choose Test/Continue to restart": "5",
-        "Get occasional proof certification work": PROOF_CERTIFICATION_WORK}
+        "Choose Test/Continue to restart": "5"}
 
 expects = list(expectDict.keys())
 responses = list(expectDict.values())
