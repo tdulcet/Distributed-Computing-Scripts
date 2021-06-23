@@ -19,29 +19,29 @@ except ImportError as error:
     import pexpect
 
 # Prerequisites, gained from mprime.py
-USERID, COMPUTER, TYPE  = sys.argv[1], sys.argv[2], sys.argv[3]
+USERID, COMPUTER, TYPE = sys.argv[1], sys.argv[2], sys.argv[3]
 
-child = pexpect.spawn('./mprime -m') # starts shell to interact with
-child.logfile = sys.stdout.buffer # enables output to screen (Python 3)
+child = pexpect.spawn('./mprime -m')  # starts shell to interact with
+child.logfile = sys.stdout.buffer  # enables output to screen (Python 3)
 
 expectDict = {"Join Gimps?": "y",
-        "Use PrimeNet to get work and report results ()": "y",
-        "Your user ID or": USERID,
-        "Optional computer name": COMPUTER,
-        "Type of work to get": TYPE, 
-        "Your choice:": 5, 
-        pexpect.TIMEOUT: "", 
-        "Use the following values to select a work type": "",
-        "Done communicating with server.": "\x03",
-        "Choose Test/Continue to restart": "5"}
+              "Use PrimeNet to get work and report results": "y",
+              "Your user ID or": USERID,
+              "Optional computer name": COMPUTER,
+              "Type of work to get": TYPE,
+              "Your choice:": 5,
+              pexpect.TIMEOUT: "",
+              # "Use the following values to select a work type:": "",
+              "Done communicating with server.": "\x03",
+              "Choose Test/Continue to restart.": "5"}
 
 expects = list(expectDict.keys())
 responses = list(expectDict.values())
 
-while 1:
+while True:
     try:
         sleep(2)
-        index = child.expect(expects, timeout = 2)
+        index = child.expect(expects, timeout=2)
         child.sendline(str(responses[index]))
     except pexpect.exceptions.EOF:
         break
