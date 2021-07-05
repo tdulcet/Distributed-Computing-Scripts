@@ -256,7 +256,6 @@ cpu_signature = get_cpu_signature()
 
 primenet_v5_burl = "http://v5.mersenne.org/v5server/"
 PRIMENET_TRANSACTION_API_VERSION = 0.95
-idx = 1  # Index into programs array, only 0 and 1 currently supported
 # GIMPS programs to use in the application version string when registering with PrimeNet
 programs = [{"name": "Prime95", "version": "30.3", "build": 6}, {"name": "Mlucas", "version": "19"}, {
     "name": "GpuOwl", "version": "7.2"}, {"name": "CUDALucas", "version": "2.06"}]
@@ -607,7 +606,7 @@ def primenet_fetch(num_to_get, retry_count=0):
                 if w not in supported:
                     print(
                         "ERROR: Returned assignment from server is not a supported worktype " +
-                        str(w) + " for " + program + ".", file=sys.stderr)
+                        str(w) + " for " + programs[idx]["name"] + ".", file=sys.stderr)
                     # TODO: Unreserve assignment
                     # unreserve(test)
                     break
@@ -911,7 +910,7 @@ def register_instance(guid):
     print("CPU threads per core: {0:n}".format(options.hp))
     print("CPU frequency: {0:n} MHz".format(options.frequency))
     print("Total RAM: {0:n} MiB".format(options.memory))
-    print("If you want to change the value, please edit the “" +
+    print("To change these values, please rerun the script with different options or edit the “" +
           options.localfile + "” file")
     print("You can see the result in this page:")
     print("https://www.mersenne.org/editcpu/?g={guid}".format(guid=guid))
@@ -1550,7 +1549,7 @@ Then, it will get assignments, report the results and progress, if registered, t
 parser.add_option("-d", "--debug", action="count", dest="debug",
                   default=False, help="Display debugging info")
 parser.add_option("-w", "--workdir", dest="workdir", default=".",
-                  help="Working directory with “worktodo.ini” and “results.txt” from the GIMPS program, and “local.ini” from this program, Default: %default (current directory)")
+                  help="Working directory with “worktodo.ini” and “results.txt” files from the GIMPS program, and “local.ini” from this program, Default: %default (current directory)")
 parser.add_option("-i", "--workfile", dest="workfile",
                   default="worktodo.ini", help="WorkFile filename, Default: “%default”")
 parser.add_option("-r", "--resultsfile", dest="resultsfile",
@@ -1678,7 +1677,8 @@ if options.hostname is not None and len(options.hostname) > 20:
 if options.features is not None and len(options.features) > 64:
     parser.error("features must be less than 64 characters")
 
-program = programs[3 if options.cudalucas else 2 if options.gpuowl else 1]["name"]
+# Index into programs array
+idx = 3 if options.cudalucas else 2 if options.gpuowl else 1
 
 # Convert mnemonic-form worktypes to corresponding numeric value, check
 # worktype value vs supported ones:
@@ -1703,7 +1703,7 @@ supported = frozenset([primenet_api.PRIMENET_WP_LL_FIRST,
                                                                                                                                       primenet_api.PRIMENET_WORK_TYPE_PFACTOR] if options.gpuowl else []))
 if not options.worktype.isdigit() or int(options.worktype) not in supported:
     parser.error("Unsupported/unrecognized worktype = " +
-                 options.worktype + " for " + program)
+                 options.worktype + " for " + programs[idx]["name"])
 worktype = int(options.worktype)
 # Convert first time LL worktypes to PRP
 option_dict = {

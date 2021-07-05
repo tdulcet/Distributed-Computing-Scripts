@@ -63,8 +63,9 @@ Options:
   -d, --debug           Display debugging info
   -w WORKDIR, --workdir=WORKDIR
                         Working directory with “worktodo.ini” and
-                        “results.txt” from the GIMPS program, and “local.ini”
-                        from this program, Default: . (current directory)
+                        “results.txt” files from the GIMPS program, and
+                        “local.ini” from this program, Default: . (current
+                        directory)
   -i WORKFILE, --workfile=WORKFILE
                         WorkFile filename, Default: “worktodo.ini”
   -r RESULTSFILE, --resultsfile=RESULTSFILE
@@ -104,9 +105,9 @@ Options:
   -n NUM_CACHE, --num_cache=NUM_CACHE
                         Number of assignments to cache, Default: 0
   -L DAYS_WORK, --days_work=DAYS_WORK
-                        Days of work to queue, Default: 3 days. Add one to
-                        num_cache when the time left for the current
-                        assignment is less then this number of days.
+                        Days of work to queue (1-90 days), Default: 3.0 days.
+                        Adds one to num_cache when the time left for the
+                        current assignment is less then this number of days.
   -t TIMEOUT, --timeout=TIMEOUT
                         Seconds to wait between network updates, Default: 3600
                         seconds (1 hour). Use 0 for a single update without
@@ -192,8 +193,6 @@ PrimeNet script:
 	* Currently this requires using the Bash scripts.
 * Improve the performance.
 * Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has not made any progress in a while or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
-* Work with GIMPS to support using CUDALucas, GpuOwl and other GIMPS programs in the application version string when registering with PrimeNet.
-	* Currently it only supports Mlucas v19.
 * Add a quit GIMPS feature, where it will not download any new assignments, but will still finish and report the existing ones.
 * Support reporting interim residues.
 * Support downloading certification assignments.
