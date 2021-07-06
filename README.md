@@ -127,7 +127,8 @@ Options:
     --frequency=FREQUENCY
                         CPU frequency (MHz), Default: 1000 MHz
     -m MEMORY, --memory=MEMORY
-                        Total memory (RAM) (MiB), Default: 0 MiB
+                        Total memory (RAM) (MiB), Default: 0 MiB. Required for
+                        P-1 assignments.
     --L1=L1             L1 Cache size (KiB), Default: 8 KiB
     --L2=L2             L2 Cache size (KiB), Default: 512 KiB
     --np=NP             Number of CPU Cores, Default: 1

@@ -140,8 +140,8 @@ def program_options(guid, first_time, retry_count=0):
     # args["Priority"] = 1
     args["DaysOfWork"] = int(round(options.days_work)) if first_time \
         or hasattr(opts_no_defaults, "days_work") else ""
-    # args["DayMemory"] = 8
-    # args["NightMemory"] = 8
+    args["DayMemory"] = options.memory
+    args["NightMemory"] = options.memory
     # args["DayStartTime"] = 0
     # args["NightStartTime"] = 0
     # args["RunOnBattery"] = 1
@@ -765,7 +765,7 @@ def parse_stat_file(p):
         if found == 5 and fftlen:
             break
     if found == 0:
-        return 0, None, None  # iteration is 0, but don't know the estimated speed yet
+        return 0, None, fftlen  # iteration is 0, but don't know the estimated speed yet
     # take the median of the last grepped lines
     msec_per_iter = median_low(list_msec_per_iter)
     return iteration, msec_per_iter, fftlen
@@ -845,7 +845,9 @@ def send_request(guid, args):
 
 
 def create_new_guid():
-    return uuid.uuid4().hex
+    global guid
+    guid = uuid.uuid4().hex
+    return guid
 
 
 def register_instance(guid):
@@ -1186,7 +1188,7 @@ def parse_stat_file_cuda(p):
             if found == 5:
                 break
     if found == 0:
-        return 0, None, None  # iteration is 0, but don't know the estimated speed yet
+        return 0, None, fftlen  # iteration is 0, but don't know the estimated speed yet
     # take the median of the last grepped lines
     msec_per_iter = median_low(list_msec_per_iter)
     debug_print(
@@ -1393,14 +1395,14 @@ def submit_one_line_v5(sendline, guid, ar, retry_count=0):
                                  primenet_api.PRIMENET_AR_LL_PRIME]):
         args["d"] = 1
         if result_type == primenet_api.PRIMENET_AR_LL_RESULT:
-            args["rd"] = ar['res64']
+            args["rd"] = ar['res64'].strip().zfill(16)
         args['sc'] = ar['shift-count']
         args["ec"] = ar['error-code'] if 'error-code' in ar else "00000000"
     elif result_type in frozenset([primenet_api.PRIMENET_AR_PRP_RESULT, primenet_api.PRIMENET_AR_PRP_PRIME]):
         args["d"] = 1
         args.update((("A", 1), ("b", 2), ("c", -1)))
         if result_type == primenet_api.PRIMENET_AR_PRP_RESULT:
-            args["rd"] = ar['res64']
+            args["rd"] = ar['res64'].strip().zfill(16)
             if 'residue-type' in ar:
                 args["rt"] = ar['residue-type']
         args["ec"] = ar['error-code'] if 'error-code' in ar else "00000000"
@@ -1611,7 +1613,7 @@ group.add_option("--features", dest="features", default="",
 group.add_option("--frequency", dest="frequency", type="int",
                  default=1000, help="CPU frequency (MHz), Default: %default MHz")
 group.add_option("-m", "--memory", dest="memory", type="int",
-                 default=0, help="Total memory (RAM) (MiB), Default: %default MiB")
+                 default=0, help="Total memory (RAM) (MiB), Default: %default MiB. Required for P-1 assignments.")
 group.add_option("--L1", dest="L1", type="int", default=8,
                  help="L1 Cache size (KiB), Default: %default KiB")
 group.add_option("--L2", dest="L2", type="int", default=512,
