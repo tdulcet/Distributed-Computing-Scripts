@@ -140,8 +140,8 @@ def program_options(guid, first_time, retry_count=0):
     # args["Priority"] = 1
     args["DaysOfWork"] = int(round(options.days_work)) if first_time \
         or hasattr(opts_no_defaults, "days_work") else ""
-    # args["DayMemory"] = 8
-    # args["NightMemory"] = 8
+    args["DayMemory"] = options.memory
+    args["NightMemory"] = options.memory
     # args["DayStartTime"] = 0
     # args["NightStartTime"] = 0
     # args["RunOnBattery"] = 1
@@ -248,13 +248,6 @@ def get_cpu_signature():
     return output
 
 
-def get_cpu_name(signature):
-    '''Note: Not used'''
-    search = re.search(
-        r'\bPHENOM\b|\bAMD\b|\bATOM\b|\bCore 2\b|\bCore(TM)2\b|\bCORE(TM) i7\b|\bPentium(R) M\b|\bCore\b|\bIntel\b|\bUnknown\b|\bK5\b|\bK6\b', signature)
-    return search.group(0) if search else ""
-
-
 cpu_signature = get_cpu_signature()
 # cpu_brand = get_cpu_name(cpu_signature)
 
@@ -263,7 +256,6 @@ cpu_signature = get_cpu_signature()
 
 primenet_v5_burl = "http://v5.mersenne.org/v5server/"
 PRIMENET_TRANSACTION_API_VERSION = 0.95
-idx = 1  # Index into programs array, only 0 and 1 currently supported
 # GIMPS programs to use in the application version string when registering with PrimeNet
 programs = [{"name": "Prime95", "version": "30.3", "build": 6}, {"name": "Mlucas", "version": "19"}, {
     "name": "GpuOwl", "version": "7.2"}, {"name": "CUDALucas", "version": "2.06"}]
@@ -614,7 +606,7 @@ def primenet_fetch(num_to_get, retry_count=0):
                 if w not in supported:
                     print(
                         "ERROR: Returned assignment from server is not a supported worktype " +
-                        str(w) + " for " + program + ".", file=sys.stderr)
+                        str(w) + " for " + programs[idx]["name"] + ".", file=sys.stderr)
                     # TODO: Unreserve assignment
                     # unreserve(test)
                     break
@@ -773,7 +765,7 @@ def parse_stat_file(p):
         if found == 5 and fftlen:
             break
     if found == 0:
-        return 0, None, None  # iteration is 0, but don't know the estimated speed yet
+        return 0, None, fftlen  # iteration is 0, but don't know the estimated speed yet
     # take the median of the last grepped lines
     msec_per_iter = median_low(list_msec_per_iter)
     return iteration, msec_per_iter, fftlen
@@ -795,7 +787,7 @@ __v5salt_ = 0
 def secure_v5_url(guid, args):
     k = bytearray(md5(guid.encode("utf-8")).digest())
 
-    for i in range(0, 16):
+    for i in range(16):
         k[i] ^= k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) %
                   16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256)
 
@@ -853,7 +845,9 @@ def send_request(guid, args):
 
 
 def create_new_guid():
-    return uuid.uuid4().hex
+    global guid
+    guid = uuid.uuid4().hex
+    return guid
 
 
 def register_instance(guid):
@@ -918,7 +912,7 @@ def register_instance(guid):
     print("CPU threads per core: {0:n}".format(options.hp))
     print("CPU frequency: {0:n} MHz".format(options.frequency))
     print("Total RAM: {0:n} MiB".format(options.memory))
-    print("If you want to change the value, please edit the “" +
+    print("To change these values, please rerun the script with different options or edit the “" +
           options.localfile + "” file")
     print("You can see the result in this page:")
     print("https://www.mersenne.org/editcpu/?g={guid}".format(guid=guid))
@@ -1194,7 +1188,7 @@ def parse_stat_file_cuda(p):
             if found == 5:
                 break
     if found == 0:
-        return 0, None, None  # iteration is 0, but don't know the estimated speed yet
+        return 0, None, fftlen  # iteration is 0, but don't know the estimated speed yet
     # take the median of the last grepped lines
     msec_per_iter = median_low(list_msec_per_iter)
     debug_print(
@@ -1401,14 +1395,14 @@ def submit_one_line_v5(sendline, guid, ar, retry_count=0):
                                  primenet_api.PRIMENET_AR_LL_PRIME]):
         args["d"] = 1
         if result_type == primenet_api.PRIMENET_AR_LL_RESULT:
-            args["rd"] = ar['res64']
+            args["rd"] = ar['res64'].strip().zfill(16)
         args['sc'] = ar['shift-count']
         args["ec"] = ar['error-code'] if 'error-code' in ar else "00000000"
     elif result_type in frozenset([primenet_api.PRIMENET_AR_PRP_RESULT, primenet_api.PRIMENET_AR_PRP_PRIME]):
         args["d"] = 1
         args.update((("A", 1), ("b", 2), ("c", -1)))
         if result_type == primenet_api.PRIMENET_AR_PRP_RESULT:
-            args["rd"] = ar['res64']
+            args["rd"] = ar['res64'].strip().zfill(16)
             if 'residue-type' in ar:
                 args["rt"] = ar['residue-type']
         args["ec"] = ar['error-code'] if 'error-code' in ar else "00000000"
@@ -1557,7 +1551,7 @@ Then, it will get assignments, report the results and progress, if registered, t
 parser.add_option("-d", "--debug", action="count", dest="debug",
                   default=False, help="Display debugging info")
 parser.add_option("-w", "--workdir", dest="workdir", default=".",
-                  help="Working directory with “worktodo.ini” and “results.txt” from the GIMPS program, and “local.ini” from this program, Default: %default (current directory)")
+                  help="Working directory with “worktodo.ini” and “results.txt” files from the GIMPS program, and “local.ini” from this program, Default: %default (current directory)")
 parser.add_option("-i", "--workfile", dest="workfile",
                   default="worktodo.ini", help="WorkFile filename, Default: “%default”")
 parser.add_option("-r", "--resultsfile", dest="resultsfile",
@@ -1619,7 +1613,7 @@ group.add_option("--features", dest="features", default="",
 group.add_option("--frequency", dest="frequency", type="int",
                  default=1000, help="CPU frequency (MHz), Default: %default MHz")
 group.add_option("-m", "--memory", dest="memory", type="int",
-                 default=0, help="Total memory (RAM) (MiB), Default: %default MiB")
+                 default=0, help="Total memory (RAM) (MiB), Default: %default MiB. Required for P-1 assignments.")
 group.add_option("--L1", dest="L1", type="int", default=8,
                  help="L1 Cache size (KiB), Default: %default KiB")
 group.add_option("--L2", dest="L2", type="int", default=512,
@@ -1685,7 +1679,8 @@ if options.hostname is not None and len(options.hostname) > 20:
 if options.features is not None and len(options.features) > 64:
     parser.error("features must be less than 64 characters")
 
-program = programs[3 if options.cudalucas else 2 if options.gpuowl else 1]["name"]
+# Index into programs array
+idx = 3 if options.cudalucas else 2 if options.gpuowl else 1
 
 # Convert mnemonic-form worktypes to corresponding numeric value, check
 # worktype value vs supported ones:
@@ -1710,7 +1705,7 @@ supported = frozenset([primenet_api.PRIMENET_WP_LL_FIRST,
                                                                                                                                       primenet_api.PRIMENET_WORK_TYPE_PFACTOR] if options.gpuowl else []))
 if not options.worktype.isdigit() or int(options.worktype) not in supported:
     parser.error("Unsupported/unrecognized worktype = " +
-                 options.worktype + " for " + program)
+                 options.worktype + " for " + programs[idx]["name"])
 worktype = int(options.worktype)
 # Convert first time LL worktypes to PRP
 option_dict = {

@@ -62,6 +62,9 @@ KERNEL=$(</proc/sys/kernel/osrelease) # uname -r
 echo -e "Linux Kernel:\t\t\t$KERNEL"
 
 mapfile -t CPU < <(sed -n 's/^model name[[:blank:]]*: *//p' /proc/cpuinfo | uniq)
+if [[ -z "$CPU" ]]; then
+	mapfile -t CPU < <(lscpu | grep -i '^model name' | sed -n 's/^.\+:[[:blank:]]*//p' | uniq)
+fi
 if [[ -n "$CPU" ]]; then
 	echo -e "Processor (CPU):\t\t${CPU[0]}$([[ ${#CPU[*]} -gt 1 ]] && printf '\n\t\t\t\t%s' "${CPU[@]:1}")"
 fi
@@ -84,7 +87,7 @@ if [[ -z "$CPU_FREQS" ]]; then
 		break
 	done
 fi
-CPU_FREQ=$(printf '%s\n' "${CPU_FREQS[@]}" | sort -nr | head -n 1)
+CPU_FREQ=${CPU_FREQ:+$(printf '%s\n' "${CPU_FREQS[@]}" | sort -nr | head -n 1)}
 echo -e "CPU frequency:\t\t\t$(printf "%'.0f" "${CPU_FREQ/./$decimal_point}") MHz"
 
 wait
@@ -514,7 +517,7 @@ if [[ ${#ARGS[*]} -gt 1 ]]; then
 	} | column -t -s $'\t'
 fi
 echo -e "\nRegistering computer with PrimeNet\n"
-python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(printf "%.0f" "${CPU_FREQ/./$decimal_point}")" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
+python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency=$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi) -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" "$i" "${RUNS[i]}"
 	mkdir "run$i"
@@ -522,7 +525,7 @@ for i in "${!RUNS[@]}"; do
 	ln -s ../mlucas.$((${#threads[*]}==1 || (threads[0]<threads[1] && i==0) || (threads[0]>threads[1] && i<${#RUNS[*]}-1) ? 0 : 1)).cfg mlucas.cfg
 	echo -e "\tStarting PrimeNet\n"
 	ln -s ../local.ini .
-	nohup python3 ../../primenet.py -d -c "$i" >> "primenet.out" &
+	nohup python3 ../../primenet.py -d -t 21600 -c "$i" >> "primenet.out" &
 	sleep 1
 	echo -e "\n\tStarting Mlucas\n"
 	nohup nice ../Mlucas -cpu "${RUNS[i]}" &
@@ -530,15 +533,17 @@ for i in "${!RUNS[@]}"; do
 	popd >/dev/null
 done
 #crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done)"; } | crontab -
-#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i >> \"primenet.out\" &); "; done)"; } | crontab -
+#crontab -l | { cat; echo "$(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -t 21600 -c $i >> \"primenet.out\" &); "; done)"; } | crontab -
 cat << EOF > Mlucas.sh
 #!/bin/bash
 
+# Copyright © 2020 Teal Dulcet
 # Start Mlucas and the PrimeNet script
 # Run: $DIR/Mlucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep Mlucas >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) }; pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -c $i >> \"primenet.out\" &); "; done) }; else pgrep Mlucas >/dev/null && killall Mlucas; fi
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x Mlucas >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup nice ../Mlucas -cpu \"${RUNS[i]}\" &); "; done) }; pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { $(for i in "${!RUNS[@]}"; do echo -n "(cd \"$DIR/run$i\" && nohup python3 ../../primenet.py -d -t 21600 -c $i >> \"primenet.out\" &); "; done) }; else pgrep -x Mlucas >/dev/null && killall Mlucas; fi
 EOF
 chmod +x Mlucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
 echo "crontab -l | { cat; echo '* * * * * \"$DIR\"/Mlucas.sh'; } | crontab -"
+echo -e "\nTo edit the crontab, run \"crontab -e\""

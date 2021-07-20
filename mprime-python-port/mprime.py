@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 
 # Daniel Connelly
-# Usage: ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
-# ./mprime.py "$USER" "$HOSTNAME" 100 10
+# Usage: ./mprime.py [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
+# ./mprime.py "$USER" "$HOSTNAME" 150 10
 # ./mprime.py ANONYMOUS
 
 import sys
 import subprocess
 import os
 import socket
-import re # regular expression matching
-import hashlib # sha256
+import re  # regular expression matching
+import hashlib  # sha256
+import time
 
 DIR = "mprime"
 FILE = "p95v303b6.linux64.tar.gz"
 SUM = "EE54B56062FEB05C9F80963A4E3AE8555D0E59CA60DDBCBA65CE05225C9B9A79"
+
 
 def regex_check(reg, var, err):
     '''Checks cmdline args for proper bounds using regex
@@ -28,6 +30,7 @@ def regex_check(reg, var, err):
     if not re.match(reg, var):
         sys.stderr.write(err)
         sys.exit(1)
+
 
 def misc_check(condition, err):
     if condition:
@@ -43,13 +46,14 @@ def sha256sum(filename):
     Returns:
     The hash sum string in hexidecimal digits
     '''
-    h  = hashlib.sha256()
-    b  = bytearray(128*1024)
+    h = hashlib.sha256()
+    b = bytearray(128 * 1024)
     mv = memoryview(b)
     with open(filename, 'rb', buffering=0) as f:
-        for n in iter(lambda : f.readinto(mv), 0):
+        for n in iter(lambda: f.readinto(mv), 0):
             h.update(mv[:n])
     return h.hexdigest()
+
 
 # Main script
 USERID = sys.argv[1] if len(sys.argv) > 1 else os.environ["USER"]
@@ -58,10 +62,10 @@ TYPE = sys.argv[3] if len(sys.argv) > 3 else str(150)
 TIME = str(int(sys.argv[4]) * 60) if len(sys.argv) > 4 else str(10 * 60)
 
 
-print("PrimeNet User ID:\t"+ USERID)
-print("Computer name:\t\t"+ COMPUTER)
-print("Type of work:\t\t"+ TYPE)
-print("Idle time to run:\t"+ str(int(TIME)//60) + " minutes\n")
+print("PrimeNet User ID:\t" + USERID)
+print("Computer name:\t\t" + COMPUTER)
+print("Type of work:\t\t" + TYPE)
+print("Idle time to run:\t" + str(int(TIME) // 60) + " minutes\n")
 
 #---Dependencies/Downloads---#
 print("Asserting Python version is >= Python3.6")
@@ -74,11 +78,10 @@ except ImportError as error:
     p = subprocess.run('pip install wget', shell=True)
     import wget
 except Exception as error:
-    misc_check(true, "Unexpected error occured when installing Python dependency:\n\n" + error)
+    misc_check(True, "Unexpected error occurred when installing Python dependency:\n\n" + str(error) + "\n")
 #----------------------------#
-
 #---Command Line Checks------#
-misc_check(len(sys.argv) > 4, "Usage: " + sys.argv[0]+ " [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]")
+misc_check(len(sys.argv) > 5, "Usage: " + sys.argv[0] + " [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]")
 regex_check(r'^([024568]|1(0[0124]|5[0123]|6[01])?)$', TYPE, "Usage: [Type of work] is not a valid number")
 regex_check(r'^([0-9]*[.])?[0-9]+$', TIME, err="Usage: [Idle time to run] must be a number")
 #----------------------------#
@@ -93,8 +96,8 @@ os.chdir(DIR)
 os.environ["DIR"] = os.getcwd()
 
 print("\nDownloading Prime95\n")
-wget.download('https://www.mersenne.org/ftp_root/gimps/'+FILE)
-misc_check(sha256sum(FILE) == SUM, "Error: sha256sum does not match. Please run \"rm -r " + DIR + "\" and try running this script again")
+wget.download('https://www.mersenne.org/ftp_root/gimps/' + FILE)
+misc_check(sha256sum(FILE) == SUM, "Error: sha256sum does not match. Please run \"rm -r " + DIR + "\" make sure you are using the latest version of this script and try running it again")
 
 print("\nDecompressing the files")
 subprocess.run(['tar', '-xzvf', FILE])
@@ -105,22 +108,22 @@ args = [USERID, COMPUTER, TYPE]
 
 print("Setting up Prime95.")
 p = subprocess.Popen(['python3', "../exp.py"] + args,
-  stdout=subprocess.PIPE,
-  universal_newlines=True,
-  bufsize=0)
+                     stdout=subprocess.PIPE,
+                     universal_newlines=True,
+                     bufsize=0)
 
 # This code block reads the output from the pexpect script p
 for line in p.stdout:
-    line=line[:-1]
+    line = line[:-1]
     print(line)
 #---------------------------------------#
 
 #---Starting Program---#
 print("Starting up Prime95.")
-subprocess.Popen("./mprime") # daemon process
+subprocess.Popen("./mprime")  # daemon process
 
 print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
 
 os.environ["TIME"] = TIME
-subprocess.Popen("crontab -l | { cat; echo \"* * * * * if who -s | awk \'{ print \\$2 }\' | (cd /dev && xargs -r stat -c \'\\%U \\%X\') | awk \'{if (\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2<$TIME) { print \\$1\\\"\\t\\\"\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2; ++count }} END{if (count>0) { exit 1 }}\' >/dev/null; then pgrep mprime >/dev/null || (cd \\\"$DIR\\\" && nohup ./mprime &); else pgrep mprime >/dev/null && killall mprime; fi\"; } | crontab -", shell=True)
+subprocess.Popen("crontab -l | { cat; echo \"* * * * * if who -s | awk \'{ print \\$2 }\' | (cd /dev && xargs -r stat -c \'\\%U \\%X\') | awk \'{if (\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2<$TIME) { print \\$1\\\"\\t\\\"\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2; ++count }} END{if (count>0) { exit 1 }}\' >/dev/null; then pgrep -x mprime >/dev/null || (cd \\\"$DIR\\\" && nohup ./mprime &); else pgrep -x mprime >/dev/null && killall mprime; fi\"; } | crontab -", shell=True)
 #----------------------#

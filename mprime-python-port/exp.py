@@ -2,7 +2,7 @@
 
 # Daniel Connelly
 # based off of Tdulcet's 'mprime.exp'
-# Python3 exp.py <User ID> <Computer name> <Type of work>
+# Python3 exp.py <User ID> <Computer name> <Type of work> <idle time to run>
 
 # Note: * pexpect has quirks about nonempty ()s (e.g., (y)), *s, inline ''s, or +s.
 
@@ -19,29 +19,29 @@ except ImportError as error:
     import pexpect
 
 # Prerequisites, gained from mprime.py
-USERID, COMPUTER, TYPE  = sys.argv[1], sys.argv[2], sys.argv[3]
+USERID, COMPUTER, TYPE = sys.argv[1], sys.argv[2], sys.argv[3]
 
-child = pexpect.spawn('./mprime -m') # starts shell to interact with
-child.logfile = sys.stdout.buffer # enables output to screen (Python 3)
-expects = (("Join Gimps?", "y"), ("Use PrimeNet to get work and report results ()", "y"),
-        ("Your user ID or", USERID), ("Optional computer name", COMPUTER),
-        ("Type of work to get", TYPE), ("Your choice:", "5"))
-index = 0
-while 1:
+child = pexpect.spawn('./mprime -m')  # starts shell to interact with
+child.logfile = sys.stdout.buffer  # enables output to screen (Python 3)
+
+expectDict = {"Join Gimps?": "y",
+              "Use PrimeNet to get work and report results": "y",
+              "Your user ID or": USERID,
+              "Optional computer name": COMPUTER,
+              "Type of work to get": TYPE,
+              "Your choice:": 5,
+              pexpect.TIMEOUT: "",
+              # "Use the following values to select a work type:": "",
+              "Done communicating with server.": "\x03",
+              "Choose Test/Continue to restart.": "5"}
+
+expects = list(expectDict.keys())
+responses = list(expectDict.values())
+
+while True:
     try:
-        if index != len(expects):
-            child.expect(expects[index][0], timeout=1)
-            sleep(1)
-            child.sendline(expects[index][1])
-            index += 1
-        else:
-            child.expect("Done communicating with server.")
-            child.sendline("\x03")
-            sleep(10)
-            child.expect("Choose Test/Continue to restart.")
-            sleep(1)
-            child.sendline("5")
-            child.expect(pexpect.EOF)
-            break
-    except pexpect.TIMEOUT:
-        child.sendline("")
+        sleep(2)
+        index = child.expect(expects, timeout=2)
+        child.sendline(str(responses[index]))
+    except pexpect.exceptions.EOF:
+        break

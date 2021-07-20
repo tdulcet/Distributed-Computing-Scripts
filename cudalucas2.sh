@@ -138,7 +138,7 @@ fi
 cp CUDALucas.ini "CUDALucas$N.ini"
 sed -i "s/^WorkFile=worktodo.txt/WorkFile=worktodo$N.txt/" "CUDALucas$N.ini"
 sed -i "s/^ResultsFile=results.txt/ResultsFile=results$N.txt/" "CUDALucas$N.ini"
-echo -e "Registering computer with PrimeNet\n"
+echo -e "\nRegistering computer with PrimeNet\n"
 ARGS=()
 if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
@@ -156,12 +156,12 @@ if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 fi
 python3 primenet.py -d -t 0 -T "$TYPE" -u "$USERID" -i "worktodo$N.txt" -r "results$N.txt" -l "local$N.ini" --cudalucas "cudalucas$N.out" -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting PrimeNet\n"
-nohup python3 primenet.py -d -l "local$N.ini" >> "primenet$N.out" &
+nohup python3 primenet.py -d -t 21600 -l "local$N.ini" >> "primenet$N.out" &
 sleep 1
 echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take a while…\n"
 ./CUDALucas -cufftbench 1024 8192 5
 ./CUDALucas -threadbench 1024 8192 5 0
-# echo -e "\nRunning self tests\nThis will take awhile…\n"
+# echo -e "\nRunning self tests\nThis will take a while…\n"
 # ./CUDALucas -r 1
 # ./CUDALucas 6972593
 echo -e "\nStarting CUDALucas\n"
@@ -169,5 +169,5 @@ nohup nice ./CUDALucas -i "CUDALucas$N.ini" >> "cudalucas$N.out" &
 sleep 1
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "cd \"$DIR\" && nohup nice ./CUDALucas -i \"CUDALucas$N.ini\" >> \"cudalucas$N.out\" &"; } | crontab -
-#crontab -l | { cat; echo "cd \"$DIR\" && nohup python3 primenet.py -d -l \"local$N.ini\" >> \"primenet$N.out\" &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep CUDALucas >/dev/null || (cd \"$DIR\" && nohup nice ./CUDALucas -i \"CUDALucas$N.ini\" >> \"cudalucas$N.out\" &); pgrep -f '^python3 primenet\.py' >/dev/null || (cd \"$DIR\" && nohup python3 primenet.py -d -l \"local$N.ini\" >> \"primenet$N.out\" &); else pgrep CUDALucas >/dev/null && killall CUDALucas; fi"; } | crontab -
+#crontab -l | { cat; echo "cd \"$DIR\" && nohup python3 primenet.py -d -t 21600 -l \"local$N.ini\" >> \"primenet$N.out\" &"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x CUDALucas >/dev/null || (cd \"$DIR\" && nohup nice ./CUDALucas -i \"CUDALucas$N.ini\" >> \"cudalucas$N.out\" &); pgrep -f '^python3 primenet\.py' >/dev/null || (cd \"$DIR\" && nohup python3 primenet.py -d -t 21600 -l \"local$N.ini\" >> \"primenet$N.out\" &); else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi"; } | crontab -

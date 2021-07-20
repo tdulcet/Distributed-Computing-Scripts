@@ -3,7 +3,7 @@
 # Teal Dulcet
 # wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh -qO - | bash -s --
 # ./mprime.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
-# ./mprime.sh "$USER" "$HOSTNAME" 100 10
+# ./mprime.sh "$USER" "$HOSTNAME" 150 10
 # ./mprime.sh ANONYMOUS
 
 DIR="mprime"
@@ -73,4 +73,4 @@ echo -e "\nStarting Prime95\n"
 nohup ./mprime &
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "cd \"$DIR\" && nohup ./mprime &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep mprime >/dev/null || (cd \"$DIR\" && nohup ./mprime &); else pgrep mprime >/dev/null && killall mprime; fi"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd \"$DIR\" && nohup ./mprime &); else pgrep -x mprime >/dev/null && killall mprime; fi"; } | crontab -
