@@ -36,7 +36,7 @@ expectDict = {"Join Gimps?": "y",
               "Choose Test/Continue to restart.": "5",
               "Number of workers to run": "2",
               "Get occasional proof certification work": "N",
-              "CPU cores to use": "56"}
+              "CPU cores to use": "55"}
 
 expects = list(expectDict.keys())
 responses = list(expectDict.values())
