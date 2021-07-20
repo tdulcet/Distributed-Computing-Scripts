@@ -33,7 +33,8 @@ expectDict = {"Join Gimps?": "y",
               pexpect.TIMEOUT: "",
               # "Use the following values to select a work type:": "",
               "Done communicating with server.": "\x03",
-              "Choose Test/Continue to restart.": "5"}
+              "Choose Test/Continue to restart.": "5",
+              "Number of workers to run": "1"}
 
 expects = list(expectDict.keys())
 responses = list(expectDict.values())
