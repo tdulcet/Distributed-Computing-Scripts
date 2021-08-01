@@ -22,6 +22,9 @@ sleep 1
 send -- "$COMPUTER\r"
 expect {
 	"Type of work to get (*):" { sleep 1; send -- "$TYPE\r"; exp_continue }
+	"Upload bandwidth limit in Mbps (*):" { sleep 1; send -- "10000\r"; exp_continue }
+	"Skip advanced resource settings (*):" { sleep 1; send -- "n\r"; exp_continue }
+	"Optional directory to hold *:" { sleep 1; send -- "\r"; exp_continue }
 	"Your choice:" { }
 	"Use the following values to select a work type:" { exp_continue }
 	"*: 1" { exp_continue }

@@ -125,5 +125,5 @@ subprocess.Popen("./mprime")  # daemon process
 print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
 
 os.environ["TIME"] = TIME
-subprocess.Popen("crontab -l | { cat; echo \"* * * * * if who -s | awk \'{ print \\$2 }\' | (cd /dev && xargs -r stat -c \'\\%U \\%X\') | awk \'{if (\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2<$TIME) { print \\$1\\\"\\t\\\"\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2; ++count }} END{if (count>0) { exit 1 }}\' >/dev/null; then pgrep -x mprime >/dev/null || (cd \\\"$DIR\\\" && nohup ./mprime &); else pgrep -x mprime >/dev/null && killall mprime; fi\"; } | crontab -", shell=True)
+subprocess.Popen("crontab -l | { cat; echo \"* * * * * if who -s | awk \'{ print \\$2 }\' | (cd /dev && xargs -r stat -c \'\\%U \\%X\') | awk \'{if (\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2<$TIME) { print \\$1\\\"\\t\\\"\'\\\"\\${EPOCHSECONDS:-\\$(date +\\%s)}\\\"\'-\\$2; ++count }} END{if (count>0) { exit 1 }}\' >/dev/null; then pgrep -x mprime >/dev/null || (cd \'$DIR\' && nohup ./mprime &); else pgrep -x mprime >/dev/null && killall mprime; fi\"; } | crontab -", shell=True)
 #----------------------#

@@ -22,7 +22,7 @@ Automatic assignment handler for Mlucas, GpuOwl and CUDALucas.
 
 ################################################################################
 #                                                                              #
-#   (C) 2017-2020 by Daniel Connelly and Teal Dulcet.                          #
+#   (C) 2017-2021 by Daniel Connelly and Teal Dulcet.                          #
 #                                                                              #
 #  This program is free software; you can redistribute it and/or modify it     #
 #  under the terms of the GNU General Public License as published by the       #
@@ -128,7 +128,7 @@ def ra(n):
 
 # TODO -- have people set their own program options for commented out portions
 def program_options(guid, first_time, retry_count=0):
-    if retry_count > 5:
+    if retry_count >= 5:
         return
     args = primenet_v5_bargs.copy()
     args["t"] = "po"
@@ -140,8 +140,8 @@ def program_options(guid, first_time, retry_count=0):
     # args["Priority"] = 1
     args["DaysOfWork"] = int(round(options.days_work)) if first_time \
         or hasattr(opts_no_defaults, "days_work") else ""
-    args["DayMemory"] = options.memory
-    args["NightMemory"] = options.memory
+    args["DayMemory"] = int(0.9 * options.memory)
+    args["NightMemory"] = int(0.9 * options.memory)
     # args["DayStartTime"] = 0
     # args["NightStartTime"] = 0
     # args["RunOnBattery"] = 1
@@ -189,7 +189,7 @@ def unreserve(assignment, retry_count=0):
               file=sys.stderr)
     if not assignment:
         return
-    if retry_count > 5:
+    if retry_count >= 5:
         return
     args = primenet_v5_bargs.copy()
     args["t"] = "au"
@@ -222,11 +222,14 @@ def unreserve_all():
     tasks = readonly_list_file(workfile)
     if not len(tasks):
         return
+    assignments = list(
+        OrderedDict(
+            (assignment.uid, assignment) for assignment in [
+                parse_assignment(task) for task in tasks]).values())
     print("Quitting GIMPS.")
-    for task in tasks:
-        assignment = parse_assignment(task)
+    for assignment in assignments:
         unreserve(assignment)
-        # TODO: Delete task from workfile
+        # TODO: Delete assignment from workfile
     # os.remove(workfile)
 
 
@@ -257,7 +260,7 @@ cpu_signature = get_cpu_signature()
 primenet_v5_burl = "http://v5.mersenne.org/v5server/"
 PRIMENET_TRANSACTION_API_VERSION = 0.95
 # GIMPS programs to use in the application version string when registering with PrimeNet
-programs = [{"name": "Prime95", "version": "30.3", "build": 6}, {"name": "Mlucas", "version": "19"}, {
+programs = [{"name": "Prime95", "version": "30.3", "build": 6}, {"name": "Mlucas", "version": "20"}, {
     "name": "GpuOwl", "version": "7.2"}, {"name": "CUDALucas", "version": "2.06"}]
 ERROR_RATE = 0.018  # Estimated LL error rate on clean run
 # Estimated PRP error rate (assumes Gerbicz error-checking)
@@ -416,6 +419,10 @@ def output_status():
     if not len(tasks):
         print("No work queued up.")
         return
+    assignments = list(
+        OrderedDict(
+            (assignment.uid, assignment) for assignment in [
+                parse_assignment(task) for task in tasks]).values())
     msec_per_iter = None
     if config.has_option("primenet", "usec_per_iter"):
         msec_per_iter = float(config.get("primenet", "usec_per_iter"))
@@ -424,13 +431,12 @@ def output_status():
     prob = 0.0
     mersennes = True
     now = datetime.now()
-    for task in tasks:
-        assignment, iteration, _, _ = get_progress_assignment(task)
+    for assignment in assignments:
+        iteration, _, _, bits, s2 = get_progress_assignment(assignment)
         if not assignment:
             continue
-        time_left = None
-        if msec_per_iter is not None:
-            time_left = msec_per_iter * (assignment.n - iteration) / 1000
+        _, time_left = compute_progress(
+            assignment, iteration, msec_per_iter, bits, s2)
         bits = int(assignment.sieve_depth)
         if bits < 32:
             bits = 32
@@ -496,10 +502,10 @@ def output_status():
 def primenet_fetch(num_to_get, retry_count=0):
     if options.password and not primenet_login:
         return []
-    if retry_count > 5:
+    if retry_count >= 5:
         return []
     # As of early 2018, here is the full list of assignment-type codes supported by the Primenet server; Mlucas
-    # v18 (and thus this script) supports only the subset of these indicated by an asterisk in the left column.
+    # v20 (and thus this script) supports only the subset of these indicated by an asterisk in the left column.
     # Supported assignment types may be specified via either their PrimeNet number code or the listed Mnemonic:
     #			Worktype:
     # Code		Mnemonic			Description
@@ -507,7 +513,7 @@ def primenet_fetch(num_to_get, retry_count=0):
     #    0						Whatever makes the most sense
     #    1						Trial factoring to low limits
     #    2						Trial factoring
-    #    4						P-1 factoring
+    # *  4	Pfactor				P-1 factoring
     #    5						ECM for first factor on Mersenne numbers
     #    6						ECM on Fermat numbers
     #    8						ECM on mersenne cofactors
@@ -562,7 +568,7 @@ def primenet_fetch(num_to_get, retry_count=0):
             # debug_print("Fetching work via V5 Primenet = " +
             # primenet_v5_burl + urlencode(args))
             supported = frozenset([primenet_api.PRIMENET_WORK_TYPE_FIRST_LL, primenet_api.PRIMENET_WORK_TYPE_DBLCHK,
-                                   primenet_api.PRIMENET_WORK_TYPE_PRP] + ([primenet_api.PRIMENET_WORK_TYPE_PFACTOR] if options.gpuowl else []))
+                                   primenet_api.PRIMENET_WORK_TYPE_PRP] + ([primenet_api.PRIMENET_WORK_TYPE_PFACTOR] if not options.cudalucas else []))
             retry = False
             tests = []
             for _ in range(num_to_get):
@@ -632,7 +638,8 @@ def primenet_fetch(num_to_get, retry_count=0):
                         test += "," + ",".join([r[i] for i in ['sf', 'saved']])
                         if 'base' in r or 'rt' in r:
                             # Mlucas
-                            if not (options.cudalucas or options.gpuowl) and (int(r['base']) != 3 or int(r['rt']) not in [1, 5]):
+                            if not (options.cudalucas or options.gpuowl) and (
+                                    int(r['base']) != 3 or int(r['rt']) not in [1, 5]):
                                 print(
                                     "ERROR: PRP base is not 3 or residue type is not 1 or 5")
                                 # TODO: Unreserve assignment
@@ -666,6 +673,10 @@ def primenet_fetch(num_to_get, retry_count=0):
 
 def get_assignment(progress):
     tasks = readonly_list_file(workfile)
+    assignments = list(
+        OrderedDict(
+            (assignment.uid, assignment) for assignment in [
+                parse_assignment(task) for task in tasks]).values())
     (percent, time_left) = None, None
     if progress is not None and isinstance(
             progress, tuple) and len(progress) == 2:
@@ -680,16 +691,16 @@ def get_assignment(progress):
             num_cache += 1
             debug_print("Time_left is {0} and smaller than limit ({1}), so num_cache is increased by one to {2:n}".format(
                 str(time_left), str(days_work), num_cache))
-    num_to_get = num_cache - len(tasks)
+    num_to_get = num_cache - len(assignments)
 
     if num_to_get < 1:
         debug_print(
             "“" + workfile + "” already has {0:n} ≥ {1:n} entries, not getting new work".format(
-                len(tasks), num_cache))
+                len(assignments), num_cache))
         return 0
     debug_print(
         "“" + workfile + "” has {0:n} < {1:n} entries".format(
-            len(tasks), num_cache))
+            len(assignments), num_cache))
     debug_print("Fetching {0:n} assignments".format(num_to_get))
 
     new_tasks = primenet_fetch(num_to_get)
@@ -701,7 +712,8 @@ def get_assignment(progress):
             if not assignment:
                 print("ERROR: Invalid assignment '{0}'".format(new_task))
             else:
-                if assignment.work_type == "PRP" and int(options.worktype) in option_dict:
+                if assignment.work_type == "PRP" and int(
+                        options.worktype) in option_dict:
                     debug_print(new_task)
                     new_tasks[i] = "Test=" + ",".join(
                         [str(i) for i in [assignment.uid, assignment.n, int(assignment.sieve_depth), int(not assignment.tests_saved)]])
@@ -738,37 +750,52 @@ def parse_stat_file(p):
     statfile = os.path.join(workdir, 'p' + str(p) + '.stat')
     if not os.path.exists(statfile):
         debug_print("stat file “" + statfile + "” does not exist")
-        return 0, None, None
+        return 0, None, None, 0, 0
 
     w = readonly_list_file(statfile)  # appended line by line, no lock needed
     found = 0
-    regex = re.compile(r"Iter# = (\d+) .*\[ *(\d+\.\d+) (m?sec)/iter\]")
+    regex = re.compile(
+        r"(Iter#|S1|S2)(?: bit| at q)? = (\d+) \[ ?(\d+\.\d+)% complete\] .*\[ *(\d+\.\d+) (m?sec)/iter\]")
     fft_regex = re.compile(r'FFT length \d{3,}K = (\d{6,})')
+    s2_regex = re.compile(r'Stage 2 q0 = (\d+)')
     list_msec_per_iter = []
     fftlen = None
+    s2 = 0
+    bits = 0
     # get the 5 most recent Iter line
     for line in reversed(w):
         res = regex.search(line)
         fft_res = fft_regex.search(line)
+        s2_res = s2_regex.search(line)
         if res and found < 5:
             found += 1
             # keep the last iteration to compute the percent of progress
             if found == 1:
-                iteration = int(res.group(1))
-            msec_per_iter = float(res.group(2))
-            unit = res.group(3)
-            if unit == "sec":
-                msec_per_iter *= 1000
-            list_msec_per_iter.append(msec_per_iter)
+                iteration = int(res.group(2))
+                percent = float(res.group(3))
+                if res.group(1) == "S1":
+                    bits = int(iteration / (percent / 100))
+                elif res.group(1) == "S2":
+                    s2 = iteration
+            if (not bits or res.group(1) == "S1") and (
+                    not s2 or res.group(1) == "S2"):
+                msec_per_iter = float(res.group(4))
+                if res.group(5) == "sec":
+                    msec_per_iter *= 1000
+                list_msec_per_iter.append(msec_per_iter)
+        elif s2 and s2_res:
+            s2 = int(((iteration - int(s2_res.group(1))) / (percent / 100)) / 20)
+            iteration = int(s2 * (percent / 100))
         elif fft_res and not fftlen:
             fftlen = int(fft_res.group(1))
         if found == 5 and fftlen:
             break
     if found == 0:
-        return 0, None, fftlen  # iteration is 0, but don't know the estimated speed yet
+        # iteration is 0, but don't know the estimated speed yet
+        return 0, None, fftlen, bits, s2
     # take the median of the last grepped lines
     msec_per_iter = median_low(list_msec_per_iter)
-    return iteration, msec_per_iter, fftlen
+    return iteration, msec_per_iter, fftlen, bits, s2
 
 
 def parse_v5_resp(r):
@@ -997,15 +1024,13 @@ Assignment = namedtuple(
 
 
 def update_progress(assignment, iteration, msec_per_iter,
-                    fftlen, now, cur_time_left):
+                    fftlen, bits, s2, now, cur_time_left):
     if not assignment:
         return
-    percent = 100 * iteration / assignment.n
-    time_left = None
-    if msec_per_iter is not None:
-        time_left = msec_per_iter * (assignment.n - iteration) / 1000
+    percent, time_left = compute_progress(
+        assignment, iteration, msec_per_iter, bits, s2)
     debug_print(
-        "p:{0} is {1:.4n}% done ({2:n} / {0:n})".format(assignment.n, percent, iteration))
+        "p:{0} is {1:.4n}% done ({2:n} / {3:n})".format(assignment.n, percent, iteration, s2 if s2 else bits if bits else assignment.n))
     if time_left is None:
         debug_print("Finish cannot be estimated")
     else:
@@ -1014,7 +1039,7 @@ def update_progress(assignment, iteration, msec_per_iter,
         debug_print("Finish estimated in {0} (used {1:.4n} msec/iter estimation)".format(
             str(delta), msec_per_iter))
         send_progress(assignment, percent, cur_time_left,
-                      now, delta, fftlen, False, False)
+                      now, delta, fftlen, bits, s2)
     return percent, cur_time_left
 
 
@@ -1022,6 +1047,10 @@ def update_progress_all():
     tasks = readonly_list_file(workfile)
     if not len(tasks):
         return  # don't update if no worktodo
+    assignments = list(
+        OrderedDict(
+            (assignment.uid, assignment) for assignment in [
+                parse_assignment(task) for task in tasks]).values())
     config_updated = False
     # Treat the first assignment. Only this one is used to save the msec_per_iter
     # The idea is that the first assignment is having a .stat file with correct values
@@ -1033,8 +1062,8 @@ def update_progress_all():
     # Any idea for a better estimation of assignment duration when only p and
     # type (LL or PRP) is known ?
     now = datetime.now()
-    assignment, iteration, msec_per_iter, fftlen = get_progress_assignment(
-        tasks[0])
+    iteration, msec_per_iter, fftlen, bits, s2 = get_progress_assignment(
+        assignments[0])
     if msec_per_iter is not None:
         config.set("primenet", "usec_per_iter",
                    "{0:.2f}".format(msec_per_iter))
@@ -1045,28 +1074,32 @@ def update_progress_all():
     # Do the other assignment accumulating the time_lefts
     cur_time_left = None if msec_per_iter is None else 0
     percent, cur_time_left = update_progress(
-        assignment, iteration, msec_per_iter, fftlen, now, cur_time_left)
-    for task in tasks[1:]:
-        assignment, iteration, _, fftlen = get_progress_assignment(task)
+        assignments[0], iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
+    for assignment in assignments[1:]:
+        iteration, _, fftlen, bits, s2 = get_progress_assignment(assignment)
         percent, cur_time_left = update_progress(
-            assignment, iteration, msec_per_iter, fftlen, now, cur_time_left)
+            assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
     if config_updated:
         config_write(config)
     return percent, cur_time_left
 
 
-def get_progress_assignment(task):
-    assignment = parse_assignment(task)
+def get_progress_assignment(assignment):
     if not assignment:
         return
+    # P-1 Stage 1 bits
+    bits = 0
+    # P-1 Stage 2 location/buffers
+    s2 = 0
     if options.gpuowl:  # GpuOwl
-        iteration, msec_per_iter, fftlen = parse_stat_file_gpu(
+        iteration, msec_per_iter, fftlen, bits, s2 = parse_stat_file_gpu(
             assignment.n)
     elif options.cudalucas:  # CUDALucas
         iteration, msec_per_iter, fftlen = parse_stat_file_cuda(assignment.n)
     else:  # Mlucas
-        iteration, msec_per_iter, fftlen = parse_stat_file(assignment.n)
-    return assignment, iteration, msec_per_iter, fftlen
+        iteration, msec_per_iter, fftlen, bits, s2 = parse_stat_file(
+            assignment.n)
+    return iteration, msec_per_iter, fftlen, bits, s2
 
 
 def parse_assignment(task):
@@ -1197,14 +1230,106 @@ def parse_stat_file_cuda(p):
     return iteration, avg_msec_per_iter, fftlen
 
 
+def parse_stat_file_gpu(p):
+    # GpuOwl
+    # appended line by line, no lock needed
+    gpuowl = os.path.join(workdir, 'gpuowl.log')
+    if not os.path.exists(gpuowl):
+        debug_print("Log file “" + gpuowl + "” does not exist")
+        return 0, None, None, 0, 0
+
+    w = readonly_list_file(gpuowl)
+    found = 0
+    regex = re.compile(r"(\d{7,}) (LL|P1|OK|EE)? +(\d{5,})")
+    us_per_regex = re.compile(r'\b(\d+) us/it;?\b')
+    fft_regex = re.compile(r'\b\d{7,} FFT: (\d+(?:\.\d+)?[KM])\b')
+    bits_regex = re.compile(
+        r'\b\d{7,} P1(?: B1=\d+, B2=\d+;|\(\d+(?:\.\d)?M?\)) (\d+) bits;?\b')
+    p1_regex = re.compile(r'\| P1\(\d+(?:\.\d)?M?\)')
+    p2_regex = re.compile(r"\d{7,} P2 (\d+)/(\d+)")
+    list_usec_per_iter = []
+    fftlen = None
+    p1 = False
+    buffs = 0
+    bits = 0
+    # get the 5 most recent Iter line
+    for line in reversed(w):
+        res = regex.search(line)
+        us_res = re.findall(us_per_regex, line)
+        fft_res = re.findall(fft_regex, line)
+        bits_res = re.findall(bits_regex, line)
+        p2_res = re.search(p2_regex, line)
+        if res and int(res.group(1)) != p:
+            if found == 0:
+                debug_print(
+                    "ERROR: looking for the exponent " + str(p) + ", but found " + res.group(1))
+            break
+        if p2_res:
+            found += 1
+            if not buffs:
+                iteration = int(p2_res.group(0))
+                buffs = int(p2_res.group(1))
+        elif res and us_res and found < 20:
+            found += 1
+            # keep the last iteration to compute the percent of progress
+            if found == 1:
+                iteration = int(res.group(3))
+                p1 = res.group(2) == 'P1'
+            elif int(res.group(3)) > iteration:
+                break
+            if not p1 and not buffs:
+                p1_res = re.findall(p1_regex, line)
+                p1 = res.group(2) == 'OK' and bool(p1_res)
+            if len(list_usec_per_iter) < 5:
+                list_usec_per_iter.append(int(us_res[0]))
+        elif p1 and bits_res:
+            if not bits:
+                bits = int(bits_res[0])
+        elif fft_res and not fftlen:
+            unit = fft_res[0][-1:]
+            fftlen = int(float(
+                fft_res[0][:-1]) * (1024 if unit == 'K' else 1024 * 1024 if unit == 'M' else 1))
+        if (buffs or (found == 20 and (not p1 or bits))) and fftlen:
+            break
+    if found == 0:
+        # iteration is 0, but don't know the estimated speed yet
+        return 0, None, fftlen, bits, buffs
+    # take the median of the last grepped lines
+    msec_per_iter = median_low(list_usec_per_iter) / \
+        1000 if list_usec_per_iter else None
+    return iteration, msec_per_iter, fftlen, bits, buffs
+
+
+def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
+    percent = 100 * iteration / (s2 if s2 else bits if bits else assignment.n)
+    if msec_per_iter is None:
+        return percent, None
+    if bits:
+        time_left = msec_per_iter * (bits - iteration)
+        # 1.5 suggested by EWM
+        time_left += msec_per_iter * bits * 1.5
+        if assignment.work_type in frozenset(
+                ["Test", "DoubleCheck", "PRP", "PRPDC"]):
+            time_left += msec_per_iter * assignment.n
+    elif s2:
+        time_left = msec_per_iter * \
+            (s2 - iteration) if not options.gpuowl else options.timeout
+        if assignment.work_type in frozenset(
+                ["Test", "DoubleCheck", "PRP", "PRPDC"]):
+            time_left += msec_per_iter * assignment.n
+    else:
+        time_left = msec_per_iter * (assignment.n - iteration)
+    return percent, time_left / 1000
+
+
 def send_progress(assignment, percent, time_left, now,
-                  delta, fftlen, pm1, p2, retry_count=0):
+                  delta, fftlen, s1, s2, retry_count=0):
     guid = get_guid(config)
     if guid is None:
         debug_print("Cannot update, the registration is not done",
                     file=sys.stderr)
         return
-    if retry_count > 5:
+    if retry_count >= 5:
         return
     # Assignment Progress fields:
     # g= the machine's GUID (32 chars, assigned by Primenet on 1st-contact from a given machine, stored in 'guid=' entry of local.ini file of rundir)
@@ -1225,9 +1350,9 @@ def send_progress(assignment, percent, time_left, now,
     # stage= LL in this case, although an LL test may be doing TF or P-1 work
     # first so it's possible to be something besides LL
     if percent > 0:
-        if pm1:
+        if s1:
             args["stage"] = "S1"
-        elif p2:
+        elif s2:
             args["stage"] = "S2"
         elif assignment.work_type == "Test" or assignment.work_type == "DoubleCheck":
             args["stage"] = "LL"
@@ -1272,7 +1397,7 @@ def send_progress(assignment, percent, time_left, now,
                 # drop the assignment
     if retry:
         return send_progress(assignment, percent, time_left,
-                             now, delta, fftlen, pm1, p2, retry_count + 1)
+                             now, delta, fftlen, s1, s2, retry_count + 1)
     return
 
 
@@ -1376,7 +1501,7 @@ def get_result_type(ar):
 def submit_one_line_v5(sendline, guid, ar, retry_count=0):
     """Submit one result line using V5 API, will be attributed to the computed identified by guid"""
     """Return False if the submission should be retried"""
-    if retry_count > 5:
+    if retry_count >= 5:
         return False
     # JSON is required because assignment_id is necessary in that case
     # and it is not present in old output format.
@@ -1509,7 +1634,7 @@ def submit_work():
     results = readonly_list_file(resultsfile)
     # EWM: Note that readonly_list_file does not need the file(s) to exist - nonexistent files simply yield 0-length rs-array entries.
     # remove nonsubmittable lines from list of possibles
-    results = filter(mersenne_find, results)
+    results = list(filter(mersenne_find, results))
 
     # if a line was previously submitted, discard
     results_send = [line for line in results if line not in results_send]
@@ -1685,6 +1810,7 @@ idx = 3 if options.cudalucas else 2 if options.gpuowl else 1
 # Convert mnemonic-form worktypes to corresponding numeric value, check
 # worktype value vs supported ones:
 option_dict = {
+    "Pfactor": primenet_api.PRIMENET_WP_PFACTOR,
     "SmallestAvail": primenet_api.PRIMENET_WP_LL_FIRST,
     "DoubleCheck": primenet_api.PRIMENET_WP_LL_DBLCHK,
     "WorldRecord": primenet_api.PRIMENET_WP_LL_WORLD_RECORD,
@@ -1701,8 +1827,8 @@ supported = frozenset([primenet_api.PRIMENET_WP_LL_FIRST,
                        primenet_api.PRIMENET_WP_LL_100M] + ([primenet_api.PRIMENET_WP_PRP_FIRST,
                                                              primenet_api.PRIMENET_WP_PRP_DBLCHK,
                                                              primenet_api.PRIMENET_WP_PRP_WORLD_RECORD,
-                                                             primenet_api.PRIMENET_WP_PRP_100M] if not options.cudalucas else []) + ([155,
-                                                                                                                                      primenet_api.PRIMENET_WORK_TYPE_PFACTOR] if options.gpuowl else []))
+                                                             primenet_api.PRIMENET_WP_PRP_100M,
+                                                             primenet_api.PRIMENET_WP_PFACTOR] if not options.cudalucas else []) + ([155] if options.gpuowl else []))
 if not options.worktype.isdigit() or int(options.worktype) not in supported:
     parser.error("Unsupported/unrecognized worktype = " +
                  options.worktype + " for " + programs[idx]["name"])

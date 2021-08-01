@@ -6,7 +6,7 @@
 # ./cudalucas.sh "$USER" "$HOSTNAME" 100 10
 # ./cudalucas.sh ANONYMOUS
 
-DIR1="cudalucas"
+DIR="cudalucas"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -15,6 +15,7 @@ USERID=${1:-$USER}
 COMPUTER=${2:-$HOSTNAME}
 TYPE=${3:-100}
 TIME=${4:-10}
+DEVICE=0
 RE='^10[0124]$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
@@ -34,7 +35,7 @@ if [[ -e idletime.sh ]]; then
 else
 	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
 fi
-if [[ -d "$DIR1" ]]; then
+if [[ -d "$DIR" ]]; then
 	echo "Error: CUDALucas is already downloaded" >&2
 	exit 1
 fi
@@ -67,12 +68,12 @@ if ! command -v python3 >/dev/null; then
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 echo -e "Downloading CUDALucas\n"
-svn checkout https://svn.code.sf.net/p/cudalucas/code/trunk "$DIR1"
-cd "$DIR1"
+svn checkout https://svn.code.sf.net/p/cudalucas/code/trunk "$DIR"
+cd "$DIR"
 DIR=$PWD
 echo -e "\nDownloading the PrimeNet script\n"
 if [[ -e ../primenet.py ]]; then
-	cp ../primenet.py .
+	cp -v ../primenet.py .
 else
 	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 fi
@@ -95,12 +96,12 @@ cat << EOF > /tmp/cudaComputeVersion.cu
 int main()
 {
 	cudaDeviceProp prop;
-	cudaError_t status = cudaGetDeviceProperties(&prop, 0);
+	cudaError_t status = cudaGetDeviceProperties(&prop, $DEVICE);
 	if (status != cudaSuccess) { 
-		fprintf(stderr, "cudaGetDeviceProperties() for device 0 failed: %s\n", cudaGetErrorString(status)); 
+		fprintf(stderr, "cudaGetDeviceProperties() for device $DEVICE failed: %s\n", cudaGetErrorString(status)); 
 		return 1;
 	}
-	int v = prop.major * 10 + prop.minor;
+	const int v = prop.major * 10 + prop.minor;
 	printf("--generate-code arch=compute_%d,code=sm_%d\n", v, v);
 	return 0;
 }
@@ -131,16 +132,16 @@ echo -e "\nRegistering computer with PrimeNet\n"
 ARGS=()
 if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
-	ARGS+=( --cpu_model="${GPU[0]}" )
+	ARGS+=( --cpu_model="${GPU[DEVICE]}" )
 	
 	mapfile -t GPU_FREQ < <(nvidia-smi --query-gpu=clocks.max.gr --format=csv,noheader,nounits | grep -iv 'not supported')
 	if [[ -n "$GPU_FREQ" ]]; then
-		ARGS+=( --frequency="${GPU_FREQ[0]}" )
+		ARGS+=( --frequency="${GPU_FREQ[DEVICE]}" )
 	fi
 	
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
 	if [[ -n "$TOTAL_GPU_MEM" ]]; then
-		ARGS+=( -m "${TOTAL_GPU_MEM[0]}" )
+		ARGS+=( -m "${TOTAL_GPU_MEM[DEVICE]}" )
 	fi
 fi
 python3 primenet.py -d -t 0 -T "$TYPE" -u "$USERID" -i "worktodo.txt" --cudalucas "cudalucas.out" -H "$COMPUTER" "${ARGS[@]}"
@@ -154,9 +155,9 @@ echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take a while
 # ./CUDALucas -r 1
 # ./CUDALucas 6972593
 echo -e "\nStarting CUDALucas\n"
-nohup nice ./CUDALucas >> "cudalucas.out" &
+nohup nice ./CUDALucas -d $DEVICE >> "cudalucas.out" &
 sleep 1
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "cd \"$DIR\" && nohup nice ./CUDALucas >> \"cudalucas.out\" &"; } | crontab -
-#crontab -l | { cat; echo "cd \"$DIR\" && nohup python3 primenet.py -d -t 21600 >> \"primenet.out\" &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x CUDALucas >/dev/null || (cd \"$DIR\" && nohup nice ./CUDALucas >> \"cudalucas.out\" &); pgrep -f '^python3 primenet\.py' >/dev/null || (cd \"$DIR\" && nohup python3 primenet.py -d -t 21600 >> \"primenet.out\" &); else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi"; } | crontab -
+#crontab -l | { cat; echo "cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &"; } | crontab -
+#crontab -l | { cat; echo "cd ${DIR@Q} && nohup python3 primenet.py -d -t 21600 >> 'primenet.out' &"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &); pgrep -f '^python3 primenet\.py' >/dev/null || (cd ${DIR@Q} && nohup python3 primenet.py -d -t 21600 >> 'primenet.out' &); else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi"; } | crontab -
