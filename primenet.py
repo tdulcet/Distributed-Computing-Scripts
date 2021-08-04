@@ -462,6 +462,8 @@ def output_status():
             all_and_prp_cnt = True
             aprob += (bits - 1) * 1.733 * PRP_ERROR_RATE * (1.04 if assignment.pminus1ed else 1.0) / \
                 (log2(assignment.k) + log2(assignment.b) * assignment.n)
+        elif assignment.work_type == "Pminus1":
+            work_type_str = "P-1 B1={0:.0f}".format(assignment.B1)
         elif assignment.work_type == "PFactor" or assignment.work_type == "Pfactor":
             work_type_str = "P-1"
         elif assignment.work_type == "Cert":
@@ -1017,10 +1019,10 @@ def merge_config_and_options(config, options):
     return updated
 
 
-# Assignment = namedtuple('Assignment', "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, tests_saved, prp_base, prp_residue_type, known_factors, prp_dblchk, cert_squarings")
+# Assignment = namedtuple('Assignment', "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, tests_saved, prp_base, prp_residue_type, known_factors, prp_dblchk, cert_squarings")
 Assignment = namedtuple(
     'Assignment',
-    "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, tests_saved")
+    "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, tests_saved")
 
 
 def update_progress(assignment, iteration, msec_per_iter,
@@ -1118,7 +1120,8 @@ def parse_assignment(task):
     c = -1
     sieve_depth = 99.0
     pminus1ed = 1
-    tests_saved = 0
+    tests_saved = 0.0
+    B1 = 0.0
     debug_print("type = {0}, assignment_id = {1}".format(
         work_type, assignment_uid))  # e.g., "57600769", "197ED240A7A41EC575CB408F32DDA661"
     found = list(csv.reader([task.split("=", 1)[1]]))[0]
@@ -1157,20 +1160,33 @@ def parse_assignment(task):
         c = int(found[4])
         sieve_depth = float(found[5])
         tests_saved = float(found[6])
+    elif work_type == "Pminus1":
+        k = float(found[1])
+        b = int(found[2])
+        n = int(found[3])
+        c = int(found[4])
+        B1 = float(found[5])
+        # B2 = float(found[6])
+        if len(found) >= 8:
+            sieve_depth = float(found[7])
+            # if len(found) >= 9:
+            # B2_start = float(found[8])
+            # if len(found) >= 10:
+            # known_factors = found[9]
     elif work_type == "Cert":
         k = float(found[1])
         b = int(found[2])
         n = int(found[3])
         c = int(found[4])
         # cert_squarings = int(found[5])
-    if k == 1.0 and b == 2 and not isPrime(n) and c == -1:
+    if k == 1.0 and b == 2 and not isPrime(n) and c == -1 and work_type != "Pminus1":
         print(
             "Error: “" + workfile + "” file contained composite exponent: " + str(n) + ".")
     # return Assignment(work_type, assignment_uid, k, b, n, c, sieve_depth,
-    # pminus1ed, tests_saved, prp_base, prp_residue_type, known_factors,
+    # pminus1ed, B1, tests_saved, prp_base, prp_residue_type, known_factors,
     # prp_dblchk, cert_squarings)
     return Assignment(work_type, assignment_uid, k,
-                      b, n, c, sieve_depth, pminus1ed, tests_saved)
+                      b, n, c, sieve_depth, pminus1ed, B1, tests_saved)
 
 
 def parse_stat_file_cuda(p):
@@ -1765,9 +1781,9 @@ resultsfile = os.path.join(workdir, options.resultsfile)
 # A cumulative backup
 sentfile = os.path.join(workdir, "results_sent.txt")
 
-# r'^(?:(Test|DoubleCheck)=([0-9A-F]{32})(,\d+){3}|(PRP(?:DC)?)=([0-9A-F]{32})(,-?\d+){4,8}(,"\d+(?:,\d+)*")?|(P(?:F|f)actor)=([0-9A-F]{32})(,-?\d+){6}|(Cert)=([0-9A-F]{32})(,-?\d+){5})$'
+# r'^(?:(Test|DoubleCheck)=([0-9A-F]{32})(,\d+){3}|(PRP(?:DC)?)=([0-9A-F]{32})(,-?\d+){4,8}(,"\d+(?:,\d+)*")?|(P(?:F|f)actor)=([0-9A-F]{32})(,-?\d+){6}|(Pminus1)=([0-9A-F]{32})(,-?\d+){6,8}(,"\d+(?:,\d+)*")?|(Cert)=([0-9A-F]{32})(,-?\d+){5})$'
 workpattern = re.compile(
-    r'^(Test|DoubleCheck|PRP(?:DC)?|P(?:F|f)actor|Cert)\s*=\s*([0-9A-F]{32})(,(?:-?\d+|"\d+(?:,\d+)*")){3,9}$')
+    r'^(Test|DoubleCheck|PRP(?:DC)?|P(?:F|f)actor|Pminus1|Cert)\s*=\s*([0-9A-F]{32})(,(?:-?\d+|"\d+(?:,\d+)*")){3,9}$')
 
 # mersenne.org limit is about 4 KB; stay on the safe side
 # sendlimit = 3000  # TODO: enforce this limit

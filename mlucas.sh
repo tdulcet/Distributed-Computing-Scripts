@@ -123,7 +123,7 @@ fi
 if [[ -d "$DIR" ]]; then
 	if [[ -e "$FILE" ]] && [[ "$(md5sum $FILE | head -c 32)" != "$SUM" ]]; then
 		echo "Error: Mlucas is already downloaded, but md5sum does not match" >&2
-		echo "Please run \"rm -r $FILE ${DIR@Q}\" and run this script again" >&2
+		echo "Please run \"rm -r $FILE $DIR\" and run this script again" >&2
 		exit 1
 	elif [[ -d "$DIR/obj" && -x "$DIR/obj/Mlucas" && ! -L "$DIR/obj/mlucas.0.cfg" ]]; then
 		echo -e "\nMlucas is already downloaded\n"
@@ -562,17 +562,17 @@ $(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup python3 ../../prime
 }
 EOF
 chmod +x jobs.sh
-#crontab -l | { cat; echo "cd ${DIR@Q} && ./jobs.sh"; } | crontab -
+#crontab -l | { cat; echo "cd '$DIR' && ./jobs.sh"; } | crontab -
 cat << EOF > Mlucas.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
 # Start Mlucas and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
-# Run: ${DIR@Q}/Mlucas.sh
+# Run: '$DIR'/Mlucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then cd ${DIR@Q} && ./jobs.sh; else pgrep -x Mlucas >/dev/null && killall -9 Mlucas; fi
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then cd '$DIR' && ./jobs.sh; else pgrep -x Mlucas >/dev/null && killall -9 Mlucas; fi
 EOF
 chmod +x Mlucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
-echo "crontab -l | { cat; echo \"* * * * * ${DIR@Q}/Mlucas.sh\"; } | crontab -"
+echo "crontab -l | { cat; echo \"* * * * * '$DIR'/Mlucas.sh\"; } | crontab -"
 echo -e "\nTo edit the crontab, run \"crontab -e\""

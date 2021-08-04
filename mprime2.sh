@@ -69,7 +69,7 @@ else
 	wget https://www.mersenne.org/ftp_root/gimps/$FILE
 	if [[ "$(sha256sum $FILE | head -c 64 | tr 'a-z' 'A-Z')" != "$SUM" ]]; then
 		echo "Error: sha256sum does not match" >&2
-		echo "Please run \"rm -r ${DIR@Q}\" make sure you are using the latest version of this script and try running it again" >&2
+		echo "Please run \"rm -r $DIR\" make sure you are using the latest version of this script and try running it again" >&2
 		echo "If you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues" >&2
 		exit 1
 	fi
@@ -87,5 +87,5 @@ expect mprime2.exp -- "$USERID" "$COMPUTER" "$TYPE" "$N"
 echo -e "\nStarting Prime95\n"
 nohup ./mprime -A"$N" &
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "cd ${DIR@Q} && nohup ./mprime -A$N &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -A$N &); else pgrep -x mprime >/dev/null && killall mprime; fi"; } | crontab -
+#crontab -l | { cat; echo "cd '$DIR' && nohup ./mprime -A$N &"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd '$DIR' && exec nohup ./mprime -A$N &); else pgrep -x mprime >/dev/null && killall mprime; fi"; } | crontab -
