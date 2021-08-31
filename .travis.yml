@@ -30,14 +30,12 @@ matrix:
   - name: "Mlucas (ARM, gcc)"
     language: c
     compiler: gcc
-    # arch: arm64
-    arch: arm64-graviton2
+    arch: arm64
     virt: vm
   - name: "Mlucas (ARM, clang)"
     language: c
     compiler: clang
-    # arch: arm64
-    arch: arm64-graviton2
+    arch: arm64
     virt: vm
   allow_failures:
   - language: c

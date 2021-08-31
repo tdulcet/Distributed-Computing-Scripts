@@ -6,9 +6,9 @@
 # ./mlucas.sh "$USER" "$HOSTNAME" 150 10
 # ./mlucas.sh ANONYMOUS
 
-DIR="mlucas_v20"
-FILE="mlucas_v20.txz"
-SUM="9b19a56bf9d598a141fd2f655e61f175"
+DIR="mlucas_v20.1"
+FILE="mlucas_v20.1.txz"
+SUM="2ac7bc70a853fa07f6b02f10636a12a5"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -530,7 +530,7 @@ echo -e "\nRegistering computer with PrimeNet\n"
 python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 for i in "${!RUNS[@]}"; do
-	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" "$i" "${RUNS[i]}"
+	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" $((i+1)) "${RUNS[i]}"
 	mkdir "run$i"
 	pushd "run$i" >/dev/null
 	ln -s ../mlucas.$((${#threads[*]}==1 || (threads[0]<threads[1] && i==0) || (threads[0]>threads[1] && i<${#RUNS[*]}-1) ? 0 : 1)).cfg mlucas.cfg
@@ -554,11 +554,13 @@ cat << EOF > jobs.sh
 set -e
 
 pgrep -x Mlucas >/dev/null || {
-$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -cpu '${RUNS[i]}' -maxalloc $maxalloc &); "; done)
+echo -e "\nStarting Mlucas\n"
+$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -cpu '${RUNS[i]}' -maxalloc $maxalloc &) "; done)
 }
 
-pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || { 
-$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup python3 ../../primenet.py -d -t 21600 -c $i >> 'primenet.out' &); "; done)
+pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || {
+echo -e "\nStarting PrimeNet\n"
+$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup python3 ../../primenet.py -d -t 21600 -c $i >> 'primenet.out' &) "; done)
 }
 EOF
 chmod +x jobs.sh

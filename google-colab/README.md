@@ -22,7 +22,7 @@ Each notebook makes use of Google Drive storage, which is provided to all Google
 4. **Click** “▶️” to run the notebook.
 
 5. **When the Notebook Disconnects** – for example due to its [12-hour](https://research.google.com/colaboratory/faq.html#idle-timeouts)
-usage limit, a bad internet connection, Google requiring your GPU type, etc. – repeat step 4 again to continue where you left off. Use our [Colab Autorun and Connect](https://github.com/tdulcet/Colab-Autorun-and-Connect) Firefox and Chrome add-on/extension to automate this step.
+usage limit, idle timeouts, Google requiring your GPU type, etc. – repeat step 4 again to continue where you left off. Use our [Colab Autorun and Connect](https://github.com/tdulcet/Colab-Autorun-and-Connect) Firefox and Chrome add-on/extension to automate this step.
 
 Google may offer you up to two GPU runtimes to disperse among your notebooks. In this case, you may create another GPU notebook by re-running the steps with a different `computer_number` value. For example, choose `2` if you are already running a GPU notebook with the `Default (1)` number.
 
@@ -38,7 +38,7 @@ Anyone with an internet connection and a free Google/Gmail account with just [~5
 
 Please note, though the [resource limits](https://research.google.com/colaboratory/faq.html#resource-limits) are at times variable, generally the free version of Colab imposes a 12-hour usage limit per notebook. 
 Additionally, a user may only assign a GPU runtime to up to two notebooks at a time whereas one may run an unknown upper-bound of notebooks with the CPU runtime enabled. 
-(This usage limit, the GPU runtime limit, and other usage limits are modified if one purchases a [Google Colab Pro](https://colab.research.google.com/) plan.)
+(This usage limit, the GPU runtime limit, and other usage limits are increased if one purchases a [Colab Pro or Colab Pro+](https://colab.research.google.com/signup) plan.)
 
 ## GPUs Offered
 Google Colab runs exclusively on Nvidia GPUs where the specific model assigned to you depends on availability.
