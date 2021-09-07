@@ -442,6 +442,13 @@ for i in "${!ARGS[@]}"; do
 		done
 		wait
 		grep -ih 'error\|warn\||assert\|clocks' "${files[@]::${#args[*]}}"
+		if grep -iq 'fatal' "${files[@]::${#args[*]}}"; then
+			for k in "${!args[@]}"; do
+				./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" -shift $RANDOM >& "${files[k]}" &
+			done
+			wait
+			grep -ih 'error\|warn\||assert\|clocks' "${files[@]::${#args[*]}}"
+		fi
 		iters+=( "$(sed -n 's/^Clocks = //p' "${files[@]::${#args[*]}}" | awk -F'[:.]' '{ sum+=1/((($1*60*60*1000)+($2*60*1000)+($3*1000)+$4)/1000) } END { printf "%.15g\n", 1000 * sum }')" )
 	done
 	ITERS+=( "$(printf '%s\n' "${iters[@]}")" )

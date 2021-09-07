@@ -283,8 +283,6 @@ def assignment_unreserve(assignment, retry_count=0):
 
 def unreserve(p):
     tasks = readonly_list_file(workfile)
-    if not len(tasks):
-        return
     assignment = next((assignment for assignment in (parse_assignment(
         task) for task in tasks) if assignment and assignment.n == p), None)
     if assignment:
@@ -296,8 +294,6 @@ def unreserve(p):
 
 def unreserve_all():
     tasks = readonly_list_file(workfile)
-    if not len(tasks):
-        return
     assignments = OrderedDict((assignment.uid, assignment) for assignment in (
         parse_assignment(task) for task in tasks) if assignment and assignment.uid).values()
     print("Quitting GIMPS immediately.")
@@ -316,11 +312,10 @@ def get_cpu_signature():
         output = subprocess.check_output(command).decode().strip()
     elif platform.system() == "Linux":
         with open('/proc/cpuinfo', 'r') as f1:
-            all_info = f1.read()
-        for line in all_info.splitlines():
-            if "model name" in line:
-                output = re.sub(".*model name.*:", "", line, 1).lstrip()
-                break
+            for line in f1:
+                if "model name" in line:
+                    output = re.sub(".*model name.*:", "", line, 1).lstrip()
+                    break
     return output
 
 
@@ -460,7 +455,7 @@ def readonly_list_file(filename, mode="r"):
     # check or write lockfiles. Also returns a single string, no list.
     try:
         with open(filename, mode=mode) as File:
-            return [x.strip() for x in File.readlines()]
+            return [x.strip() for x in File]
     except (IOError, OSError):
         return []
 
@@ -493,7 +488,7 @@ def output_status():
     tasks = readonly_list_file(workfile)
     print(
         "Below is a report on the work you have queued and any expected completion dates.")
-    if not len(tasks):
+    if not tasks:
         print("No work queued up.")
         return
     assignments = OrderedDict((assignment.uid, assignment) for assignment in (
@@ -733,8 +728,8 @@ def primenet_fetch(num_to_get):
                 end = res.find("<!--END_ASSIGNMENTS_BLOCK-->", begin)
                 if end >= 0:
                     return res[begin:end].splitlines()
-            return greplike(workpattern, [line.decode(
-                'utf-8') for line in r.iter_lines()])
+            return greplike(workpattern, (line.decode(
+                'utf-8') for line in r.iter_lines()))
 
         # Get assignment using V5 API
         else:
@@ -771,7 +766,7 @@ def get_assignments(progress):
         days_work = timedelta(days=options.DaysOfWork)
         if time_left <= days_work:
             num_cache += 1
-            debug_print("Time_left is {0} and smaller than limit ({1}), so num_cache is increased by one to {2:n}".format(
+            debug_print("Time left is {0} and smaller than DaysOfWork ({1}), so num_cache is increased by one to {2:n}".format(
                 str(time_left), str(days_work), num_cache))
     length = len(assignments)
     num_to_get = num_cache - length
@@ -1123,7 +1118,7 @@ def update_progress(assignment, iteration, msec_per_iter,
     percent, time_left = compute_progress(
         assignment, iteration, msec_per_iter, bits, s2)
     debug_print(
-        "p:{0} is {1:.4n}% done ({2:n} / {3:n})".format(assignment.n, percent, iteration, s2 if s2 else bits if bits else assignment.n))
+        "p:{0} is {1:.4n}% done ({2:n} / {3:n})".format(assignment.n, percent, iteration, s2 if s2 else bits if bits else assignment.n if assignment.work_type == primenet_api.WORK_TYPE_PRP else assignment.n - 2))
     if time_left is None:
         debug_print("Finish cannot be estimated")
     else:
@@ -1138,9 +1133,9 @@ def update_progress(assignment, iteration, msec_per_iter,
 
 def update_progress_all():
     tasks = readonly_list_file(workfile)
-    if not len(tasks):
+    if not tasks:
         return  # don't update if no worktodo
-    assignments = list(OrderedDict((assignment.uid, assignment) for assignment in (
+    assignments = iter(OrderedDict((assignment.uid, assignment) for assignment in (
         parse_assignment(task) for task in tasks) if assignment and assignment.uid).values())
     # Treat the first assignment. Only this one is used to save the msec_per_iter
     # The idea is that the first assignment is having a .stat file with correct values
@@ -1152,8 +1147,9 @@ def update_progress_all():
     # Any idea for a better estimation of assignment duration when only p and
     # type (LL or PRP) is known ?
     now = datetime.now()
+    assignment = next(assignments)
     iteration, msec_per_iter, fftlen, bits, s2 = get_progress_assignment(
-        assignments[0])
+        assignment)
     if msec_per_iter is not None:
         config.set("primenet", "msec_per_iter",
                    "{0:.4f}".format(msec_per_iter))
@@ -1163,8 +1159,8 @@ def update_progress_all():
     # Do the other assignment accumulating the time_lefts
     cur_time_left = None if msec_per_iter is None else 0
     percent, cur_time_left = update_progress(
-        assignments[0], iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
-    for assignment in assignments[1:]:
+        assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
+    for assignment in assignments:
         iteration, _, fftlen, bits, s2 = get_progress_assignment(assignment)
         percent, cur_time_left = update_progress(
             assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
@@ -1432,7 +1428,8 @@ def parse_stat_file_gpu(p):
 
 
 def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
-    percent = 100 * iteration / (s2 if s2 else bits if bits else assignment.n)
+    percent = 100 * iteration / (s2 if s2 else bits if bits else assignment.n if assignment.work_type ==
+                                 primenet_api.WORK_TYPE_PRP else assignment.n - 2)
     if msec_per_iter is None:
         return percent, None
     if bits:
@@ -1449,7 +1446,8 @@ def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
                 [primenet_api.WORK_TYPE_FIRST_LL, primenet_api.WORK_TYPE_DBLCHK, primenet_api.WORK_TYPE_PRP]):
             time_left += msec_per_iter * assignment.n
     else:
-        time_left = msec_per_iter * (assignment.n - iteration)
+        time_left = msec_per_iter * ((assignment.n if assignment.work_type ==
+                                     primenet_api.WORK_TYPE_PRP else assignment.n - 2) - iteration)
     time_left *= 24.0 / options.CPUHours
     return percent, time_left / 1000
 
@@ -1647,7 +1645,7 @@ def report_result(sendline, guid, ar, retry_count=0):
     # JSON is required because assignment_id is necessary in that case
     # and it is not present in old output format.
     debug_print("Submitting using V5 API")
-    debug_print("Program: " + " ".join(list(ar['program'].values())))
+    debug_print("Program: " + " ".join(ar['program'].values()))
     aid = ar['aid']
     result_type = get_result_type(ar)
     if result_type in frozenset(
@@ -1783,13 +1781,13 @@ def submit_one_line_manually(sendline):
 
 
 def submit_work():
-    results_send = readonly_list_file(sentfile)
+    results_send = frozenset(readonly_list_file(sentfile))
     # Only submit completed work, i.e. the exponent must not exist in worktodo file any more
     # appended line by line, no lock needed
     results = readonly_list_file(resultsfile)
     # EWM: Note that readonly_list_file does not need the file(s) to exist - nonexistent files simply yield 0-length rs-array entries.
     # remove nonsubmittable lines from list of possibles
-    results = list(filter(mersenne_find, results))
+    results = filter(mersenne_find, results)
 
     # if a line was previously submitted, discard
     results_send = [line for line in results if line not in results_send]
