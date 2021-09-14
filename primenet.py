@@ -314,7 +314,7 @@ def get_cpu_signature():
         with open('/proc/cpuinfo', 'r') as f1:
             for line in f1:
                 if "model name" in line:
-                    output = re.sub(".*model name.*:", "", line, 1).lstrip()
+                    output = re.sub(".*model name.*:", "", line.rstrip(), 1).lstrip()
                     break
     return output
 
@@ -455,7 +455,7 @@ def readonly_list_file(filename, mode="r"):
     # check or write lockfiles. Also returns a single string, no list.
     try:
         with open(filename, mode=mode) as File:
-            return [x.strip() for x in File]
+            return [line.rstrip() for line in File]
     except (IOError, OSError):
         return []
 
