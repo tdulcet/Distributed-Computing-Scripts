@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-18.04, ubuntu-20.04]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -21,7 +21,7 @@ jobs:
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
         sed -i '/^if ! COMPUTE=/,/^fi/ s/^/# /' cudalucas.sh
-        sed -i 's/\/$COMPUTE/\/--generate-code arch=compute_35,code=sm_35 --generate-code arch=compute_50,code=sm_50/' cudalucas.sh
+        sed -i 's/\/$COMPUTE/\/--generate-code arch=compute_35,code=sm_35 --generate-code arch=compute_50,code=sm_50 --generate-code arch=compute_60,code=sm_60 --generate-code arch=compute_70,code=sm_70/' cudalucas.sh
         sed -i '/^\.\/CUDALucas / s/^/# /' cudalucas.sh
         sed -i '/^nohup / s/^/# /' cudalucas.sh
         sed -i '/^python3 / s/^/# /' cudalucas.sh
@@ -44,7 +44,7 @@ jobs:
     continue-on-error: ${{ matrix.cc == 'clang' }}
     strategy:
       matrix:
-        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-18.04, ubuntu-20.04]
         cc: [gcc, clang]
       fail-fast: false
     env:
