@@ -3,7 +3,7 @@ Google offers a service known as [Colaboratory](https://research.google.com/cola
 This service can be used to run Distributed Computing projects such as the [Great Internet Mersenne Prime Search](https://www.mersenne.org/) (GIMPS) for free.
 GIMPS can be run on an Nvidia GPU using the [CUDALucas](https://sourceforge.net/projects/cudalucas/) program or a CPU using the [Prime95](https://www.mersenne.org/download/) program.
 
-This repository contains two Jupyter Notebooks, a “CPU” only notebook (`GoogleColabCPU.ipynb`) and a “GPU and CPU” notebook (`GoogleColabGPU.ipynb`). The “CPU” notebook runs `Prime95`, while the “GPU and CPU” notebook runs both `CUDALucas` and `Prime95` since they can run in parallel to “crunch” more prime numbers.
+This repository contains two Jupyter Notebooks, a “CPU” only notebook (`GoogleColabCPU.ipynb`) and a “GPU and CPU” notebook (`GoogleColabGPU.ipynb`). The “CPU” only notebook runs `Prime95`, while the “GPU and CPU” notebook runs both `CUDALucas` and `Prime95` since they can run in parallel to “crunch” more prime numbers.
 Each notebook makes use of Google Drive storage, which is provided to all Google accounts.
 
 ## How to Use
@@ -17,7 +17,7 @@ Each notebook makes use of Google Drive storage, which is provided to all Google
 
 2. **If Running the GPU** notebook, you must enable the GPU runtime. On the upper left, click “Runtime” → “Change runtime type”, under “Hardware accelerator” select “GPU” and click “SAVE”.
 
-3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes can use several GiB of your Drive storage. The `prp_proof_power` defaults to 8 for Prime95. Every lower value will halve Drive storage requirements for PRP tests, but double the certification cost. Set the highest `prp_proof_power` value that your have available Drive storage for (see the [Prime95 README](https://www.mersenne.org/download/#download) for the space needed for several proof powers and exponents).
+3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes can use several GiB of your Drive storage. The `prp_proof_power` defaults to 8 for Prime95. Every lower value will halve Drive storage requirements for PRP tests, but double the certification cost. Set the highest `prp_proof_power` value that you have available Drive storage for (see the [Prime95 README](https://www.mersenne.org/download/#download) for the space needed for several proof powers and exponents).
 
 4. **Click** “▶️” to run the notebook.
 

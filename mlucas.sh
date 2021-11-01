@@ -6,9 +6,9 @@
 # ./mlucas.sh "$USER" "$HOSTNAME" 150 10
 # ./mlucas.sh ANONYMOUS
 
-DIR="mlucas_v20.1"
-FILE="mlucas_v20.1.txz"
-SUM="2ac7bc70a853fa07f6b02f10636a12a5"
+DIR="mlucas_v20.1.1"
+FILE="mlucas_v20.1.1.txz"
+SUM="d350e53dc1fde470785a2f59c5a6081e"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -170,7 +170,7 @@ else
 	fi
 	if grep -iq 'asimd' /proc/cpuinfo; then
 		echo -e "The CPU supports the ASIMD build mode.\n"
-		ARGS+=( "-DUSE_ARM_V8_SIMD" )
+		ARGS+=( "-DUSE_ARM_V8_SIMD" -march=native )
 	fi
 	cat << EOF > Makefile
 CC?=gcc
