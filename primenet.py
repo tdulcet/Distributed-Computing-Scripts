@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 '''
 Automatic assignment handler for Mlucas, GpuOwl and CUDALucas.
