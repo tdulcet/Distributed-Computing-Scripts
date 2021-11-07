@@ -214,7 +214,6 @@ PrimeNet script:
 	* Currently this requires using the Bash scripts.
 * Improve the performance.
 * Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has not made any progress in a while or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
-* Add a quit GIMPS feature, where it will not download any new assignments, but will still finish and report the existing ones.
 * Support reporting interim residues.
 * Calculate the rolling average.
 * Support downloading certification assignments.
