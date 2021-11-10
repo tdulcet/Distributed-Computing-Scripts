@@ -54,8 +54,8 @@ programs. It also saves its configuration to a “local.ini” file, so it is on
 necessary to give most of the arguments the first time it is run. The first
 time it is run, if a password is NOT provided, it will register the current
 GpuOwl/CUDALucas/Mlucas instance with PrimeNet (see below). Then, it will get
-assignments, report the results and progress, if registered, to PrimeNet on a
-“timeout” interval, or only once if timeout is 0.
+assignments, report the results, upload any proofs and report the progress, if
+registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
 
 Options:
   --version             show program's version number and exit
@@ -73,6 +73,9 @@ Options:
   -l LOCALFILE, --localfile=LOCALFILE
                         Local configuration file filename, Default:
                         “local.ini”
+  --archive_proofs=PROOFARCHIVEDIR
+                        Directory to archive PRP proof files after upload,
+                        Default: none
   -u USERNAME, --username=USERNAME
                         GIMPS/PrimeNet User ID. Create a GIMPS/PrimeNet
                         account: https://www.mersenne.org/update/. If you do
@@ -124,6 +127,8 @@ Options:
                         looping.
   -s, --status          Output a status report and any expected completion
                         dates for all assignments and exit.
+  --upload_proofs       Report assignment results, upload all PRP proofs and
+                        exit.
   --unreserve_all       Unreserve all assignments and exit. Quit GIMPS
                         immediately. Requires that the instance is registered
                         with PrimeNet.
@@ -231,3 +236,5 @@ General:
 Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimeNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimeNet API, for porting the Prime95 script to Python and for helping create and test the Google Colab Jupyter Notebooks!
 
 Thanks to Ernst W. Mayer for helping test and for providing feedback on the Mlucas install script.
+
+Thanks to Isaac Terrell for providing the needed PRP proof files to test the proof file uploading feature.

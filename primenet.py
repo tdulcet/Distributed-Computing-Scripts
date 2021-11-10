@@ -314,7 +314,8 @@ def get_cpu_signature():
         with open('/proc/cpuinfo', 'r') as f1:
             for line in f1:
                 if "model name" in line:
-                    output = re.sub(".*model name.*:", "", line.rstrip(), 1).lstrip()
+                    output = re.sub(".*model name.*:", "",
+                                    line.rstrip(), 1).lstrip()
                     break
     return output
 
@@ -436,8 +437,8 @@ def debug_print(*args, **kwargs):
         caller_name = sys._getframe(1).f_code.co_name
         if caller_name == '<module>':
             caller_name = 'main loop'
-        print(progname + ": " + caller_name + ": " + time.strftime('%c') +
-              " \t" + sep.join(args), **kwargs)
+        print(progname + ": " + caller_name + ":\t" + time.strftime('%c') +
+              "  " + sep.join(args), **kwargs)
         file.flush()
 
 
@@ -478,6 +479,140 @@ def isPrime(n):
         if n % p == 0:
             return False
     return True
+
+
+def headerLines(filename):
+    with open(filename, mode='rb') as f:
+        return [f.readline().decode().rstrip() for _ in range(5)]
+
+
+def checksum_md5(filename):
+    amd5 = md5()
+    with open(filename, mode='rb') as f:
+        for chunk in iter(lambda: f.read(128 * amd5.block_size), b''):
+            amd5.update(chunk)
+    return amd5.hexdigest()
+
+
+def uploadProof(filename):
+    header = headerLines(filename)
+    if header[0] != 'PRP PROOF':
+        return False
+    exponent = header[4].partition("=")[2]
+    print("Proof file exponent is {0}".format(exponent))
+    fileHash = checksum_md5(filename)
+    print("MD5 of “{0}” is {1}".format(filename, fileHash))
+    fileSize = os.path.getsize(filename)
+    print("Filesize of “{0}” is {1:n}".format(filename, fileSize))
+
+    while True:
+        args = {"UserID": options.username,
+                "Exponent": exponent[1:],
+                "FileSize": fileSize,
+                "FileMD5": fileHash}
+        r = requests.get(primenet_baseurl + 'proof_upload/', params=args, timeout=180)
+        json = r.json()
+        if 'error_status' in json:
+            if json['error_status'] == 409:
+                print("Proof “{0}” already uploaded".format(filename))
+                print(str(json))
+                return True
+            print(
+                "Unexpected error during “{0}” upload".format(filename))
+            print(str(json))
+            return False
+        r.raise_for_status()
+        if 'URLToUse' not in json:
+            print(
+                "For proof “{0}”, server response missing URLToUse:".format(filename))
+            print(str(json))
+            return False
+        if 'need' not in json:
+            print(
+                "For proof “{0}”, server response missing need list:".format(filename))
+            print(str(json))
+            return False
+
+        origUrl = json['URLToUse']
+        baseUrl = 'https' + \
+            origUrl[4:] if origUrl.startswith('http:') else origUrl
+        pos, end = next((int(a), b) for a, b in json['need'].items())
+        if pos > end or end >= fileSize:
+            print(
+                "For proof “{0}”, need list entry bad:".format(filename))
+            print(str(json))
+            return False
+
+        if pos:
+            print("Resuming from offset {0:n}".format(pos))
+
+        with requests.session() as s:
+            with open(filename, mode='rb') as f:
+                while pos < end:
+                    f.seek(pos)
+                    size = min(end - pos + 1, 5 * 1024 * 1024)
+                    chunk = f.read(size)
+                    args = {
+                        "FileMD5": fileHash,
+                        "DataOffset": pos,
+                        "DataSize": len(chunk),
+                        "DataMD5": md5(chunk).hexdigest()}
+                    response = s.post(baseUrl, params=args, files={
+                                      'Data': (None, chunk)}, timeout=180)
+                    json = response.json()
+                    if 'error_status' in json:
+                        print(
+                            "Unexpected error during “{0}” upload".format(filename))
+                        print(str(json))
+                        return False
+                    response.raise_for_status()
+                    if 'FileUploaded' in json:
+                        print('Proof file successfully uploaded')
+                        return True
+                    if 'need' not in json:
+                        print(
+                            "For proof “{0}”, no entries in need list:".format(filename))
+                        print(str(json))
+                        return False
+                    start, end = next((int(a), b)
+                                      for a, b in json['need'].items())
+                    if start <= pos:
+                        print(
+                            "For proof “{0}”, sending data did not advance need list:".format(filename))
+                        print(str(json))
+                        return False
+                    pos = start
+                    if pos > end or end >= fileSize:
+                        print(
+                            "For proof “{0}”, need list entry bad:".format(filename))
+                        print(str(json))
+                        return False
+
+
+def uploadProofs():
+    if config.has_option("primenet", "ProofUploads") and not config.getboolean(
+            "primenet", "ProofUploads"):
+        return
+    proof = os.path.join(workdir, 'proof')
+    if not os.path.isdir(proof):
+        debug_print("Proof directory “{0}” does not exist".format(proof))
+        return
+    entries = os.listdir(proof)
+    if not entries:
+        debug_print("No proof files to upload.")
+        return
+    if options.ProofArchiveDir:
+        archive = os.path.join(workdir, options.ProofArchiveDir)
+        if not os.path.isdir(archive):
+            os.makedirs(archive)
+    for entry in entries:
+        if entry.endswith(".proof"):
+            filename = os.path.join(proof, entry)
+            if uploadProof(filename):
+                if options.ProofArchiveDir:
+                    os.rename(filename, os.path.join(archive, entry))
+                else:
+                    os.remove(filename)
 
 
 def digits(n):
@@ -792,7 +927,7 @@ def get_assignments(progress):
                         options.WorkPreference) in option_dict:
                     debug_print(new_task)
                     new_tasks[i] = "Test=" + ",".join(
-                        [str(i) for i in [assignment.uid, assignment.n, int(assignment.sieve_depth), int(not assignment.tests_saved)]])
+                        [str(j) for j in [assignment.uid, assignment.n, int(assignment.sieve_depth), int(not assignment.tests_saved)]])
                 debug_print("New assignment: '{0}'".format(new_tasks[i]))
     write_list_file(workfile, new_tasks, "a")
     output_status()
@@ -917,7 +1052,7 @@ def send_request(guid, args):
             args["sh"] = "ABCDABCDABCDABCDABCDABCDABCDABCD"
         else:
             secure_v5_url(guid, args)
-        r = requests.get(primenet_v5_burl, params=args)
+        r = requests.get(primenet_v5_burl, params=args, timeout=180)
         r.raise_for_status()
         result = parse_v5_resp(r.text)
         rc = int(result["pnErrorResult"])
@@ -1069,7 +1204,7 @@ def merge_config_and_options(config, options):
     # one line per attribute. Only the attr_to_copy list need to be updated
     # when adding an option you want to copy from argument options to
     # local.ini config.
-    attr_to_copy = ["workfile", "resultsfile", "username", "password", "WorkPreference", "GetMinExponent", "GetMaxExponent", "gpuowl", "cudalucas", "WorkerThreads",
+    attr_to_copy = ["workfile", "resultsfile", "ProofArchiveDir", "username", "password", "WorkPreference", "GetMinExponent", "GetMaxExponent", "gpuowl", "cudalucas", "WorkerThreads",
                     "num_cache", "DaysOfWork", "no_report_100m", "ComputerID", "cpu_model", "features", "CpuSpeed", "memory", "L1", "L2", "L3", "NumCPUs", "CpuNumHyperthreads", "CPUHours"]
     updated = False
     for attr in attr_to_copy:
@@ -1313,7 +1448,7 @@ def parse_stat_file_cuda(p):
             if int(num_res[0]) != p:
                 if found == 0:
                     debug_print(
-                        "ERROR: looking for the exponent " + str(p) + ", but found " + num_res[0])
+                        "ERROR: looking for the exponent {0}, but found {1}".format(p, num_res[0]))
                 break
             found += 1
             # keep the last iteration to compute the percent of progress
@@ -1379,7 +1514,7 @@ def parse_stat_file_gpu(p):
         if res and int(res.group(1)) != p:
             if found == 0:
                 debug_print(
-                    "ERROR: looking for the exponent " + str(p) + ", but found " + res.group(1))
+                    "ERROR: looking for the exponent {0}, but found {1}".format(p, res.group(1)))
             break
         if p2_res:
             found += 1
@@ -1823,7 +1958,7 @@ def submit_work():
 
 parser = optparse.OptionParser(version="%prog 1.0", description="""This program will automatically get assignments, report assignment results and optionally progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. It also saves its configuration to a “local.ini” file, so it is only necessary to give most of the arguments the first time it is run.
 The first time it is run, if a password is NOT provided, it will register the current GpuOwl/CUDALucas/Mlucas instance with PrimeNet (see below).
-Then, it will get assignments, report the results and progress, if registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
+Then, it will get assignments, report the results, upload any proofs and report the progress, if registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
 """
                                )
 
@@ -1838,9 +1973,11 @@ parser.add_option("-r", "--resultsfile", dest="resultsfile",
                   default="results.txt", help="ResultsFile filename, Default: “%default”")
 parser.add_option("-l", "--localfile", dest="localfile", default="local.ini",
                   help="Local configuration file filename, Default: “%default”")
+parser.add_option("--archive_proofs", dest="ProofArchiveDir",
+                  help="Directory to archive PRP proof files after upload, Default: %default")
 
 # all other options are saved to local.ini
-parser.add_option("-u", "--username", dest="username",
+parser.add_option("-u", "--username", dest="username", default="ANONYMOUS",
                   help="GIMPS/PrimeNet User ID. Create a GIMPS/PrimeNet account: https://www.mersenne.org/update/. If you do not want a PrimeNet account, you can use ANONYMOUS.")
 parser.add_option("-p", "--password", dest="password",
                   help="GIMPS/PrimeNet Password. Only provide if you want to do manual testing and not report the progress (not recommend). This was the default behavior for old versions of this script.")
@@ -1885,6 +2022,8 @@ parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60 * 60
                   help="Seconds to wait between network updates, Default: %default seconds (1 hour). Use 0 for a single update without looping.")
 parser.add_option("-s", "--status", action="store_true", dest="status", default=False,
                   help="Output a status report and any expected completion dates for all assignments and exit.")
+parser.add_option("--upload_proofs", action="store_true", dest="proofs", default=False,
+                  help="Report assignment results, upload all PRP proofs and exit.")
 parser.add_option("--unreserve_all", action="store_true", dest="unreserve_all", default=False,
                   help="Unreserve all assignments and exit. Quit GIMPS immediately. Requires that the instance is registered with PrimeNet.")
 parser.add_option("--no_more_work", action="store_true", dest="NoMoreWork", default=False,
@@ -2037,6 +2176,11 @@ if options.status:
     output_status()
     sys.exit(0)
 
+if options.proofs:
+    submit_work()
+    uploadProofs()
+    sys.exit(0)
+
 if options.unreserve_all:
     unreserve_all()
     sys.exit(0)
@@ -2060,8 +2204,8 @@ if options.password is None:
 while True:
     config = config_read()
     # Carry on with Loarer's style of primenet
-    try:
-        if options.password:
+    if options.password:
+        try:
             login_data = {"user_login": options.username,
                           "user_password": options.password}
             r = s.post(primenet_baseurl + "default.php", data=login_data)
@@ -2072,8 +2216,8 @@ while True:
                 print("ERROR: Login failed.")
             else:
                 primenet_login = True
-    except HTTPError as e:
-        print("ERROR: Login failed.")
+        except HTTPError as e:
+            print("ERROR: Login failed.")
 
     # branch 1 or branch 2 above was taken
     if not options.password or primenet_login:
@@ -2086,6 +2230,7 @@ while True:
                 "Redo progress update to acknowledge receipt of the just obtained assignment" + ("s" if got > 1 else ""))
             time.sleep(1)
             update_progress_all()
+    uploadProofs()
     if options.timeout <= 0:
         break
     try:
