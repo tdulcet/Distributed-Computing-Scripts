@@ -115,7 +115,7 @@ s = requests.Session()  # session that maintains our cookies
 
 
 # register assignment
-def register_assignment(assignment, retry_count=0):
+def register_assignment(cpu, assignment, retry_count=0):
     '''Note: this function is not used'''
     if retry_count >= 5:
         debug_print("Retry count exceeded.")
@@ -123,7 +123,7 @@ def register_assignment(assignment, retry_count=0):
     args = primenet_v5_bargs.copy()
     args["t"] = "ra"
     args["g"] = guid
-    args["c"] = options.cpu
+    args["c"] = cpu
     args["w"] = assignment.work_type
     args["n"] = assignment.n
     if assignment.work_type == primenet_api.WORK_TYPE_FIRST_LL or assignment.work_type == primenet_api.WORK_TYPE_DBLCHK:
@@ -192,7 +192,7 @@ def program_options(guid, first_time, retry_count=0):
     args["t"] = "po"
     args["g"] = guid
     # no value updates all cpu threads with given worktype
-    args["c"] = ""  # options.cpu
+    args["c"] = ""  # cpu
     if first_time:
         args["w"] = worktype
         args["nw"] = options.WorkerThreads
@@ -281,10 +281,11 @@ def assignment_unreserve(assignment, retry_count=0):
         return assignment_unreserve(assignment, retry_count + 1)
 
 
-def unreserve(p):
+def unreserve(dir, p):
+    workfile = os.path.join(dir, options.workfile)
     tasks = readonly_list_file(workfile)
     assignment = next((assignment for assignment in (parse_assignment(
-        task) for task in tasks) if assignment and assignment.n == p), None)
+        dir, task) for task in tasks) if assignment and assignment.n == p), None)
     if assignment:
         assignment_unreserve(assignment)
     else:
@@ -292,10 +293,11 @@ def unreserve(p):
             "Error unreserving exponent: {0} not found in “{1}”".format(p, workfile))
 
 
-def unreserve_all():
+def unreserve_all(dir):
+    workfile = os.path.join(dir, options.workfile)
     tasks = readonly_list_file(workfile)
     assignments = OrderedDict((assignment.uid, assignment) for assignment in (
-        parse_assignment(task) for task in tasks) if assignment and assignment.uid).values()
+        parse_assignment(dir, task) for task in tasks) if assignment and assignment.uid).values()
     print("Quitting GIMPS immediately.")
     for assignment in assignments:
         assignment_unreserve(assignment)
@@ -589,11 +591,11 @@ def uploadProof(filename):
                         return False
 
 
-def uploadProofs():
+def uploadProofs(dir):
     if config.has_option("primenet", "ProofUploads") and not config.getboolean(
             "primenet", "ProofUploads"):
         return
-    proof = os.path.join(workdir, 'proof')
+    proof = os.path.join(dir, 'proof')
     if not os.path.isdir(proof):
         debug_print("Proof directory “{0}” does not exist".format(proof))
         return
@@ -602,7 +604,7 @@ def uploadProofs():
         debug_print("No proof files to upload.")
         return
     if options.ProofArchiveDir:
-        archive = os.path.join(workdir, options.ProofArchiveDir)
+        archive = os.path.join(dir, options.ProofArchiveDir)
         if not os.path.isdir(archive):
             os.makedirs(archive)
     for entry in entries:
@@ -619,7 +621,8 @@ def digits(n):
     return int(n * Decimal(2).log10() + 1)
 
 
-def output_status():
+def output_status(dir):
+    workfile = os.path.join(dir, options.workfile)
     tasks = readonly_list_file(workfile)
     print(
         "Below is a report on the work you have queued and any expected completion dates.")
@@ -627,7 +630,7 @@ def output_status():
         print("No work queued up.")
         return
     assignments = OrderedDict((assignment.uid, assignment) for assignment in (
-        parse_assignment(task) for task in tasks) if assignment and assignment.uid).values()
+        parse_assignment(dir, task) for task in tasks) if assignment and assignment.uid).values()
     msec_per_iter = None
     if config.has_option("primenet", "msec_per_iter"):
         msec_per_iter = float(config.get("primenet", "msec_per_iter"))
@@ -637,7 +640,7 @@ def output_status():
     mersennes = True
     now = datetime.now()
     for assignment in assignments:
-        iteration, _, _, bits, s2 = get_progress_assignment(assignment)
+        iteration, _, _, bits, s2 = get_progress_assignment(dir, assignment)
         if not assignment:
             continue
         _, time_left = compute_progress(
@@ -706,7 +709,7 @@ def output_status():
                 ll_and_prp_cnt, "Mersenne " if mersennes else "", int(1.0 / prob), prob))
 
 
-def get_assignment(retry_count=0):
+def get_assignment(cpu, retry_count=0):
     if retry_count >= 5:
         debug_print("Retry count exceeded.")
         return
@@ -714,7 +717,7 @@ def get_assignment(retry_count=0):
     args = primenet_v5_bargs.copy()
     args["t"] = "ga"			# transaction type
     args["g"] = guid
-    args["c"] = options.cpu
+    args["c"] = cpu
     args["a"] = ""
     if options.GetMinExponent:
         args["min"] = options.GetMinExponent
@@ -751,7 +754,7 @@ def get_assignment(retry_count=0):
             if not retry:
                 return
     if retry:
-        return get_assignments(retry_count + 1)
+        return get_assignment(cpu, retry_count + 1)
     w = int(r['w'])
     if int(r['n']) < 15000000 and w in frozenset([primenet_api.WORK_TYPE_FACTOR, primenet_api.WORK_TYPE_PFACTOR,
                                                   primenet_api.WORK_TYPE_FIRST_LL, primenet_api.WORK_TYPE_DBLCHK]):
@@ -810,7 +813,7 @@ def get_assignment(retry_count=0):
     return test
 
 
-def primenet_fetch(num_to_get):
+def primenet_fetch(cpu, num_to_get):
     if options.password and not primenet_login:
         return []
     # As of early 2018, here is the full list of assignment-type codes supported by the Primenet server; Mlucas
@@ -870,7 +873,7 @@ def primenet_fetch(num_to_get):
         else:
             tests = []
             for _ in range(num_to_get):
-                test = get_assignment()
+                test = get_assignment(cpu)
                 if test:
                     tests.append(test)
                 else:
@@ -882,13 +885,14 @@ def primenet_fetch(num_to_get):
         return []
 
 
-def get_assignments(progress):
+def get_assignments(dir, cpu, progress):
     if config.has_option("primenet", "NoMoreWork") and config.getboolean(
             "primenet", "NoMoreWork"):
         return 0
+    workfile = os.path.join(dir, options.workfile)
     tasks = readonly_list_file(workfile)
     assignments = OrderedDict((assignment.uid, assignment) for assignment in (
-        parse_assignment(task) for task in tasks) if assignment and assignment.uid).values()
+        parse_assignment(dir, task) for task in tasks) if assignment and assignment.uid).values()
     (percent, time_left) = None, None
     if progress is not None and isinstance(
             progress, tuple) and len(progress) == 2:
@@ -914,12 +918,12 @@ def get_assignments(progress):
         "“{0}” has {1:n} < {2:n} entries".format(workfile, length, num_cache))
     debug_print("Fetching {0:n} assignments".format(num_to_get))
 
-    new_tasks = primenet_fetch(num_to_get)
+    new_tasks = primenet_fetch(cpu, num_to_get)
     num_fetched = len(new_tasks)
     if num_fetched > 0:
         debug_print("Fetched {0:n} assignments:".format(num_fetched))
         for i, new_task in enumerate(new_tasks):
-            assignment = parse_assignment(new_task)
+            assignment = parse_assignment(dir, new_task)
             if not assignment:
                 print("ERROR: Invalid assignment '{0}'".format(new_task))
             else:
@@ -930,7 +934,7 @@ def get_assignments(progress):
                         [str(j) for j in [assignment.uid, assignment.n, int(assignment.sieve_depth), int(not assignment.tests_saved)]])
                 debug_print("New assignment: '{0}'".format(new_tasks[i]))
     write_list_file(workfile, new_tasks, "a")
-    output_status()
+    output_status(dir)
     if num_fetched < num_to_get:
         print(
             "Error: Failed to obtain requested number of new assignments, {0:n} requested, {1:n} successfully retrieved".format(
@@ -956,9 +960,9 @@ except ImportError:
         return sorts[(length - 1) // 2]
 
 
-def parse_stat_file(p):
+def parse_stat_file(dir, p):
     # Mlucas
-    statfile = os.path.join(workdir, 'p' + str(p) + '.stat')
+    statfile = os.path.join(dir, 'p' + str(p) + '.stat')
     if not os.path.exists(statfile):
         debug_print("stat file “{0}” does not exist".format(statfile))
         return 0, None, None, 0, 0
@@ -1171,6 +1175,7 @@ def register_instance(guid):
 
 def config_read():
     config = ConfigParser(dict_type=OrderedDict)
+    localfile = os.path.join(workdir, options.localfile)
     try:
         config.read([localfile])
     except ConfigParserError as e:
@@ -1194,6 +1199,7 @@ def config_write(config, guid=None):
     # generate a new local.ini file
     if guid is not None:  # update the guid if necessary
         config.set("primenet", "ComputerGUID", guid)
+    localfile = os.path.join(workdir, options.localfile)
     with open(localfile, "w") as configfile:
         config.write(configfile)
 
@@ -1232,11 +1238,6 @@ def merge_config_and_options(config, options):
             config.set("primenet", attr, str(attr_val))
             updated = True
 
-    global workfile
-    global resultsfile
-
-    workfile = os.path.join(workdir, options.workfile)
-    resultsfile = os.path.join(workdir, options.resultsfile)
     return updated
 
 
@@ -1246,7 +1247,7 @@ Assignment = namedtuple(
     "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, tests_saved, prp_dblchk")
 
 
-def update_progress(assignment, iteration, msec_per_iter,
+def update_progress(cpu, assignment, iteration, msec_per_iter,
                     fftlen, bits, s2, now, cur_time_left):
     if not assignment:
         return
@@ -1261,17 +1262,18 @@ def update_progress(assignment, iteration, msec_per_iter,
         delta = timedelta(seconds=cur_time_left)
         debug_print("Finish estimated in {0} (used {1:.4n} msec/iter estimation)".format(
             str(delta), msec_per_iter))
-        send_progress(assignment, percent, cur_time_left,
+        send_progress(cpu, assignment, percent, cur_time_left,
                       now, delta, fftlen, bits, s2)
     return percent, cur_time_left
 
 
-def update_progress_all():
+def update_progress_all(dir, cpu):
+    workfile = os.path.join(dir, options.workfile)
     tasks = readonly_list_file(workfile)
     if not tasks:
         return  # don't update if no worktodo
     assignments = iter(OrderedDict((assignment.uid, assignment) for assignment in (
-        parse_assignment(task) for task in tasks) if assignment and assignment.uid).values())
+        parse_assignment(dir, task) for task in tasks) if assignment and assignment.uid).values())
     # Treat the first assignment. Only this one is used to save the msec_per_iter
     # The idea is that the first assignment is having a .stat file with correct values
     # Most of the time, a later assignment would not have a .stat file to obtain information,
@@ -1284,7 +1286,7 @@ def update_progress_all():
     now = datetime.now()
     assignment = next(assignments)
     iteration, msec_per_iter, fftlen, bits, s2 = get_progress_assignment(
-        assignment)
+        dir, assignment)
     if msec_per_iter is not None:
         config.set("primenet", "msec_per_iter",
                    "{0:.4f}".format(msec_per_iter))
@@ -1294,17 +1296,18 @@ def update_progress_all():
     # Do the other assignment accumulating the time_lefts
     cur_time_left = None if msec_per_iter is None else 0
     percent, cur_time_left = update_progress(
-        assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
+        cpu, assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
     for assignment in assignments:
-        iteration, _, fftlen, bits, s2 = get_progress_assignment(assignment)
+        iteration, _, fftlen, bits, s2 = get_progress_assignment(
+            dir, assignment)
         percent, cur_time_left = update_progress(
-            assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
+            cpu, assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
     config.set("primenet", "LastEndDatesSent", str(int(time.time())))
     config_write(config)
     return percent, cur_time_left
 
 
-def get_progress_assignment(assignment):
+def get_progress_assignment(dir, assignment):
     if not assignment:
         return
     # P-1 Stage 1 bits
@@ -1313,21 +1316,22 @@ def get_progress_assignment(assignment):
     s2 = 0
     if options.gpuowl:  # GpuOwl
         iteration, msec_per_iter, fftlen, bits, s2 = parse_stat_file_gpu(
-            assignment.n)
+            dir, assignment.n)
     elif options.cudalucas:  # CUDALucas
-        iteration, msec_per_iter, fftlen = parse_stat_file_cuda(assignment.n)
+        iteration, msec_per_iter, fftlen = parse_stat_file_cuda(
+            dir, assignment.n)
     else:  # Mlucas
         iteration, msec_per_iter, fftlen, bits, s2 = parse_stat_file(
-            assignment.n)
+            dir, assignment.n)
     return iteration, msec_per_iter, fftlen, bits, s2
 
 
-def parse_assignment(task):
+def parse_assignment(dir, task):
     ''' Ex: Test=197ED240A7A41EC575CB408F32DDA661,57600769,74 '''
     found = workpattern.search(task)
     if not found:
         print("ERROR: Unable to extract valid PrimeNet assignment ID from entry in “{0}” file: {1}".format(
-            workfile, task), file=sys.stderr)
+            os.path.join(dir, options.workfile), task), file=sys.stderr)
         return None
     # debug_print(task)
     work_type = found.group(1)  # e.g., "Test"
@@ -1351,7 +1355,7 @@ def parse_assignment(task):
     idx = 1 if work_type == "Test" or work_type == "DoubleCheck" else 3
     if length <= idx:
         print("Unable to extract valid exponent substring from entry in “{0}” file: {1}".format(
-            workfile, task))
+            os.path.join(dir, options.workfile), task))
         return None
     # Extract the subfield containing the exponent, whose position depends on
     # the assignment type:
@@ -1411,7 +1415,7 @@ def parse_assignment(task):
     if k == 1.0 and b == 2 and not isPrime(
             n) and c == -1 and work_type != primenet_api.WORK_TYPE_PMINUS1:
         print(
-            "Error: “{0}” file contained composite exponent: {1}.".format(workfile, n))
+            "Error: “{0}” file contained composite exponent: {1}.".format(os.path.join(dir, options.workfile), n))
         return None
     # return Assignment(work_type, assignment_uid, k, b, n, c, sieve_depth,
     # pminus1ed, B1, B2, tests_saved, prp_base, prp_residue_type,
@@ -1420,10 +1424,10 @@ def parse_assignment(task):
                       sieve_depth, pminus1ed, B1, B2, tests_saved, prp_dblchk)
 
 
-def parse_stat_file_cuda(p):
+def parse_stat_file_cuda(dir, p):
     # CUDALucas
     # appended line by line, no lock needed
-    gpu = os.path.join(workdir, options.cudalucas)
+    gpu = os.path.join(dir, options.cudalucas)
     if not os.path.exists(gpu):
         debug_print("CUDALucas file “{0}” does not exist".format(gpu))
         return 0, None, None
@@ -1477,10 +1481,10 @@ def parse_stat_file_cuda(p):
     return iteration, avg_msec_per_iter, fftlen
 
 
-def parse_stat_file_gpu(p):
+def parse_stat_file_gpu(dir, p):
     # GpuOwl
     # appended line by line, no lock needed
-    gpuowl = os.path.join(workdir, 'gpuowl.log')
+    gpuowl = os.path.join(dir, 'gpuowl.log')
     if not os.path.exists(gpuowl):
         debug_print("Log file “{0}” does not exist".format(gpuowl))
         return 0, None, None, 0, 0
@@ -1587,7 +1591,7 @@ def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
     return percent, time_left / 1000
 
 
-def send_progress(assignment, percent, time_left, now,
+def send_progress(cpu, assignment, percent, time_left, now,
                   delta, fftlen, s1, s2, retry_count=0):
     guid = get_guid(config)
     if guid is None:
@@ -1614,7 +1618,7 @@ def send_progress(assignment, percent, time_left, now,
     # e= the ETA of completion in seconds, if unknown, just put 1 week
     args["e"] = int(time_left) if time_left is not None else 7 * 24 * 60 * 60
     # c= the worker thread of the machine
-    args["c"] = options.cpu
+    args["c"] = cpu
     # stage= LL in this case, although an LL test may be doing TF or P-1 work
     # first so it's possible to be something besides LL
     if percent > 0:
@@ -1665,12 +1669,12 @@ def send_progress(assignment, percent, time_left, now,
             elif rc == primenet_api.ERROR_SERVER_BUSY:
                 retry = True
     if retry:
-        return send_progress(assignment, percent, time_left,
+        return send_progress(cpu, assignment, percent, time_left,
                              now, delta, fftlen, s1, s2, retry_count + 1)
     return
 
 
-def get_cuda_ar_object(sendline):
+def get_cuda_ar_object(dir, sendline):
     # CUDALucas
 
     # sendline example: 'M( 108928711 )C, 0x810d83b6917d846c, offset = 106008371, n = 6272K, CUDALucas v2.06, AID: 02E4F2B14BB23E2E4B95FC138FC715A8'
@@ -1681,7 +1685,7 @@ def get_cuda_ar_object(sendline):
     res = regex.search(sendline)
     if not res:
         print("Unable to parse entry in “{0}”: {1}".format(
-            resultsfile, sendline))
+            os.path.join(dir, options.resultsfile), sendline))
         return None
 
     if res.group(7):
@@ -1700,7 +1704,7 @@ def get_cuda_ar_object(sendline):
     return ar
 
 
-def submit_one_line(sendline):
+def submit_one_line(dir, sendline):
     """Submit one line"""
     if not options.cudalucas:  # Mlucas or GpuOwl
         try:
@@ -1708,7 +1712,7 @@ def submit_one_line(sendline):
             is_json = True
         except json.decoder.JSONDecodeError:
             print("Unable to decode entry in “{0}”: {1}".format(
-                resultsfile, sendline))
+                os.path.join(dir, options.resultsfile), sendline))
             # Mlucas
             if not options.gpuowl and "Program: E" in sendline:
                 debug_print("Please upgrade to Mlucas v19 or greater.")
@@ -1717,7 +1721,7 @@ def submit_one_line(sendline):
                 debug_print("Please upgrade to GpuOwl v0.7 or greater.")
             is_json = False
     else:  # CUDALucas
-        ar = get_cuda_ar_object(sendline)
+        ar = get_cuda_ar_object(dir, sendline)
 
     guid = get_guid(config)
     if guid is not None and ar is not None and (options.cudalucas or is_json):
@@ -1725,7 +1729,7 @@ def submit_one_line(sendline):
         # The result will be attributed to the registered computer
         # If registered and the line is a JSON, submit using the v5 API
         # The result will be attributed to the registered computer
-        sent = report_result(sendline, guid, ar)
+        sent = report_result(dir, sendline, guid, ar)
     else:
         # The result will be attributed to "Manual testing"
         sent = submit_one_line_manually(sendline)
@@ -1771,7 +1775,7 @@ def get_result_type(ar):
             "This is a bug in the script, Unsupported worktype {0}".format(ar['worktype']))
 
 
-def report_result(sendline, guid, ar, retry_count=0):
+def report_result(dir, sendline, guid, ar, retry_count=0):
     """Submit one result line using V5 API, will be attributed to the computed identified by guid"""
     """Return False if the submission should be retried"""
     if retry_count >= 5:
@@ -1825,9 +1829,10 @@ def report_result(sendline, guid, ar, retry_count=0):
             args['pp'] = ar['proof']['power']
             args['ph'] = ar['proof']['md5']
     elif result_type in frozenset([primenet_api.AR_P1_FACTOR, primenet_api.AR_P1_NOFACTOR]):
+        workfile = os.path.join(dir, options.workfile)
         tasks = readonly_list_file(workfile)
         args["d"] = 1 if result_type == primenet_api.AR_P1_FACTOR or not any(assignment.n == int(
-            ar['exponent']) for assignment in (parse_assignment(task) for task in tasks) if assignment) else 0
+            ar['exponent']) for assignment in (parse_assignment(dir, task) for task in tasks) if assignment) else 0
         args.update((("A", 1), ("b", 2), ("c", -1)))
         args['B1'] = ar['B1']
         if 'B2' in ar:
@@ -1879,7 +1884,7 @@ def report_result(sendline, guid, ar, retry_count=0):
             elif rc == primenet_api.ERROR_INVALID_RESULT_TYPE:
                 return True
 
-    return report_result(sendline, guid, ar, retry_count + 1)
+    return report_result(dir, sendline, guid, ar, retry_count + 1)
 
 
 def submit_one_line_manually(sendline):
@@ -1915,10 +1920,13 @@ def submit_one_line_manually(sendline):
     # executes.
 
 
-def submit_work():
+def submit_work(dir):
+    # A cumulative backup
+    sentfile = os.path.join(dir, "results_sent.txt")
     results_send = frozenset(readonly_list_file(sentfile))
     # Only submit completed work, i.e. the exponent must not exist in worktodo file any more
     # appended line by line, no lock needed
+    resultsfile = os.path.join(dir, options.resultsfile)
     results = readonly_list_file(resultsfile)
     # EWM: Note that readonly_list_file does not need the file(s) to exist - nonexistent files simply yield 0-length rs-array entries.
     # remove nonsubmittable lines from list of possibles
@@ -1944,7 +1952,7 @@ def submit_work():
         if options.password:
             is_sent = submit_one_line_manually(sendline)
         else:
-            is_sent = submit_one_line(sendline)
+            is_sent = submit_one_line(dir, sendline)
         if is_sent:
             sent.append(sendline)
     write_list_file(sentfile, sent, "a")
@@ -1966,7 +1974,9 @@ Then, it will get assignments, report the results, upload any proofs and report 
 parser.add_option("-d", "--debug", action="count", dest="debug",
                   default=False, help="Output detailed information")
 parser.add_option("-w", "--workdir", dest="workdir", default=".",
-                  help="Working directory with “worktodo.ini” and “results.txt” files from the GIMPS program, and “local.ini” from this program, Default: %default (current directory)")
+                  help="Working directory with the local file from this program, Default: %default (current directory)")
+parser.add_option("-D", "--dir", action="append", dest="dirs",
+                  help="Directories with the worktodo and results files from the GIMPS program.")
 parser.add_option("-i", "--workfile", dest="workfile",
                   default="worktodo.ini", help="WorkFile filename, Default: “%default”")
 parser.add_option("-r", "--resultsfile", dest="resultsfile",
@@ -2010,7 +2020,7 @@ parser.add_option("--cudalucas", dest="cudalucas",
 parser.add_option("--num_workers", dest="WorkerThreads", type="int", default=1,
                   help="Number of worker threads (CPU Cores/GPUs), Default: %default")
 parser.add_option("-c", "--cpu_num", dest="cpu", type="int", default=0,
-                  help="CPU core or GPU number to get assignments for, Default: %default")
+                  help="CPU core or GPU number to get assignments for, Default: %default. This is automatically set when using the --dir option.")
 parser.add_option("-n", "--num_cache", dest="num_cache", type="int",
                   default=0, help="Number of assignments to cache, Default: %default")
 parser.add_option("-W", "--days_work", dest="DaysOfWork", type="float", default=3.0,
@@ -2062,14 +2072,8 @@ options._update_careful(opts_no_defaults.__dict__)
 
 progname = os.path.basename(sys.argv[0])
 workdir = os.path.expanduser(options.workdir)
-
-localfile = os.path.join(workdir, options.localfile)
-workfile = os.path.join(workdir, options.workfile)
-resultsfile = os.path.join(workdir, options.resultsfile)
-
-
-# A cumulative backup
-sentfile = os.path.join(workdir, "results_sent.txt")
+dirs = [os.path.join(workdir, dir)
+        for dir in options.dirs] if options.dirs else [workdir]
 
 # r'^(?:(Test|DoubleCheck)=([0-9A-F]{32})(,\d+){3}|(PRP(?:DC)?)=([0-9A-F]{32})(,-?\d+){4,8}(,"\d+(?:,\d+)*")?|(P[Ff]actor)=([0-9A-F]{32})(,-?\d+){6}|(P[Mm]inus1)=([0-9A-F]{32})(,-?\d+){6,8}(,"\d+(?:,\d+)*")?|(Cert)=([0-9A-F]{32})(,-?\d+){5})$'
 workpattern = re.compile(
@@ -2160,6 +2164,10 @@ guid = get_guid(config)
 if options.password and options.username is None:
     parser.error("Username must be given")
 
+if options.dirs and len(options.dirs) != options.WorkerThreads:
+    parser.error(
+        "The number of directories must be equal to the number of worker threads")
+
 if options.cpu >= options.WorkerThreads:
     parser.error(
         "CPU core or GPU number must be less than the number of worker threads")
@@ -2173,16 +2181,19 @@ if 0 < options.timeout < 60 * 60:
         "Timeout must be greater than or equal to {0:n} seconds (1 hour)".format(60 * 60))
 
 if options.status:
-    output_status()
+    for dir in dirs:
+        output_status(dir)
     sys.exit(0)
 
 if options.proofs:
-    submit_work()
-    uploadProofs()
+    for dir in dirs:
+        submit_work(dir)
+        uploadProofs(dir)
     sys.exit(0)
 
 if options.unreserve_all:
-    unreserve_all()
+    for dir in dirs:
+        unreserve_all(dir)
     sys.exit(0)
 
 if options.NoMoreWork:
@@ -2219,18 +2230,20 @@ while True:
         except HTTPError as e:
             print("ERROR: Login failed.")
 
-    # branch 1 or branch 2 above was taken
-    if not options.password or primenet_login:
-        submit_work()
-        progress = update_progress_all()
-        got = get_assignments(progress)
-        # debug_print("Got: {0:n}".format(got))
-        if got > 0 and not options.password:
-            debug_print(
-                "Redo progress update to acknowledge receipt of the just obtained assignment" + ("s" if got > 1 else ""))
-            time.sleep(1)
-            update_progress_all()
-    uploadProofs()
+    for i, dir in enumerate(dirs):
+        cpu = i if options.dirs else options.cpu
+        # branch 1 or branch 2 above was taken
+        if not options.password or primenet_login:
+            submit_work(dir)
+            progress = update_progress_all(dir, cpu)
+            got = get_assignments(dir, cpu, progress)
+            # debug_print("Got: {0:n}".format(got))
+            if got > 0 and not options.password:
+                debug_print(
+                    "Redo progress update to acknowledge receipt of the just obtained assignment" + ("s" if got > 1 else ""))
+                time.sleep(1)
+                update_progress_all(dir, cpu)
+        uploadProofs(dir)
     if options.timeout <= 0:
         break
     try:

@@ -62,10 +62,10 @@ Options:
   -h, --help            show this help message and exit
   -d, --debug           Output detailed information
   -w WORKDIR, --workdir=WORKDIR
-                        Working directory with “worktodo.ini” and
-                        “results.txt” files from the GIMPS program, and
-                        “local.ini” from this program, Default: . (current
-                        directory)
+                        Working directory with the local file from this
+                        program, Default: . (current directory)
+  -D DIRS, --dir=DIRS   Directories with the worktodo and results files from
+                        the GIMPS program.
   -i WORKFILE, --workfile=WORKFILE
                         WorkFile filename, Default: “worktodo.ini”
   -r RESULTSFILE, --resultsfile=RESULTSFILE
@@ -111,7 +111,8 @@ Options:
                         Number of worker threads (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu_num=CPU
                         CPU core or GPU number to get assignments for,
-                        Default: 0
+                        Default: 0. This is automatically set when using the
+                        --dir option.
   -n NUM_CACHE, --num_cache=NUM_CACHE
                         Number of assignments to cache, Default: 0
   -W DAYSOFWORK, --days_work=DAYSOFWORK
