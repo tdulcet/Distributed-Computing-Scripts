@@ -60,6 +60,7 @@ import csv
 import math
 from decimal import Decimal
 import threading
+import shutil
 import locale
 
 locale.setlocale(locale.LC_ALL, '')
@@ -612,7 +613,7 @@ def uploadProofs(dir):
             filename = os.path.join(proof, entry)
             if uploadProof(filename):
                 if options.ProofArchiveDir:
-                    os.rename(filename, os.path.join(archive, entry))
+                    shutil.move(filename, os.path.join(archive, entry))
                 else:
                     os.remove(filename)
 
