@@ -60,12 +60,15 @@ registered, to PrimeNet on a “timeout” interval, or only once if timeout is 
 Options:
   --version             show program's version number and exit
   -h, --help            show this help message and exit
-  -d, --debug           Output detailed information
+  -d, --debug           Output detailed information. Provide multiple times
+                        for even more verbose output.
   -w WORKDIR, --workdir=WORKDIR
                         Working directory with the local file from this
                         program, Default: . (current directory)
   -D DIRS, --dir=DIRS   Directories with the worktodo and results files from
-                        the GIMPS program.
+                        the GIMPS program. Provide once for each worker
+                        thread. It automatically sets the --cpu_num option for
+                        each directory.
   -i WORKFILE, --workfile=WORKFILE
                         WorkFile filename, Default: “worktodo.ini”
   -r RESULTSFILE, --resultsfile=RESULTSFILE
@@ -81,20 +84,20 @@ Options:
                         account: https://www.mersenne.org/update/. If you do
                         not want a PrimeNet account, you can use ANONYMOUS.
   -p PASSWORD, --password=PASSWORD
-                        GIMPS/PrimeNet Password. Only provide if you want to
-                        do manual testing and not report the progress (not
-                        recommend). This was the default behavior for old
-                        versions of this script.
+                        Optional GIMPS/PrimeNet Password. Only provide if you
+                        want to do manual testing and not report the progress.
+                        This was the default behavior for old versions of this
+                        script.
   -T WORKPREFERENCE, --worktype=WORKPREFERENCE
                         Type of work, Default: 100, 4 (P-1 factoring), 100
                         (smallest available first-time LL), 101 (double-check
                         LL), 102 (world-record-sized first-time LL), 104 (100M
-                        digit number LL - not recommended), 150 (smallest
-                        available first-time PRP), 151 (double-check PRP), 152
-                        (world-record-sized first-time PRP), 153 (100M digit
-                        number PRP), 155 (double-check using PRP with proof),
-                        160 (first time Mersenne cofactors PRP), 161 (double-
-                        check Mersenne cofactors PRP)
+                        digit number LL), 150 (smallest available first-time
+                        PRP), 151 (double-check PRP), 152 (world-record-sized
+                        first-time PRP), 153 (100M digit number PRP), 155
+                        (double-check using PRP with proof), 160 (first time
+                        Mersenne cofactors PRP), 161 (double-check Mersenne
+                        cofactors PRP)
   --min_exp=GETMINEXPONENT
                         Minimum exponent to get from PrimeNet (2 -
                         999,999,999)
@@ -105,16 +108,16 @@ Options:
                         (Mlucas).
   --cudalucas=CUDALUCAS
                         Get assignments for a GPU (CUDALucas) instead of the
-                        CPU (Mlucas). This flag takes as an argument the
+                        CPU (Mlucas). This option takes as an argument the
                         CUDALucas output filename.
   --num_workers=WORKERTHREADS
                         Number of worker threads (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu_num=CPU
                         CPU core or GPU number to get assignments for,
-                        Default: 0. This is automatically set when using the
-                        --dir option.
+                        Default: 0
   -n NUM_CACHE, --num_cache=NUM_CACHE
                         Number of assignments to cache, Default: 0
+                        (automatically set to 1 when doing manual testing)
   -W DAYSOFWORK, --days_work=DAYSOFWORK
                         Days of work to queue (1-90 days), Default: 3.0 days.
                         Adds one to num_cache when the time left for the
@@ -124,12 +127,13 @@ Options:
                         to notify yourself.
   -t TIMEOUT, --timeout=TIMEOUT
                         Seconds to wait between network updates, Default: 3600
-                        seconds (1 hour). Use 0 for a single update without
-                        looping.
+                        seconds (1 hour). Users with slower internet may want
+                        to set a larger value to give time for any PRP proofs
+                        to upload. Use 0 for a single update without looping.
   -s, --status          Output a status report and any expected completion
                         dates for all assignments and exit.
   --upload_proofs       Report assignment results, upload all PRP proofs and
-                        exit.
+                        exit. Requires PrimeNet User ID.
   --unreserve_all       Unreserve all assignments and exit. Quit GIMPS
                         immediately. Requires that the instance is registered
                         with PrimeNet.
