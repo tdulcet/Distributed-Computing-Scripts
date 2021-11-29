@@ -300,8 +300,8 @@ def unreserve(dirs, p):
             assignment_unreserve(assignment)
             break
     else:
-        logging.error(
-            "Error unreserving exponent: {0} not found in workfiles".format(p))
+        logging.error("Error unreserving exponent: {0} not found in workfile{1}".format(
+            p, "s" if len(dirs) > 1 else ""))
 
 
 def unreserve_all(dirs):
@@ -444,6 +444,11 @@ errors = {
     primenet_api.ERROR_INVALID_ASSIGNMENT_KEY: "Invalid assignment key",
     primenet_api.ERROR_INVALID_ASSIGNMENT_TYPE: "Invalid assignment type",
     primenet_api.ERROR_INVALID_RESULT_TYPE: "Invalid result type"}
+
+# Assignment = namedtuple('Assignment', "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, tests_saved, prp_base, prp_residue_type, known_factors, prp_dblchk, cert_squarings")
+Assignment = namedtuple(
+    'Assignment',
+    "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, tests_saved, prp_dblchk")
 
 
 def greplike(pattern, lines):
@@ -634,7 +639,9 @@ def output_status(dirs):
         "Below is a report on the work you have queued and any expected completion dates.")
     ll_and_prp_cnt = 0
     prob = 0.0
-    for dir in dirs:
+    for i, dir in enumerate(dirs):
+        if options.status and options.WorkerThreads > 1:
+            logging.info("[Worker #{0:n}]".format(i + 1))
         workfile = os.path.join(dir, options.workfile)
         tasks = readonly_list_file(workfile)
         if not tasks:
@@ -1233,12 +1240,6 @@ def merge_config_and_options(config, options):
             updated = True
 
     return updated
-
-
-# Assignment = namedtuple('Assignment', "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, tests_saved, prp_base, prp_residue_type, known_factors, prp_dblchk, cert_squarings")
-Assignment = namedtuple(
-    'Assignment',
-    "work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, tests_saved, prp_dblchk")
 
 
 def update_progress(cpu, assignment, iteration, msec_per_iter,
@@ -2180,7 +2181,7 @@ if options.status:
 if options.proofs:
     for i, dir in enumerate(dirs):
         if options.dirs:
-            logging.info("Worker #{0:n}".format(i + 1))
+            logging.info("[Worker #{0:n}]".format(i + 1))
         submit_work(dir)
         upload_proofs(dir)
     sys.exit(0)
@@ -2225,7 +2226,7 @@ while True:
 
     for i, dir in enumerate(dirs):
         if options.dirs:
-            logging.info("Worker #{0:n}".format(i + 1))
+            logging.info("[Worker #{0:n}]".format(i + 1))
         cpu = i if options.dirs else options.cpu
         # branch 1 or branch 2 above was taken
         if not options.password or primenet_login:

@@ -8,7 +8,7 @@
 
 DIR="mlucas_v20.1.1"
 FILE="mlucas_v20.1.1.txz"
-SUM="81655bf24742b22dcd853741e3ebaefe"
+SUM="dc5487e984196a32b47a8066ec9a6803"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -434,6 +434,7 @@ for i in "${!ARGS[@]}"; do
 	mapfile -t aradices <<< "${RADICES[i]}"
 	iters=()
 	printf "\n#%'d\tWorkers/Runs: %'d\tThreads: %s\n" $((i+1)) ${#args[*]} "${THREADS[i]// /, }"
+	echo "[$(date)]" >> bench.txt
 	for j in "${!ffts[@]}"; do
 		printf '\n\tTiming FFT length: %sK\n\n' "${ffts[j]}"
 		radices=( ${aradices[j]} )
@@ -441,15 +442,28 @@ for i in "${!ARGS[@]}"; do
 			./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" >& "${files[k]}" &
 		done
 		wait
-		grep -ih 'error\|warn\||assert\|clocks' "${files[@]::${#args[*]}}"
+		grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
 		if grep -iq 'fatal' "${files[@]::${#args[*]}}"; then
 			for k in "${!args[@]}"; do
 				./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" -shift $RANDOM >& "${files[k]}" &
 			done
 			wait
-			grep -ih 'error\|warn\||assert\|clocks' "${files[@]::${#args[*]}}"
+			grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
 		fi
-		iters+=( "$(sed -n 's/^Clocks = //p' "${files[@]::${#args[*]}}" | awk -F'[:.]' '{ sum+=1/((($1*60*60*1000)+($2*60*1000)+($3*1000)+$4)/1000) } END { printf "%.15g\n", 1000 * sum }')" )
+		times=( $(sed -n 's/^Clocks = //p' "${files[@]::${#args[*]}}" | awk -F'[:.]' '{ printf "%.15g\n", (($1*60*60*1000)+($2*60*1000)+($3*1000)+$4)/1000 }') )
+		throughput=$(printf '%s\n' "${times[@]}" | awk '{ sum+=1/$1 } END { printf "%.15g\n", 1000 * sum }')
+		echo
+		{
+			printf "Timings for %sK FFT length (%'d cores, %s threads, %'d workers): " "${ffts[j]}" "$CPU_CORES" "${THREADS[i]// /, }" ${#args[*]}
+			for k in "${!times[@]}"; do
+				if (( k )); then
+					printf ', '
+				fi
+				printf "%'5.2f" "${times[k]/./$decimal_point}"
+			done
+			printf " ms.  Throughput: %'5.3f iter/sec.\n" "${throughput/./$decimal_point}"
+		} | tee -a bench.txt
+		iters+=( "$throughput" )
 	done
 	ITERS+=( "$(printf '%s\n' "${iters[@]}")" )
 done
@@ -479,7 +493,7 @@ echo -e "\nBenchmark Summary\n"
 	{
 		printf 'FFT\t'
 		for i in "${!ARGS[@]}"; do
-			if [[ $i -gt 0 ]]; then
+			if (( i )); then
 				printf '\t \t'
 			fi
 			printf "#%'d" $((i+1))
