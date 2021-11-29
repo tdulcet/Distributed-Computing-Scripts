@@ -123,8 +123,9 @@ s = requests.Session()  # session that maintains our cookies
 
 
 # register assignment
+# Note: this function is not used
 def register_assignment(cpu, assignment, retry_count=0):
-    '''Note: this function is not used'''
+    """Register an assignment with the PrimeNet server."""
     if retry_count >= 5:
         logging.info("Retry count exceeded.")
         return
@@ -194,6 +195,7 @@ def register_assignment(cpu, assignment, retry_count=0):
 
 # TODO -- have people set their own program options for commented out portions
 def program_options(guid, first_time, retry_count=0):
+    """Sets the program options on the PrimeNet server."""
     if retry_count >= 5:
         logging.info("Retry count exceeded.")
         return
@@ -255,6 +257,7 @@ def program_options(guid, first_time, retry_count=0):
 
 
 def assignment_unreserve(assignment, retry_count=0):
+    """Unreserves an assignment from the PrimeNet server."""
     if guid is None:
         logging.error("Cannot unreserve, the registration is not done")
     if not assignment or not assignment.uid:
@@ -291,6 +294,7 @@ def assignment_unreserve(assignment, retry_count=0):
 
 
 def unreserve(dirs, p):
+    """Unreserve a specific exponent from the workfile."""
     for dir in dirs:
         workfile = os.path.join(dir, options.workfile)
         tasks = readonly_list_file(workfile)
@@ -305,6 +309,7 @@ def unreserve(dirs, p):
 
 
 def unreserve_all(dirs):
+    """Unreserves all assignments in the given directories."""
     logging.info("Quitting GIMPS immediately.")
     for dir in dirs:
         workfile = os.path.join(dir, options.workfile)
@@ -317,6 +322,7 @@ def unreserve_all(dirs):
 
 
 def get_cpu_signature():
+    """Returns the CPU signature, which is a string that uniquely identifies the CPU."""
     output = ""
     if platform.system() == "Windows":
         output = subprocess.check_output('wmic cpu list brief').decode()
@@ -452,6 +458,7 @@ Assignment = namedtuple(
 
 
 def greplike(pattern, lines):
+    """Return a list of all the strings in lines that match the regular expression pattern."""
     output = []
     for line in lines:
         s = pattern.search(line)
@@ -461,6 +468,7 @@ def greplike(pattern, lines):
 
 
 def readonly_list_file(filename, mode="r"):
+    """Reads a file line by line into a list. """
     # Used when there is no intention to write the file back, so don't
     # check or write lockfiles. Also returns a single string, no list.
     try:
@@ -471,6 +479,7 @@ def readonly_list_file(filename, mode="r"):
 
 
 def write_list_file(filename, line, mode="w"):
+    """Write a list of strings to a file."""
     # A "null append" is meaningful, as we can call this to clear the
     # lockfile. In this case the main file need not be touched.
     if not ("a" in mode and len(line) == 0):
@@ -481,6 +490,7 @@ def write_list_file(filename, line, mode="w"):
 
 
 def is_prime(n):
+    """This function checks if a number is prime."""
     if n < 2:
         return False
 
@@ -491,11 +501,13 @@ def is_prime(n):
 
 
 def header_lines(filename):
+    """Read the first five lines of a file and return them as a list of strings."""
     with open(filename, mode='rb') as f:
         return [f.readline().decode().rstrip() for _ in range(5)]
 
 
 def checksum_md5(filename):
+    """Calculates the MD5 checksum of a file."""
     amd5 = md5()
     with open(filename, mode='rb') as f:
         for chunk in iter(lambda: f.read(128 * amd5.block_size), b''):
@@ -504,6 +516,7 @@ def checksum_md5(filename):
 
 
 def upload_proof(filename):
+    """Upload a file to the PrimeNet server."""
     header = header_lines(filename)
     if header[0] != 'PRP PROOF':
         return False
@@ -600,6 +613,7 @@ def upload_proof(filename):
 
 
 def upload_proofs(dir):
+    """Uploads the proof file in the given directory to the server."""
     if config.has_option("PrimeNet", "ProofUploads") and not config.getboolean(
             "PrimeNet", "ProofUploads"):
         return
@@ -626,11 +640,13 @@ def upload_proofs(dir):
 
 
 def aupload_proofs(dirs):
+    """Uploads any proof files found in the given directory."""
     for dir in dirs:
         upload_proofs(dir)
 
 
 def digits(n):
+    """Returns the number of digits in the decimal representation of n."""
     return int(n * Decimal(2).log10() + 1)
 
 
@@ -722,6 +738,7 @@ def output_status(dirs):
 
 
 def get_assignment(cpu, retry_count=0):
+    """Get an assignment from the server."""
     if retry_count >= 5:
         logging.info("Retry count exceeded.")
         return
@@ -829,6 +846,7 @@ def get_assignment(cpu, retry_count=0):
 
 
 def primenet_fetch(cpu, num_to_get):
+    """Get a number of assignments from the PrimeNet server."""
     if options.password and not primenet_login:
         return []
     # As of early 2018, here is the full list of assignment-type codes supported by the Primenet server; Mlucas
@@ -900,6 +918,7 @@ def primenet_fetch(cpu, num_to_get):
 
 
 def get_assignments(dir, cpu, progress):
+    """Get new assignments from the PrimeNet server."""
     if config.has_option("PrimeNet", "NoMoreWork") and config.getboolean(
             "PrimeNet", "NoMoreWork"):
         return 0
@@ -960,12 +979,14 @@ resultpattern = re.compile(r"Program: E|Mlucas|CUDALucas v|gpuowl")
 
 
 def mersenne_find(line, complete=True):
+    """Check for result in a line of text."""
     # Pre-v19 old-style HRF-formatted result used "Program:..."; starting
     # w/v19 JSON-formatted result uses "program",
     return resultpattern.search(line)
 
 
 def parse_stat_file(dir, p):
+    """Parse the stat file for the progress of the assignment."""
     # Mlucas
     statfile = os.path.join(dir, 'p' + str(p) + '.stat')
     if not os.path.exists(statfile):
@@ -1019,6 +1040,7 @@ def parse_stat_file(dir, p):
 
 
 def parse_v5_resp(r):
+    """Parse the response from the server into a dict."""
     ans = {}
     for line in r.splitlines():
         if line == "==END==":
@@ -1055,6 +1077,7 @@ def secure_v5_url(guid, args):
 
 
 def send_request(guid, args):
+    """Send a request to the PrimeNet server."""
     try:
         if idx:
             args["ss"] = 19191919
@@ -1087,12 +1110,14 @@ def send_request(guid, args):
 
 
 def create_new_guid():
+    """Create a new GUID."""
     global guid
     guid = uuid.uuid4().hex
     return guid
 
 
 def register_instance(guid):
+    """Register the computer with the PrimeNet server."""
     # register the instance to server, guid is the instance identifier
     if config.has_option("PrimeNet", "HardwareGUID"):
         hardware_id = config.get("PrimeNet", "HardwareGUID")
@@ -1176,6 +1201,7 @@ def register_instance(guid):
 
 
 def config_read():
+    """Reads the configuration file."""
     config = ConfigParser(dict_type=OrderedDict)
     config.optionxform = lambda option: option
     localfile = os.path.join(workdir, options.localfile)
@@ -1190,6 +1216,7 @@ def config_read():
 
 
 def get_guid(config):
+    """Returns the GUID from the config file, or None if it is not present."""
     try:
         return config.get("PrimeNet", "ComputerGUID")
     except ConfigParserError:
@@ -1197,6 +1224,7 @@ def get_guid(config):
 
 
 def config_write(config, guid=None):
+    """Write the given configuration object to the local config file."""
     # generate a new local.ini file
     if guid is not None:  # update the guid if necessary
         config.set("PrimeNet", "ComputerGUID", guid)
@@ -1206,6 +1234,7 @@ def config_write(config, guid=None):
 
 
 def merge_config_and_options(config, options):
+    """Updates the options object with the values found in the local configuration file."""
     # getattr and setattr allow access to the options.xxxx values by name
     # which allow to copy all of them programmatically instead of having
     # one line per attribute. Only the attr_to_copy list need to be updated
@@ -1244,6 +1273,7 @@ def merge_config_and_options(config, options):
 
 def update_progress(cpu, assignment, iteration, msec_per_iter,
                     fftlen, bits, s2, now, cur_time_left):
+    """Update the progress of a given assignment."""
     if not assignment:
         return
     percent, time_left = compute_progress(
@@ -1263,6 +1293,7 @@ def update_progress(cpu, assignment, iteration, msec_per_iter,
 
 
 def update_progress_all(dir, cpu):
+    """Update the progress of all the assignments in the workfile."""
     workfile = os.path.join(dir, options.workfile)
     tasks = readonly_list_file(workfile)
     if not tasks:
@@ -1303,6 +1334,7 @@ def update_progress_all(dir, cpu):
 
 
 def get_progress_assignment(dir, assignment):
+    """Get the progress of an assignment."""
     if not assignment:
         return
     # P-1 Stage 1 bits
@@ -1322,7 +1354,8 @@ def get_progress_assignment(dir, assignment):
 
 
 def parse_assignment(dir, task):
-    ''' Ex: Test=197ED240A7A41EC575CB408F32DDA661,57600769,74 '''
+    """Parse a line from a workfile into an Assignment namedtuple."""
+    # Ex: Test=197ED240A7A41EC575CB408F32DDA661,57600769,74
     found = workpattern.search(task)
     if not found:
         logging.error("Unable to extract valid PrimeNet assignment ID from entry in “{0}” file: {1}".format(
@@ -1420,6 +1453,7 @@ def parse_assignment(dir, task):
 
 
 def parse_stat_file_cuda(dir, p):
+    """Parse the CUDALucas output file for the progress of the assignment."""
     # CUDALucas
     # appended line by line, no lock needed
     gpu = os.path.join(dir, options.cudalucas)
@@ -1477,6 +1511,7 @@ def parse_stat_file_cuda(dir, p):
 
 
 def parse_stat_file_gpu(dir, p):
+    """Parse the gpuowl log file for the progress of the assignment."""
     # GpuOwl
     # appended line by line, no lock needed
     gpuowl = os.path.join(dir, 'gpuowl.log')
@@ -1562,6 +1597,7 @@ def parse_stat_file_gpu(dir, p):
 
 
 def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
+    """Computes the progress of a given assignment."""
     percent = 100 * iteration / (s2 if s2 else bits if bits else assignment.n if assignment.work_type ==
                                  primenet_api.WORK_TYPE_PRP else assignment.n - 2)
     if msec_per_iter is None:
@@ -1588,6 +1624,7 @@ def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
 
 def send_progress(cpu, assignment, percent, time_left, now,
                   delta, fftlen, s1, s2, retry_count=0):
+    """Sends the expected completion date for a given assignment to the server."""
     guid = get_guid(config)
     if guid is None:
         logging.error("Cannot update, the registration is not done")
@@ -1698,7 +1735,7 @@ def get_cuda_ar_object(dir, sendline):
 
 
 def submit_one_line(dir, sendline):
-    """Submit one line"""
+    """Submits a result to the server."""
     if not options.cudalucas:  # Mlucas or GpuOwl
         try:
             ar = json.loads(sendline)
@@ -1730,6 +1767,7 @@ def submit_one_line(dir, sendline):
 
 
 def announce_prime_to_user(exponent, worktype):
+    """Announce a newly found prime to the user."""
     while True:
         if worktype == 'LL':
             print("New Mersenne Prime!!!! M{0} is prime!".format(exponent))
@@ -1747,7 +1785,7 @@ def announce_prime_to_user(exponent, worktype):
 
 
 def get_result_type(ar):
-    """Extract result type from JSON result"""
+    """Returns the result type for the assignment result."""
     if ar['worktype'] == 'LL':
         if ar['status'] == 'P':
             return primenet_api.AR_LL_PRIME
@@ -1916,6 +1954,7 @@ def submit_one_line_manually(sendline):
 
 
 def submit_work(dir):
+    """Submits the results file to PrimeNet."""
     # A cumulative backup
     sentfile = os.path.join(dir, "results_sent.txt")
     results_send = frozenset(readonly_list_file(sentfile))
