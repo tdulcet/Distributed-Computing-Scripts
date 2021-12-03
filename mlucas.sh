@@ -8,7 +8,7 @@
 
 DIR="mlucas_v20.1.1"
 FILE="mlucas_v20.1.1.txz"
-SUM="dc5487e984196a32b47a8066ec9a6803"
+SUM="970c4dde58417bd7f6be0e4af4b59b4e"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -444,6 +444,7 @@ for i in "${!ARGS[@]}"; do
 		wait
 		grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
 		if grep -iq 'fatal' "${files[@]::${#args[*]}}"; then
+			echo
 			for k in "${!args[@]}"; do
 				./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" -shift $RANDOM >& "${files[k]}" &
 			done
