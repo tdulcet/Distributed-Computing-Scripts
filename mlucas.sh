@@ -18,7 +18,7 @@ COMPUTER=${2:-$HOSTNAME}
 TYPE=${3:-150}
 TIME=${4:-10}
 decimal_point=$(locale decimal_point)
-RE='^(4|1(0[0124]|5[0123]))$'
+RE='^(4|1(0[0124]|5[01234]))$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
 	exit 1
@@ -206,6 +206,7 @@ else
 		wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 	fi
 fi
+python3 -m pip install --upgrade pip
 if command -v pip3 >/dev/null; then
 	echo -e "\nInstalling the Requests library\n"
 	pip3 install requests

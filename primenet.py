@@ -406,6 +406,8 @@ class primenet_api:
     WP_PRP_DBLCHK = 151  # PRP double checks
     WP_PRP_WORLD_RECORD = 152  # PRP test of world record Mersennes
     WP_PRP_100M = 153  # PRP test of 100M digit Mersennes
+    WP_PRP_NO_PMINUS1 = 154  # PRP test that if possible also needs P-1
+    WP_PRP_DC_PROOF = 155  # PRP double-check where a proof will be produced
     WP_PRP_COFACTOR = 160  # PRP test of Mersenne cofactors
     WP_PRP_COFACTOR_DBLCHK = 161  # PRP double check of Mersenne cofactors
 
@@ -413,6 +415,7 @@ class primenet_api:
     WORK_TYPE_PMINUS1 = 3
     WORK_TYPE_PFACTOR = 4
     WORK_TYPE_ECM = 5
+    WORK_TYPE_PPLUS1 = 6		# Not yet supported by the server
     WORK_TYPE_FIRST_LL = 100
     WORK_TYPE_DBLCHK = 101
     WORK_TYPE_PRP = 150
@@ -423,8 +426,10 @@ class primenet_api:
     AR_P1_FACTOR = 2		# P-1, factor found
     AR_ECM_FACTOR = 3		# ECM, factor found
     AR_TF_NOFACTOR = 4		# Trial Factoring no factor found
-    AR_P1_NOFACTOR = 5		# P-1 Factoring no factor found
-    AR_ECM_NOFACTOR = 6		# ECM Factoring no factor found
+    AR_P1_NOFACTOR = 5		# P-1 factoring no factor found
+    AR_ECM_NOFACTOR = 6		# ECM factoring no factor found
+    AR_PP1_FACTOR = 7  # P+1, factor found
+    AR_PP1_NOFACTOR = 8  # P+1 factoring no factor found
     AR_LL_RESULT = 100  # LL result, not prime
     AR_LL_PRIME = 101  # LL result, Mersenne prime
     AR_PRP_RESULT = 150  # PRP result, not prime
@@ -590,7 +595,8 @@ def upload_proof(filename):
                         return False
                     response.raise_for_status()
                     if 'FileUploaded' in json:
-                        logging.info('Proof file successfully uploaded')
+                        logging.info(
+                            "Proof file “{0}” successfully uploaded".format(filename))
                         return True
                     if 'need' not in json:
                         logging.error(
@@ -787,8 +793,8 @@ def get_assignment(cpu, retry_count=0):
     if retry:
         return get_assignment(cpu, retry_count + 1)
     w = int(r['w'])
-    if int(r['n']) < 15000000 and w in frozenset([primenet_api.WORK_TYPE_FACTOR, primenet_api.WORK_TYPE_PFACTOR,
-                                                  primenet_api.WORK_TYPE_FIRST_LL, primenet_api.WORK_TYPE_DBLCHK]):
+    if int(r['n']) < 15000000 and w in [primenet_api.WORK_TYPE_FACTOR, primenet_api.WORK_TYPE_PFACTOR,
+                                        primenet_api.WORK_TYPE_FIRST_LL, primenet_api.WORK_TYPE_DBLCHK]:
         logging.error("Server sent bad exponent: " + r['n'] + ".")
         return
     if w not in supported:
@@ -1142,7 +1148,7 @@ def register_instance(guid):
     args["L2"] = options.L2				# L2 cache size in KBytes
     # if smaller or equal to 256,
     # server refuses to gives LL assignment
-    args["np"] = options.NumCPUs				# number of cores
+    args["np"] = options.NumCores				# number of cores
     args["hp"] = options.CpuNumHyperthreads				# number of hyperthreading cores
     args["m"] = options.memory			# number of megabytes of physical memory
     args["s"] = options.CpuSpeed		# CPU frequency
@@ -1187,7 +1193,7 @@ def register_instance(guid):
     logging.info("CPU features: {0}".format(options.features))
     logging.info("CPU L1 Cache size: {0:n} KIB".format(options.L1))
     logging.info("CPU L2 Cache size: {0:n} KiB".format(options.L2))
-    logging.info("CPU cores: {0:n}".format(options.NumCPUs))
+    logging.info("CPU cores: {0:n}".format(options.NumCores))
     logging.info("CPU threads per core: {0:n}".format(
         options.CpuNumHyperthreads))
     logging.info("CPU frequency/speed: {0:n} MHz".format(options.CpuSpeed))
@@ -1241,7 +1247,7 @@ def merge_config_and_options(config, options):
     # when adding an option you want to copy from argument options to
     # local.ini config.
     attr_to_copy = ["workfile", "resultsfile", "ProofArchiveDir", "username", "password", "WorkPreference", "GetMinExponent", "GetMaxExponent", "gpuowl", "cudalucas", "WorkerThreads",
-                    "num_cache", "DaysOfWork", "no_report_100m", "ComputerID", "cpu_model", "features", "CpuSpeed", "memory", "L1", "L2", "L3", "NumCPUs", "CpuNumHyperthreads", "CPUHours"]
+                    "num_cache", "DaysOfWork", "no_report_100m", "ComputerID", "cpu_model", "features", "CpuSpeed", "memory", "L1", "L2", "L3", "NumCores", "CpuNumHyperthreads", "CPUHours"]
     updated = False
     for attr in attr_to_copy:
         # if "attr" has its default value in options, copy it from config
@@ -1606,14 +1612,14 @@ def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
         time_left = msec_per_iter * (bits - iteration)
         # 1.5 suggested by EWM for Mlucas v20.0 and 1.13-1.275 for v20.1
         time_left += msec_per_iter * bits * 1.2
-        if assignment.work_type in frozenset(
-                [primenet_api.WORK_TYPE_FIRST_LL, primenet_api.WORK_TYPE_DBLCHK, primenet_api.WORK_TYPE_PRP]):
+        if assignment.work_type in [primenet_api.WORK_TYPE_FIRST_LL,
+                                    primenet_api.WORK_TYPE_DBLCHK, primenet_api.WORK_TYPE_PRP]:
             time_left += msec_per_iter * assignment.n
     elif s2:
         time_left = msec_per_iter * \
             (s2 - iteration) if not options.gpuowl else options.timeout
-        if assignment.work_type in frozenset(
-                [primenet_api.WORK_TYPE_FIRST_LL, primenet_api.WORK_TYPE_DBLCHK, primenet_api.WORK_TYPE_PRP]):
+        if assignment.work_type in [primenet_api.WORK_TYPE_FIRST_LL,
+                                    primenet_api.WORK_TYPE_DBLCHK, primenet_api.WORK_TYPE_PRP]:
             time_left += msec_per_iter * assignment.n
     else:
         time_left = msec_per_iter * ((assignment.n if assignment.work_type ==
@@ -1818,8 +1824,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     logging.debug("Program: " + " ".join(ar['program'].values()))
     aid = ar['aid']
     result_type = get_result_type(ar)
-    if result_type in frozenset(
-            [primenet_api.AR_LL_PRIME, primenet_api.AR_PRP_PRIME]):
+    if result_type in [primenet_api.AR_LL_PRIME, primenet_api.AR_PRP_PRIME]:
         if not (config.has_option("PrimeNet", "SilentVictory")
                 and config.getboolean("PrimeNet", "SilentVictory")):
             thread = threading.Thread(target=announce_prime_to_user, args=(
@@ -1834,14 +1839,13 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     args["m"] = sendline							# message is the complete JSON string
     args["r"] = result_type							# result type
     args["n"] = ar['exponent']
-    if result_type in frozenset([primenet_api.AR_LL_RESULT,
-                                 primenet_api.AR_LL_PRIME]):
+    if result_type in [primenet_api.AR_LL_RESULT, primenet_api.AR_LL_PRIME]:
         args["d"] = 1
         if result_type == primenet_api.AR_LL_RESULT:
             args["rd"] = ar['res64'].strip().zfill(16)
         args['sc'] = ar['shift-count']
         args["ec"] = ar['error-code'] if 'error-code' in ar else "00000000"
-    elif result_type in frozenset([primenet_api.AR_PRP_RESULT, primenet_api.AR_PRP_PRIME]):
+    elif result_type in [primenet_api.AR_PRP_RESULT, primenet_api.AR_PRP_PRIME]:
         args["d"] = 1
         args.update((("A", 1), ("b", 2), ("c", -1)))
         if result_type == primenet_api.AR_PRP_RESULT:
@@ -1859,7 +1863,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
         if 'proof' in ar:
             args['pp'] = ar['proof']['power']
             args['ph'] = ar['proof']['md5']
-    elif result_type in frozenset([primenet_api.AR_P1_FACTOR, primenet_api.AR_P1_NOFACTOR]):
+    elif result_type in [primenet_api.AR_P1_FACTOR, primenet_api.AR_P1_NOFACTOR]:
         workfile = os.path.join(dir, options.workfile)
         tasks = readonly_list_file(workfile)
         args["d"] = 1 if result_type == primenet_api.AR_P1_FACTOR or not any(assignment.n == int(
@@ -2036,6 +2040,7 @@ parser.add_option("-T", "--worktype", dest="WorkPreference", default=str(primene
 151 (double-check PRP),
 152 (world-record-sized first-time PRP),
 153 (100M digit number PRP),
+154 (smallest available first-time PRP that needs P-1 factoring),
 155 (double-check using PRP with proof),
 160 (first time Mersenne cofactors PRP),
 161 (double-check Mersenne cofactors PRP)
@@ -2090,10 +2095,10 @@ group.add_option("--L2", dest="L2", type="int", default=512,
                  help="L2 Cache size (KiB), Default: %default KiB")
 group.add_option("--L3", dest="L3", type="int", default=0,
                  help="L3 Cache size (KiB), Default: %default KiB")
-group.add_option("--np", dest="NumCPUs", type="int", default=1,
-                 help="Number of physical CPUs or cores, Default: %default")
+group.add_option("--np", dest="NumCores", type="int", default=1,
+                 help="Number of physical CPU cores, Default: %default")
 group.add_option("--hp", dest="CpuNumHyperthreads", type="int", default=0,
-                 help="Number of CPU threads per core (0 is unknown), Default: %default. Choose 1 for non-hyperthreaded and 2 for hyperthreaded.")
+                 help="Number of CPU threads per core (0 is unknown), Default: %default. Choose 1 for non-hyperthreaded and 2 or more for hyperthreaded.")
 group.add_option("--hours", dest="CPUHours", type="int", default=24,
                  help="Hours per day you expect to run the GIMPS program (1 - 24), Default: %default hours. Used to give better estimated completion dates.")
 parser.add_option_group(group)
@@ -2168,11 +2173,12 @@ if options.WorkPreference in worktypes:
 supported = frozenset([primenet_api.WP_LL_FIRST,
                        primenet_api.WP_LL_DBLCHK,
                        primenet_api.WP_LL_WORLD_RECORD,
-                       primenet_api.WP_LL_100M] + ([primenet_api.WP_PRP_FIRST,
+                       primenet_api.WP_LL_100M] + ([primenet_api.WP_PFACTOR,
+                                                    primenet_api.WP_PRP_FIRST,
                                                     primenet_api.WP_PRP_DBLCHK,
                                                     primenet_api.WP_PRP_WORLD_RECORD,
                                                     primenet_api.WP_PRP_100M,
-                                                    primenet_api.WP_PFACTOR] if not options.cudalucas else []) + ([155] if options.gpuowl else []))
+                                                    primenet_api.WP_PRP_NO_PMINUS1] if not options.cudalucas else []) + ([primenet_api.WP_PRP_DC_PROOF] if options.gpuowl else []))
 if not options.WorkPreference.isdigit() or int(
         options.WorkPreference) not in supported:
     parser.error("Unsupported/unrecognized worktype = " +

@@ -94,10 +94,11 @@ Options:
                         LL), 102 (world-record-sized first-time LL), 104 (100M
                         digit number LL), 150 (smallest available first-time
                         PRP), 151 (double-check PRP), 152 (world-record-sized
-                        first-time PRP), 153 (100M digit number PRP), 155
-                        (double-check using PRP with proof), 160 (first time
-                        Mersenne cofactors PRP), 161 (double-check Mersenne
-                        cofactors PRP)
+                        first-time PRP), 153 (100M digit number PRP), 154
+                        (smallest available first-time PRP that needs P-1
+                        factoring), 155 (double-check using PRP with proof),
+                        160 (first time Mersenne cofactors PRP), 161 (double-
+                        check Mersenne cofactors PRP)
   --min_exp=GETMINEXPONENT
                         Minimum exponent to get from PrimeNet (2 -
                         999,999,999)
@@ -155,11 +156,11 @@ Options:
     --L1=L1             L1 Cache size (KiB), Default: 8 KiB
     --L2=L2             L2 Cache size (KiB), Default: 512 KiB
     --L3=L3             L3 Cache size (KiB), Default: 0 KiB
-    --np=NUMCPUS        Number of physical CPUs or cores, Default: 1
+    --np=NUMCORES       Number of physical CPU cores, Default: 1
     --hp=CPUNUMHYPERTHREADS
                         Number of CPU threads per core (0 is unknown),
-                        Default: 0. Choose 1 for non-hyperthreaded and 2 for
-                        hyperthreaded.
+                        Default: 0. Choose 1 for non-hyperthreaded and 2 or
+                        more for hyperthreaded.
     --hours=CPUHOURS    Hours per day you expect to run the GIMPS program (1 -
                         24), Default: 24 hours. Used to give better estimated
                         completion dates.

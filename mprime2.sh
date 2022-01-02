@@ -23,7 +23,7 @@ if ! [[ $N =~ $RE ]]; then
 	echo "Usage: <Computer number> must be a number" >&2
 	exit 1
 fi
-RE='^([024568]|1(0[0124]|5[0123]|6[01])?)$'
+RE='^([024568]|1(0[0124]|5[012345]|6[01])?)$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] is not a valid number" >&2
 	exit 1
