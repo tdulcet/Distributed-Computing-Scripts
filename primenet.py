@@ -237,7 +237,7 @@ def program_options(guid, first_time, retry_count=0):
             if retry:
                 return program_options(guid, first_time, retry_count + 1)
             parser.error("Error while setting program options on mersenne.org")
-    if "w" in result:
+    if "w" in result and int(result["w"]):
         config.set("PrimeNet", "WorkPreference", result["w"])
     if "nw" in result:
         config.set("PrimeNet", "WorkerThreads", result["nw"])
@@ -537,8 +537,8 @@ def upload_proof(filename):
                 "Exponent": exponent[1:],
                 "FileSize": fileSize,
                 "FileMD5": fileHash}
-        r = requests.get(primenet_baseurl + 'proof_upload/',
-                         params=args, timeout=180)
+        r = s.get(primenet_baseurl + 'proof_upload/',
+                  params=args, timeout=180)
         json = r.json()
         if 'error_status' in json:
             if json['error_status'] == 409:
@@ -574,48 +574,46 @@ def upload_proof(filename):
         if pos:
             logging.info("Resuming from offset {0:n}".format(pos))
 
-        with requests.session() as s:
-            with open(filename, mode='rb') as f:
-                while pos < end:
-                    f.seek(pos)
-                    size = min(end - pos + 1, 5 * 1024 * 1024)
-                    chunk = f.read(size)
-                    args = {
-                        "FileMD5": fileHash,
-                        "DataOffset": pos,
-                        "DataSize": len(chunk),
-                        "DataMD5": md5(chunk).hexdigest()}
-                    response = s.post(baseUrl, params=args, files={
-                                      'Data': (None, chunk)}, timeout=180)
-                    json = response.json()
-                    if 'error_status' in json:
-                        logging.error(
-                            "Unexpected error during “{0}” upload".format(filename))
-                        logging.error(str(json))
-                        return False
-                    response.raise_for_status()
-                    if 'FileUploaded' in json:
-                        logging.info(
-                            "Proof file “{0}” successfully uploaded".format(filename))
-                        return True
-                    if 'need' not in json:
-                        logging.error(
-                            "For proof “{0}”, no entries in need list:".format(filename))
-                        logging.error(str(json))
-                        return False
-                    start, end = next((int(a), b)
-                                      for a, b in json['need'].items())
-                    if start <= pos:
-                        logging.error(
-                            "For proof “{0}”, sending data did not advance need list:".format(filename))
-                        logging.error(str(json))
-                        return False
-                    pos = start
-                    if pos > end or end >= fileSize:
-                        logging.error(
-                            "For proof “{0}”, need list entry bad:".format(filename))
-                        logging.error(str(json))
-                        return False
+        with open(filename, mode='rb') as f:
+            while pos < end:
+                f.seek(pos)
+                size = min(end - pos + 1, 5 * 1024 * 1024)
+                chunk = f.read(size)
+                args = {
+                    "FileMD5": fileHash,
+                    "DataOffset": pos,
+                    "DataSize": len(chunk),
+                    "DataMD5": md5(chunk).hexdigest()}
+                response = s.post(baseUrl, params=args, files={
+                                  'Data': (None, chunk)}, timeout=180)
+                json = response.json()
+                if 'error_status' in json:
+                    logging.error(
+                        "Unexpected error during “{0}” upload".format(filename))
+                    logging.error(str(json))
+                    return False
+                response.raise_for_status()
+                if 'FileUploaded' in json:
+                    logging.info(
+                        "Proof file “{0}” successfully uploaded".format(filename))
+                    return True
+                if 'need' not in json:
+                    logging.error(
+                        "For proof “{0}”, no entries in need list:".format(filename))
+                    logging.error(str(json))
+                    return False
+                start, end = next((int(a), b) for a, b in json['need'].items())
+                if start <= pos:
+                    logging.error(
+                        "For proof “{0}”, sending data did not advance need list:".format(filename))
+                    logging.error(str(json))
+                    return False
+                pos = start
+                if pos > end or end >= fileSize:
+                    logging.error(
+                        "For proof “{0}”, need list entry bad:".format(filename))
+                    logging.error(str(json))
+                    return False
 
 
 def upload_proofs(dir):
@@ -809,7 +807,7 @@ def get_assignment(cpu, retry_count=0):
         temp = [r[i] for i in ['k', 'n', 'sf', 'p1']]
         if options.gpuowl:  # GpuOwl
             logging.warning(
-                "First time LL tests are not supported with recent versions of GpuOwl")
+                "First time LL tests are not supported with the latest versions of GpuOwl")
     elif w == primenet_api.WORK_TYPE_DBLCHK:
         work_type_str = "Double check"
         test = "DoubleCheck"
@@ -1090,7 +1088,7 @@ def send_request(guid, args):
             args["sh"] = "ABCDABCDABCDABCDABCDABCDABCDABCD"
         else:
             secure_v5_url(guid, args)
-        r = requests.get(primenet_v5_burl, params=args, timeout=180)
+        r = s.get(primenet_v5_burl, params=args, timeout=180)
         r.raise_for_status()
         result = parse_v5_resp(r.text)
         rc = int(result["pnErrorResult"])
@@ -1178,8 +1176,8 @@ def register_instance(guid):
     config.set("PrimeNet", "name", result["un"])
     options_counter = int(result["od"])
     config_write(config, guid=guid)
-    if options_counter == 1:
-        program_options(guid, False)
+    # if options_counter == 1:
+    # program_options(guid, False)
     program_options(guid, True)
     if options_counter > int(config.get("PrimeNet", "SrvrP00")):
         program_options(guid, False)
@@ -1449,6 +1447,10 @@ def parse_assignment(dir, task):
     if k == 1.0 and b == 2 and not is_prime(
             n) and c == -1 and work_type != primenet_api.WORK_TYPE_PMINUS1:
         logging.error("“{0}” file contained composite exponent: {1}.".format(
+            os.path.join(dir, options.workfile), n))
+        return None
+    if work_type == primenet_api.WORK_TYPE_PMINUS1 and B1 < 50000:
+        logging.error("“{0}” file has P-1 with B1 < 50000 (exponent: {1}).".format(
             os.path.join(dir, options.workfile), n))
         return None
     # return Assignment(work_type, assignment_uid, k, b, n, c, sieve_depth,
@@ -1822,7 +1824,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     # and it is not present in old output format.
     logging.debug("Submitting using v5 API")
     logging.debug("Program: " + " ".join(ar['program'].values()))
-    aid = ar['aid']
+    aid = ar.get('aid', 0)
     result_type = get_result_type(ar)
     if result_type in [primenet_api.AR_LL_PRIME, primenet_api.AR_PRP_PRIME]:
         if not (config.has_option("PrimeNet", "SilentVictory")
@@ -1835,7 +1837,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     args = primenet_v5_bargs.copy()
     args["t"] = "ar"								# assignment result
     args["g"] = guid
-    args["k"] = aid if 'aid' in ar else 0			# assignment id
+    args["k"] = aid			# assignment id
     args["m"] = sendline							# message is the complete JSON string
     args["r"] = result_type							# result type
     args["n"] = ar['exponent']
