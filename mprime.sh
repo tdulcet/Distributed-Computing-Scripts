@@ -68,6 +68,8 @@ if [[ "$(sha256sum $FILE | head -c 64)" != "$SUM" ]]; then
 fi
 echo -e "\nDecompressing the files\n"
 tar -xzvf $FILE
+echo -e "\nOptimizing Prime95 for your computer\nThis may take a while…\n"
+./mprime -b
 echo -e "\nSetting up Prime95\n"
 if [[ -e ../mprime.exp ]]; then
 	cp ../mprime.exp .

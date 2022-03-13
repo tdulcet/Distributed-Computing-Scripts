@@ -107,7 +107,7 @@ subprocess.run(['tar', '-xzvf', FILE])
 args = [USERID, COMPUTER, TYPE]
 
 print("Setting up Prime95.")
-p = subprocess.Popen(['python3', "../exp.py"] + args,
+p = subprocess.Popen([sys.executable, "../exp.py"] + args,
                      stdout=subprocess.PIPE,
                      universal_newlines=True,
                      bufsize=0)

@@ -299,7 +299,7 @@ def unreserve(dirs, p):
         workfile = os.path.join(dir, options.workfile)
         tasks = readonly_list_file(workfile)
         assignment = next((assignment for assignment in (parse_assignment(
-            dir, task) for task in tasks) if assignment and assignment.n == p), None)
+            workfile, task) for task in tasks) if assignment and assignment.n == p), None)
         if assignment:
             assignment_unreserve(assignment)
             break
@@ -314,8 +314,8 @@ def unreserve_all(dirs):
     for dir in dirs:
         workfile = os.path.join(dir, options.workfile)
         tasks = readonly_list_file(workfile)
-        assignments = OrderedDict((assignment.uid, assignment) for assignment in (
-            parse_assignment(dir, task) for task in tasks) if assignment and assignment.uid).values()
+        assignments = OrderedDict((assignment.uid, assignment) for assignment in (parse_assignment(
+            workfile, task) for task in tasks) if assignment and assignment.uid).values()
         for assignment in assignments:
             assignment_unreserve(assignment)
         # os.remove(workfile)
@@ -494,15 +494,17 @@ def write_list_file(filename, line, mode="w"):
             File.write(content)
 
 
-def is_prime(n):
-    """This function checks if a number is prime."""
-    if n < 2:
-        return False
+def is_known_mersenne_prime(p):
+    """Returns True if the given Mersenne prime is known, and False otherwise."""
+    primes = frozenset([2, 3, 5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 607, 1279, 2203, 2281, 3217, 4253, 4423, 9689, 9941, 11213, 19937, 21701, 23209, 44497, 86243, 110503, 132049, 216091,
+                       756839, 859433, 1257787, 1398269, 2976221, 3021377, 6972593, 13466917, 20996011, 24036583, 25964951, 30402457, 32582657, 37156667, 42643801, 43112609, 57885161, 74207281, 77232917, 82589933])
+    return p in primes
 
-    for p in range(2, int(math.sqrt(n)) + 1):
-        if n % p == 0:
-            return False
-    return True
+
+def is_prime(n):
+    """Return True if n is a prime number, else False."""
+    return n >= 2 and not any(
+        n % p == 0 for p in range(2, int(math.sqrt(n)) + 1))
 
 
 def header_lines(filename):
@@ -667,11 +669,13 @@ def output_status(dirs):
         if not tasks:
             logging.info("No work queued up.")
             continue
-        assignments = OrderedDict((assignment.uid, assignment) for assignment in (
-            parse_assignment(dir, task) for task in tasks) if assignment and assignment.uid).values()
-        msec_per_iter = None
-        if config.has_option("PrimeNet", "msec_per_iter"):
+        assignments = OrderedDict((assignment.uid, assignment) for assignment in (parse_assignment(
+            workfile, task) for task in tasks) if assignment and assignment.uid).values()
+        msec_per_iter = p = None
+        if config.has_option("PrimeNet", "msec_per_iter") and config.has_option(
+                "PrimeNet", "exponent"):
             msec_per_iter = float(config.get("PrimeNet", "msec_per_iter"))
+            p = int(config.get("PrimeNet", "exponent"))
         cur_time_left = 0
         mersennes = True
         now = datetime.now()
@@ -680,8 +684,8 @@ def output_status(dirs):
                 dir, assignment)
             if not assignment:
                 continue
-            _, time_left = compute_progress(
-                assignment, iteration, msec_per_iter, bits, s2)
+            _, time_left, _ = compute_progress(
+                assignment, iteration, msec_per_iter, p, bits, s2)
             bits = int(assignment.sieve_depth)
             if bits < 32:
                 bits = 32
@@ -928,8 +932,8 @@ def get_assignments(dir, cpu, progress):
         return 0
     workfile = os.path.join(dir, options.workfile)
     tasks = readonly_list_file(workfile)
-    assignments = OrderedDict((assignment.uid, assignment) for assignment in (
-        parse_assignment(dir, task) for task in tasks) if assignment and assignment.uid).values()
+    assignments = OrderedDict((assignment.uid, assignment) for assignment in (parse_assignment(
+        workfile, task) for task in tasks) if assignment and assignment.uid).values()
     (percent, time_left) = None, None
     if progress is not None and isinstance(
             progress, tuple) and len(progress) == 2:
@@ -960,7 +964,7 @@ def get_assignments(dir, cpu, progress):
         logging.debug("Fetched {0:n} assignment{1}:".format(
             num_fetched, "s" if num_fetched > 1 else ""))
         for i, new_task in enumerate(new_tasks):
-            assignment = parse_assignment(dir, new_task)
+            assignment = parse_assignment(workfile, new_task)
             if not assignment:
                 logging.error("Invalid assignment '{0}'".format(new_task))
             else:
@@ -1276,12 +1280,12 @@ def merge_config_and_options(config, options):
 
 
 def update_progress(cpu, assignment, iteration, msec_per_iter,
-                    fftlen, bits, s2, now, cur_time_left):
+                    p, fftlen, bits, s2, now, cur_time_left):
     """Update the progress of a given assignment."""
     if not assignment:
         return
-    percent, time_left = compute_progress(
-        assignment, iteration, msec_per_iter, bits, s2)
+    percent, time_left, msec_per_iter = compute_progress(
+        assignment, iteration, msec_per_iter, p, bits, s2)
     logging.debug("p:{0} is {1:.4n}% done ({2:n} / {3:n})".format(assignment.n, percent, iteration,
                   s2 if s2 else bits if bits else assignment.n if assignment.work_type == primenet_api.WORK_TYPE_PRP else assignment.n - 2))
     if time_left is None:
@@ -1303,7 +1307,7 @@ def update_progress_all(dir, cpu):
     if not tasks:
         return  # don't update if no worktodo
     assignments = iter(OrderedDict((assignment.uid, assignment) for assignment in (
-        parse_assignment(dir, task) for task in tasks) if assignment and assignment.uid).values())
+        parse_assignment(workfile, task) for task in tasks) if assignment and assignment.uid).values())
     # Treat the first assignment. Only this one is used to save the msec_per_iter
     # The idea is that the first assignment is having a .stat file with correct values
     # Most of the time, a later assignment would not have a .stat file to obtain information,
@@ -1314,24 +1318,29 @@ def update_progress_all(dir, cpu):
     # Any idea for a better estimation of assignment duration when only p and
     # type (LL or PRP) is known ?
     now = datetime.now()
-    assignment = next(assignments)
+    assignment = next(assignments, None)
+    if not assignment:
+        return
     iteration, msec_per_iter, fftlen, bits, s2 = get_progress_assignment(
         dir, assignment)
+    p = assignment.n
     if msec_per_iter is not None:
         config.set("PrimeNet", "msec_per_iter",
                    "{0:.4f}".format(msec_per_iter))
-    elif config.has_option("PrimeNet", "msec_per_iter"):
+        config.set("PrimeNet", "exponent", str(p))
+    elif config.has_option("PrimeNet", "msec_per_iter") and config.has_option("PrimeNet", "exponent"):
         # If not speed available, get it from the local.ini file
         msec_per_iter = float(config.get("PrimeNet", "msec_per_iter"))
+        p = int(config.get("PrimeNet", "exponent"))
     # Do the other assignment accumulating the time_lefts
     cur_time_left = None if msec_per_iter is None else 0
     percent, cur_time_left = update_progress(
-        cpu, assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
+        cpu, assignment, iteration, msec_per_iter, p, fftlen, bits, s2, now, cur_time_left)
     for assignment in assignments:
         iteration, _, fftlen, bits, s2 = get_progress_assignment(
             dir, assignment)
         percent, cur_time_left = update_progress(
-            cpu, assignment, iteration, msec_per_iter, fftlen, bits, s2, now, cur_time_left)
+            cpu, assignment, iteration, msec_per_iter, p, fftlen, bits, s2, now, cur_time_left)
     config.set("PrimeNet", "LastEndDatesSent", str(int(time.time())))
     config_write(config)
     return percent, cur_time_left
@@ -1357,13 +1366,13 @@ def get_progress_assignment(dir, assignment):
     return iteration, msec_per_iter, fftlen, bits, s2
 
 
-def parse_assignment(dir, task):
+def parse_assignment(workfile, task):
     """Parse a line from a workfile into an Assignment namedtuple."""
     # Ex: Test=197ED240A7A41EC575CB408F32DDA661,57600769,74
     found = workpattern.search(task)
     if not found:
-        logging.error("Unable to extract valid PrimeNet assignment ID from entry in “{0}” file: {1}".format(
-            os.path.join(dir, options.workfile), task))
+        logging.error(
+            "Unable to extract valid PrimeNet assignment ID from entry in “{0}” file: {1}".format(workfile, task))
         return None
     # logging.debug(task)
     work_type = found.group(1)  # e.g., "Test"
@@ -1386,8 +1395,8 @@ def parse_assignment(dir, task):
     length = len(found)
     idx = 1 if work_type == "Test" or work_type == "DoubleCheck" else 3
     if length <= idx:
-        logging.error("Unable to extract valid exponent substring from entry in “{0}” file: {1}".format(
-            os.path.join(dir, options.workfile), task))
+        logging.error(
+            "Unable to extract valid exponent substring from entry in “{0}” file: {1}".format(workfile, task))
         return None
     # Extract the subfield containing the exponent, whose position depends on
     # the assignment type:
@@ -1446,12 +1455,12 @@ def parse_assignment(dir, task):
         # cert_squarings = int(found[5])
     if k == 1.0 and b == 2 and not is_prime(
             n) and c == -1 and work_type != primenet_api.WORK_TYPE_PMINUS1:
-        logging.error("“{0}” file contained composite exponent: {1}.".format(
-            os.path.join(dir, options.workfile), n))
+        logging.error(
+            "“{0}” file contained composite exponent: {1}.".format(workfile, n))
         return None
     if work_type == primenet_api.WORK_TYPE_PMINUS1 and B1 < 50000:
-        logging.error("“{0}” file has P-1 with B1 < 50000 (exponent: {1}).".format(
-            os.path.join(dir, options.workfile), n))
+        logging.error(
+            "“{0}” file has P-1 with B1 < 50000 (exponent: {1}).".format(workfile, n))
         return None
     # return Assignment(work_type, assignment_uid, k, b, n, c, sieve_depth,
     # pminus1ed, B1, B2, tests_saved, prp_base, prp_residue_type,
@@ -1503,7 +1512,7 @@ def parse_stat_file_cuda(dir, p):
                 if eta[0]:
                     time_left += int(eta[0]) * 60 * 60 * 24
                 avg_msec_per_iter = (time_left * 1000) / (p - iteration)
-                fftlen = int(fft_res[0]) * 1024
+                fftlen = int(fft_res[0]) * 1024  # << 10
             elif int(iter_res[0]) > iteration:
                 break
             list_msec_per_iter.append(float(ms_res[1]))
@@ -1604,12 +1613,15 @@ def parse_stat_file_gpu(dir, p):
     return iteration, msec_per_iter, fftlen, bits, buffs
 
 
-def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
+def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
     """Computes the progress of a given assignment."""
     percent = 100 * iteration / (s2 if s2 else bits if bits else assignment.n if assignment.work_type ==
                                  primenet_api.WORK_TYPE_PRP else assignment.n - 2)
     if msec_per_iter is None:
-        return percent, None
+        return percent, None, msec_per_iter
+    if assignment.n != p:
+        msec_per_iter *= (assignment.n * log2(assignment.n) *
+                          log2(log2(assignment.n))) / (p * log2(p) * log2(log2(p)))
     if bits:
         time_left = msec_per_iter * (bits - iteration)
         # 1.5 suggested by EWM for Mlucas v20.0 and 1.13-1.275 for v20.1
@@ -1627,7 +1639,7 @@ def compute_progress(assignment, iteration, msec_per_iter, bits, s2):
         time_left = msec_per_iter * ((assignment.n if assignment.work_type ==
                                      primenet_api.WORK_TYPE_PRP else assignment.n - 2) - iteration)
     time_left *= 24.0 / options.CPUHours
-    return percent, time_left / 1000
+    return percent, time_left / 1000, msec_per_iter
 
 
 def send_progress(cpu, assignment, percent, time_left, now,
@@ -1734,7 +1746,7 @@ def get_cuda_ar_object(dir, sendline):
 
     ar['res64'] = "0" * 16 if res.group(2)[0] == 'P' else res.group(3)[2:]
     ar['shift-count'] = res.group(4)
-    ar['fft-length'] = int(res.group(5)) * 1024
+    ar['fft-length'] = int(res.group(5)) * 1024  # << 10
     program = res.group(6).split()
     ar['program'] = {}
     ar['program']['name'] = program[0]
@@ -1827,8 +1839,8 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     aid = ar.get('aid', 0)
     result_type = get_result_type(ar)
     if result_type in [primenet_api.AR_LL_PRIME, primenet_api.AR_PRP_PRIME]:
-        if not (config.has_option("PrimeNet", "SilentVictory")
-                and config.getboolean("PrimeNet", "SilentVictory")):
+        if not (config.has_option("PrimeNet", "SilentVictory") and config.getboolean(
+                "PrimeNet", "SilentVictory")) and not is_known_mersenne_prime(int(ar['exponent'])):
             thread = threading.Thread(target=announce_prime_to_user, args=(
                 ar['exponent'], ar['worktype']), daemon=True)
             thread.start()
@@ -1869,7 +1881,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
         workfile = os.path.join(dir, options.workfile)
         tasks = readonly_list_file(workfile)
         args["d"] = 1 if result_type == primenet_api.AR_P1_FACTOR or not any(assignment.n == int(
-            ar['exponent']) for assignment in (parse_assignment(dir, task) for task in tasks) if assignment) else 0
+            ar['exponent']) for assignment in (parse_assignment(workfile, task) for task in tasks) if assignment) else 0
         args.update((("A", 1), ("b", 2), ("c", -1)))
         args['B1'] = ar['B1']
         if 'B2' in ar:
@@ -1982,7 +1994,7 @@ def submit_work(dir):
     if length == 0:
         logging.debug("No new results in “{0}”.".format(resultsfile))
         return
-    logging.debug("Found {0:n} new result{1} to report in “{0}”".format(
+    logging.debug("Found {0:n} new result{1} to report in “{2}”".format(
         length, "s" if length > 1 else "", resultsfile))
     # EWM: Switch to one-result-line-at-a-time submission to support
     # error-message-on-submit handling:
@@ -2117,9 +2129,9 @@ workdir = os.path.expanduser(options.workdir)
 dirs = [os.path.join(workdir, dir)
         for dir in options.dirs] if options.dirs else [workdir]
 
-# r'^(?:(Test|DoubleCheck)=([0-9A-F]{32})(,[0-9]+){3}|(PRP(?:DC)?)=([0-9A-F]{32})(,-?[0-9]+){4,8}(,"[0-9]+(?:,[0-9]+)*")?|(P[Ff]actor)=([0-9A-F]{32})(,-?[0-9]+){6}|(P[Mm]inus1)=([0-9A-F]{32})(,-?[0-9]+){6,8}(,"[0-9]+(?:,[0-9]+)*")?|(Cert)=([0-9A-F]{32})(,-?[0-9]+){5})$'
+# r'^(?:(Test|DoubleCheck)=([0-9A-F]{32})(,[0-9]+(?:\.[0-9]+)?){3}|(PRP(?:DC)?)=([0-9A-F]{32})(,-?[0-9]+(?:\.[0-9]+)?){4,8}(,"[0-9]+(?:,[0-9]+)*")?|(P[Ff]actor)=([0-9A-F]{32})(,-?[0-9]+(?:\.[0-9]+)?){6}|(P[Mm]inus1)=([0-9A-F]{32})(,-?[0-9]+(?:\.[0-9]+)?){6,8}(,"[0-9]+(?:,[0-9]+)*")?|(Cert)=([0-9A-F]{32})(,-?[0-9]+(?:\.[0-9]+)?){5})$'
 workpattern = re.compile(
-    r'^(Test|DoubleCheck|PRP(?:DC)?|P[Ff]actor|P[Mm]inus1|Cert)\s*=\s*(?:(?:([0-9A-F]{32})|[Nn]/[Aa]|0),)?(?:(-?[0-9]+|"[0-9]+(?:,[0-9]+)*")(?:,|$)){3,9}$')
+    r'^(Test|DoubleCheck|PRP(?:DC)?|P[Ff]actor|P[Mm]inus1|Cert)\s*=\s*(?:(?:([0-9A-F]{32})|[Nn]/[Aa]|0),)?(?:(-?[0-9]+(?:\.[0-9]+)?|"[0-9]+(?:,[0-9]+)*")(?:,|$)){3,9}$')
 
 # mersenne.org limit is about 4 KB; stay on the safe side
 # sendlimit = 3000  # TODO: enforce this limit

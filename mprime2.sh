@@ -76,6 +76,8 @@ else
 	echo -e "\nDecompressing the files\n"
 	tar -xzvf $FILE
 fi
+echo -e "\nOptimizing Prime95 for your computer\nThis may take a while…\n"
+./mprime -A"$N" -b
 echo -e "\nSetting up Prime95\n"
 if [[ -e ../mprime2.exp ]]; then
 	cp ../mprime2.exp .
