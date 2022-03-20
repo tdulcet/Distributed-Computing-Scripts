@@ -237,7 +237,6 @@ General:
 * Add options for setting the maximum CPU time
 * Update CUDALucas to support PRP tests and the Jacobi error check for LL tests
 * Update Mlucas to support the Jacobi error check for LL and P-1 tests
-* Create a [Tensor Processing Unit](https://en.wikipedia.org/wiki/Tensor_Processing_Unit) (TPU) GIMPS program and Google Colab TPU notebook (#3)
 
 Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimeNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimeNet API, for porting the Prime95 script to Python and for helping create and test the Google Colab Jupyter Notebooks!
 

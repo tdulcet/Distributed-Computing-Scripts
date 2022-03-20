@@ -2119,6 +2119,8 @@ parser.add_option_group(group)
 
 opts_no_defaults = optparse.Values()
 __, args = parser.parse_args(values=opts_no_defaults)
+if args:
+    parser.error("Unexpected arguments")
 options = optparse.Values(parser.get_default_values().__dict__)
 options._update_careful(opts_no_defaults.__dict__)
 

@@ -1,10 +1,10 @@
 # Google Colaboratory and GIMPS
-Google offers a service known as [Colaboratory](https://research.google.com/colaboratory/faq.html) (Colab), which allows anyone with an internet connection free access to high-performance GPU and CPU-powered [Jupyter Notebooks](https://en.wikipedia.org/wiki/Project_Jupyter#Jupyter_Notebook).
+Google offers a service known as [Colaboratory](https://research.google.com/colaboratory/faq.html) (Colab), which allows anyone with an internet connection free access to high-performance TPU, GPU and CPU-powered [Jupyter Notebooks](https://en.wikipedia.org/wiki/Project_Jupyter#Jupyter_Notebook).
 This service can be used to run Distributed Computing projects such as the [Great Internet Mersenne Prime Search](https://www.mersenne.org/) (GIMPS) for free.
 GIMPS can be run on an Nvidia GPU using the [CUDALucas](https://sourceforge.net/projects/cudalucas/) program or a CPU using the [Prime95](https://www.mersenne.org/download/) program.
 
-This repository contains two Jupyter Notebooks, a “CPU” only notebook (`GoogleColabCPU.ipynb`) and a “GPU and CPU” notebook (`GoogleColabGPU.ipynb`). The “CPU” only notebook runs `Prime95`, while the “GPU and CPU” notebook runs both `CUDALucas` and `Prime95` since they can run in parallel to “crunch” more prime numbers.
-Each notebook makes use of Google Drive storage, which is provided to all Google accounts.
+This repository contains two Jupyter Notebooks, a “CPU” only notebook (`GoogleColabCPU.ipynb`) and a “GPU and CPU” notebook (`GoogleColabGPU.ipynb`). The “CPU” only notebook runs `Prime95`, while the “GPU and CPU” notebook runs both `CUDALucas` and `Prime95` since they can run simultaneously to “crunch” more prime numbers.
+Each notebook makes use of Google Drive storage, which is provided to all Google accounts. See [here](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime/wiki/Usage-and-Arguments) for a “TPU” only notebook which runs `TensorPrime`.
 
 ## How to Use
 **Please Note:** you must keep each notebook **OPEN** in your browser to prevent it from disconnecting due to being perceived as idle. [Pin the tab(s)](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) or move them to a dedicated window for easy access to your notebook(s).
