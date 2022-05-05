@@ -100,8 +100,9 @@ echo -e "CPU frequency/speed:\t\t$(printf "%'.0f" "${CPU_FREQ/./$decimal_point}"
 wait
 
 HP=$(lscpu | grep -i '^thread(s) per core' | sed -n 's/^.\+:[[:blank:]]*//p')
-CPU_CORES=$(( CPU_THREADS / HP ))
-echo -e "CPU Cores/Threads:\t\t$CPU_CORES/$CPU_THREADS"
+CPU_CORES=$(lscpu -ap | grep -v '^#' | awk -F, '{ print $2 }' | sort -nu | wc -l)
+CPU_SOCKETS=$(lscpu | grep -i '^socket(s)' | sed -n 's/^.\+:[[:blank:]]*//p') # $(lscpu -ap | grep -v '^#' | awk -F, '{ print $3 }' | sort -nu | wc -l)
+echo -e "CPU Sockets/Cores/Threads:\t$CPU_SOCKETS/$CPU_CORES/$CPU_THREADS"
 
 ARCHITECTURE=$(getconf LONG_BIT)
 echo -e "Architecture:\t\t\t$HOSTTYPE (${ARCHITECTURE}-bit)"
@@ -123,7 +124,7 @@ fi
 if [[ -d "$DIR" ]]; then
 	if [[ -e "$FILE" ]] && [[ "$(md5sum $FILE | head -c 32)" != "$SUM" ]]; then
 		echo "Error: Mlucas is already downloaded, but md5sum does not match" >&2
-		echo "Please run \"rm -r $FILE $DIR\" and run this script again" >&2
+		echo "Please run \"rm -r $FILE ${DIR@Q}\" and run this script again" >&2
 		exit 1
 	elif [[ -d "$DIR/obj" && -x "$DIR/obj/Mlucas" && ! -L "$DIR/obj/mlucas.0.cfg" ]]; then
 		echo -e "\nMlucas is already downloaded\n"
@@ -174,12 +175,13 @@ else
 	fi
 	cat << EOF > Makefile
 CC?=gcc
+CFLAGS=-Wall -g -O3
 OBJS=\$(patsubst ../src/%.c, %.o, \$(wildcard ../src/*.c))
 
 Mlucas: \$(OBJS)
-	\$(CC) -Wall -g -o \$@ \$(OBJS) -lm -lpthread -lrt -lgmp
+	\$(CC) \$(CFLAGS) -o \$@ \$^ -lm -lpthread -lrt -lgmp
 %.o: ../src/%.c
-	\$(CC) -Wall -g -c -O3 ${ARGS[@]} -DUSE_THREADS \$<
+	\$(CC) \$(CFLAGS) \$(CPPFLAGS) -c ${ARGS[@]} -DUSE_THREADS \$<
 clean:
 	rm -f *.o
 EOF
@@ -437,7 +439,7 @@ for i in "${!ARGS[@]}"; do
 	printf "\n#%'d\tWorkers/Runs: %'d\tThreads: %s\n" $((i+1)) ${#args[*]} "${THREADS[i]// /, }"
 	echo "[$(date)]" >> bench.txt
 	for j in "${!ffts[@]}"; do
-		printf '\n\tTiming FFT length: %sK\n\n' "${ffts[j]}"
+		printf '\n\tTiming FFT length: %sK (%s)\n\n' "${ffts[j]}" "$(numfmt --from=iec --to=iec "${ffts[j]}K")"
 		radices=( ${aradices[j]} )
 		for k in "${!args[@]}"; do
 			./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" >& "${files[k]}" &
@@ -552,7 +554,7 @@ if [[ ${#ARGS[*]} -gt 1 ]]; then
 	} | column -t -s $'\t'
 fi
 echo
-echo "The benchmark summary table was written to the 'bench.txt' file"
+echo "The benchmark data was written to the 'bench.txt' file"
 echo -e "\nRegistering computer with PrimeNet\n"
 python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
@@ -591,17 +593,17 @@ $(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup python3 ../../prime
 }
 EOF
 chmod +x jobs.sh
-#crontab -l | { cat; echo "cd '$DIR' && ./jobs.sh"; } | crontab -
+#crontab -l | { cat; echo "cd ${DIR@Q} && ./jobs.sh"; } | crontab -
 cat << EOF > Mlucas.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
 # Start Mlucas and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
-# Run: '$DIR'/Mlucas.sh
+# ${DIR@Q}/Mlucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then cd '$DIR' && ./jobs.sh; else pgrep -x Mlucas >/dev/null && killall Mlucas; fi
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then cd ${DIR@Q} && ./jobs.sh; else pgrep -x Mlucas >/dev/null && killall -9 Mlucas; fi
 EOF
 chmod +x Mlucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
-echo "crontab -l | { cat; echo \"* * * * * '$DIR'/Mlucas.sh\"; } | crontab -"
+echo "crontab -l | { cat; echo \"* * * * * ${DIR@Q}/Mlucas.sh\"; } | crontab -"
 echo -e "\nTo edit the crontab, run \"crontab -e\""

@@ -13,10 +13,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
@@ -28,7 +28,7 @@ jobs:
         sed -i '/^crontab / s/^/# /' cudalucas.sh
     - name: Script
       run: bash -e -- cudalucas.sh ANONYMOUS
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       if: always()
       with:
         name: ${{ matrix.os }}_cudalucas
@@ -44,13 +44,13 @@ jobs:
     continue-on-error: ${{ matrix.cc == 'clang' }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
         cc: [gcc, clang]
       fail-fast: false
     env:
       CC: ${{ matrix.cc }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Before script
       run: |
         sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
@@ -58,7 +58,7 @@ jobs:
         $CC --version
     - name: Script
       run: bash -e -- mlucas.sh ANONYMOUS
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       if: always()
       with:
         name: ${{ matrix.os }}_${{ matrix.cc }}_mlucas

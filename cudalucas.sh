@@ -109,15 +109,13 @@ int main()
 EOF
 
 trap 'rm /tmp/cudaComputeVersion.cu /tmp/cudaComputeVersion' EXIT
-# nvcc /tmp/cudaComputeVersion.cu -o /tmp/cudaComputeVersion -O3 --compiler-options=-Wall
-nvcc /tmp/cudaComputeVersion.cu -O3 -D_FORCE_INLINES --compiler-options=-Wall -o /tmp/cudaComputeVersion
+nvcc /tmp/cudaComputeVersion.cu -O3 --compiler-options=-Wall -o /tmp/cudaComputeVersion
 if ! COMPUTE=$(/tmp/cudaComputeVersion); then
 	echo "$COMPUTE"
 	echo "Error: CUDA compute capability not found" >&2
 	exit 1
 fi
-# sed -i "s/--generate-code arch=compute_35,code=sm_35/$COMPUTE/" Makefile
-sed -i "s/--generate-code arch=compute_35,code=sm_35/$COMPUTE -D_FORCE_INLINES/" Makefile
+sed -i "s/--generate-code arch=compute_35,code=sm_35/$COMPUTE/" Makefile
 sed -i '/nvmlInit();/d' CUDALucas.cu
 sed -i '/nvmlDevice_t device;/d' CUDALucas.cu
 sed -i '/nvmlDeviceGetHandleByIndex(device_number, &device);/d' CUDALucas.cu
@@ -159,6 +157,6 @@ echo -e "\nStarting CUDALucas\n"
 nohup nice ./CUDALucas -d $DEVICE >> "cudalucas.out" &
 sleep 1
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "cd '$DIR' && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &"; } | crontab -
-#crontab -l | { cat; echo "cd '$DIR' && nohup python3 primenet.py -d -t 21600 >> 'primenet.out' &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x CUDALucas >/dev/null || (cd '$DIR' && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &); pgrep -f '^python3 primenet\.py' >/dev/null || (cd '$DIR' && nohup python3 primenet.py -d -t 21600 >> 'primenet.out' &); else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi"; } | crontab -
+#crontab -l | { cat; echo "cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &"; } | crontab -
+#crontab -l | { cat; echo "cd ${DIR@Q} && nohup python3 primenet.py -d -t 21600 >> 'primenet.out' &"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &); pgrep -f '^python3 primenet\.py' >/dev/null || (cd ${DIR@Q} && nohup python3 primenet.py -d -t 21600 >> 'primenet.out' &); else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi"; } | crontab -
