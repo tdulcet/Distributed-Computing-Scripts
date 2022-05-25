@@ -42,11 +42,12 @@ Additionally, a user may only assign a GPU runtime to up to two notebooks at a t
 
 ## GPUs Offered
 Google Colab runs exclusively on Nvidia GPUs where the specific model assigned to you depends on availability.
-The most [powerful GPU](https://www.mersenne.ca/cudalucas.php) currently offered is the `Tesla V100-SXM2-16GB`.
+The most [powerful GPU](https://www.mersenne.ca/cudalucas.php) currently offered is the `NVIDIA A100-SXM4-40GB`.
 
 The other possible GPUs that may be assigned are listed below:
 
 ```
+Tesla V100-SXM2-16GB
 Tesla P100-PCIE-16GB
 Tesla K80
 Tesla T4
