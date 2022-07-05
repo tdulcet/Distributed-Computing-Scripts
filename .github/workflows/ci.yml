@@ -57,7 +57,14 @@ jobs:
         sed -i '/^python3 / s/^/# /' mlucas.sh
         $CC --version
     - name: Script
-      run: bash -e -- mlucas.sh ANONYMOUS
+      run: |
+        bash -e -- mlucas.sh ANONYMOUS
+        grep 'warning:' mlucas_v*/obj/build.log | awk '{print $NF}' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
+    - name: GCC analyzer
+      if: ${{ matrix.os == 'ubuntu-22.04' && matrix.cc == 'gcc' }}
+      run: |
+        cd mlucas_v*/obj/ && ${{ matrix.cc }} -c -g -O3 -march=native -DUSE_THREADS -fanalyzer ../src/*.c |& tee analyzer.log
+        grep 'warning:' mlucas_v*/obj/analyzer.log | awk '{print $NF}' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
     - uses: actions/upload-artifact@v3
       if: always()
       with:

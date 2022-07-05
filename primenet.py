@@ -349,8 +349,8 @@ primenet_v5_burl = "http://v5.mersenne.org/v5server/"
 PRIMENET_TRANSACTION_API_VERSION = 0.95
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
-    {"name": "Prime95", "version": "30.7", "build": 9},
-    {"name": "Mlucas", "version": "20.1"},
+    {"name": "Prime95", "version": "30.8", "build": 15},
+    {"name": "Mlucas", "version": "20.1.1"},
     {"name": "GpuOwl", "version": "7.2"},
     {"name": "CUDALucas", "version": "2.06"}]
 ERROR_RATE = 0.018  # Estimated LL error rate on clean run
@@ -1747,10 +1747,8 @@ def get_cuda_ar_object(dir, sendline):
     ar['res64'] = "0" * 16 if res.group(2)[0] == 'P' else res.group(3)[2:]
     ar['shift-count'] = res.group(4)
     ar['fft-length'] = int(res.group(5)) * 1024  # << 10
-    program = res.group(6).split()
     ar['program'] = {}
-    ar['program']['name'] = program[0]
-    ar['program']['version'] = program[1]
+    ar['program']['name'], ar['program']['version'] = res.group(6).split()
     return ar
 
 

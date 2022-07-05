@@ -14,8 +14,8 @@ import hashlib  # sha256
 import time
 
 DIR = "mprime"
-FILE = "p95v307b9.linux64.tar.gz"
-SUM = "d47d766c734d1cca4521cf7b37c1fe351c2cf1fbe5b7c70c457061a897a5a380"
+FILE = "p95v308b15.linux64.tar.gz"
+SUM = "2436b4e23fe52fa1660de08bcbc1f4cc85ff7b6f020587aa5e952850f529587a"
 
 
 def regex_check(reg, var, err):
