@@ -8,7 +8,7 @@
 
 DIR="mlucas_v20.1.1"
 FILE="mlucas_v20.1.1.txz"
-SUM="888c95d3289d3b49a7c9cdba8aeab9b9"
+SUM="8d8851f5e383d8a74cf067192474256a"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1

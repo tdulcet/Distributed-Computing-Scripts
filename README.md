@@ -65,14 +65,14 @@ Options:
   -w WORKDIR, --workdir=WORKDIR
                         Working directory with the local file from this
                         program, Default: . (current directory)
-  -D DIRS, --dir=DIRS   Directories with the worktodo and results files from
-                        the GIMPS program. Provide once for each worker
-                        thread. It automatically sets the --cpu_num option for
-                        each directory.
+  -D DIRS, --dir=DIRS   Directories with the work and results files from the
+                        GIMPS program. Provide once for each worker thread. It
+                        automatically sets the --cpu_num option for each
+                        directory.
   -i WORKFILE, --workfile=WORKFILE
-                        WorkFile filename, Default: “worktodo.ini”
+                        Work File filename, Default: “worktodo.ini”
   -r RESULTSFILE, --resultsfile=RESULTSFILE
-                        ResultsFile filename, Default: “results.txt”
+                        Results File filename, Default: “results.txt”
   -l LOCALFILE, --localfile=LOCALFILE
                         Local configuration file filename, Default:
                         “local.ini”
@@ -143,7 +143,7 @@ Options:
 
   Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).:
     -H COMPUTERID, --hostname=COMPUTERID
-                        Computer name, Default: example
+                        Optional computer name, Default: example
     --cpu_model=CPU_MODEL
                         Processor (CPU) model, Default: cpu.unknown
     --features=FEATURES

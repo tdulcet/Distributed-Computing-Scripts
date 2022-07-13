@@ -346,7 +346,7 @@ cpu_signature = get_cpu_signature()
 
 
 primenet_v5_burl = "http://v5.mersenne.org/v5server/"
-PRIMENET_TRANSACTION_API_VERSION = 0.95
+TRANSACTION_API_VERSION = 0.95
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
     {"name": "Prime95", "version": "30.8", "build": 15},
@@ -358,14 +358,15 @@ ERROR_RATE = 0.018  # Estimated LL error rate on clean run
 PRP_ERROR_RATE = 0.0001
 _V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ = 17737
 primenet_v5_bargs = OrderedDict(
-    (("px", "GIMPS"), ("v", PRIMENET_TRANSACTION_API_VERSION)))
+    (("px", "GIMPS"), ("v", TRANSACTION_API_VERSION)))
 primenet_baseurl = "https://www.mersenne.org/"
 primenet_login = False
 
 
 class primenet_api:
-    ERROR_OK = 0
-    ERROR_SERVER_BUSY = 3
+    # Error codes returned to client
+    ERROR_OK = 0  # no error
+    ERROR_SERVER_BUSY = 3  # server is too busy now
     ERROR_INVALID_VERSION = 4
     ERROR_INVALID_TRANSACTION = 5
     # Returned for length, type, or character invalidations.
@@ -389,6 +390,7 @@ class primenet_api:
     ERROR_INVALID_WORK_TYPE = 46
     ERROR_WORK_NO_LONGER_NEEDED = 47
 
+    # Valid work_preference values
     WP_WHATEVER = 0  # Whatever makes most sense
     WP_FACTOR_LMH = 1  # Factor big numbers to low limits
     WP_FACTOR = 2  # Trial factoring
@@ -411,6 +413,7 @@ class primenet_api:
     WP_PRP_COFACTOR = 160  # PRP test of Mersenne cofactors
     WP_PRP_COFACTOR_DBLCHK = 161  # PRP double check of Mersenne cofactors
 
+    # Valid work_types returned by ga
     WORK_TYPE_FACTOR = 2
     WORK_TYPE_PMINUS1 = 3
     WORK_TYPE_PFACTOR = 4
@@ -421,13 +424,14 @@ class primenet_api:
     WORK_TYPE_PRP = 150
     WORK_TYPE_CERT = 200
 
-    AR_NO_RESULT = 0		# No result, just sending done msg
-    AR_TF_FACTOR = 1		# Trial factoring, factor found
-    AR_P1_FACTOR = 2		# P-1, factor found
-    AR_ECM_FACTOR = 3		# ECM, factor found
-    AR_TF_NOFACTOR = 4		# Trial Factoring no factor found
-    AR_P1_NOFACTOR = 5		# P-1 factoring no factor found
-    AR_ECM_NOFACTOR = 6		# ECM factoring no factor found
+    # This structure is passed for the ar - Assignment Result call
+    AR_NO_RESULT = 0  # No result, just sending done msg
+    AR_TF_FACTOR = 1  # Trial factoring, factor found
+    AR_P1_FACTOR = 2  # P-1, factor found
+    AR_ECM_FACTOR = 3  # ECM, factor found
+    AR_TF_NOFACTOR = 4  # Trial Factoring no factor found
+    AR_P1_NOFACTOR = 5  # P-1 factoring no factor found
+    AR_ECM_NOFACTOR = 6  # ECM factoring no factor found
     AR_PP1_FACTOR = 7  # P+1, factor found
     AR_PP1_NOFACTOR = 8  # P+1 factoring no factor found
     AR_LL_RESULT = 100  # LL result, not prime
@@ -1272,7 +1276,7 @@ def merge_config_and_options(config, options):
             # If an option is given (even default value) and it is not already
             # identical in local.ini, update local.ini
             logging.debug("update “{0}” with {1}={2}".format(
-                options.localfile, attr, attr_val))
+                options.localfile, attr, repr(attr_val)))
             config.set("PrimeNet", attr, str(attr_val))
             updated = True
 
@@ -1384,8 +1388,8 @@ def parse_assignment(workfile, task):
     sieve_depth = 99.0
     pminus1ed = 1
     tests_saved = 0.0
-    B1 = 0.0
-    B2 = 0.0
+    B1 = 0
+    B2 = 0
     prp_dblchk = False
     # e.g., "57600769", "197ED240A7A41EC575CB408F32DDA661"
     # logging.debug("type = {0}, assignment_id = {1}".format(work_type, assignment_uid))
@@ -1438,12 +1442,12 @@ def parse_assignment(workfile, task):
         b = int(found[2])
         n = int(found[3])
         c = int(found[4])
-        B1 = float(found[5])
-        B2 = float(found[6])
+        B1 = int(found[5])
+        B2 = int(found[6])
         if length >= 8:
             sieve_depth = float(found[7])
             # if length >= 9:
-            # B2_start = float(found[8])
+            # B2_start = int(found[8])
             # if length >= 10:
             # known_factors = found[9]
     elif work_type == "Cert":
@@ -2025,11 +2029,11 @@ parser.add_option("-d", "--debug", action="count", dest="debug", default=0,
 parser.add_option("-w", "--workdir", dest="workdir", default=".",
                   help="Working directory with the local file from this program, Default: %default (current directory)")
 parser.add_option("-D", "--dir", action="append", dest="dirs",
-                  help="Directories with the worktodo and results files from the GIMPS program. Provide once for each worker thread. It automatically sets the --cpu_num option for each directory.")
+                  help="Directories with the work and results files from the GIMPS program. Provide once for each worker thread. It automatically sets the --cpu_num option for each directory.")
 parser.add_option("-i", "--workfile", dest="workfile",
-                  default="worktodo.ini", help="WorkFile filename, Default: “%default”")
+                  default="worktodo.ini", help="Work File filename, Default: “%default”")
 parser.add_option("-r", "--resultsfile", dest="resultsfile",
-                  default="results.txt", help="ResultsFile filename, Default: “%default”")
+                  default="results.txt", help="Results File filename, Default: “%default”")
 parser.add_option("-l", "--localfile", dest="localfile", default="local.ini",
                   help="Local configuration file filename, Default: “%default”")
 parser.add_option("--archive_proofs", dest="ProofArchiveDir",
@@ -2058,9 +2062,9 @@ parser.add_option("-T", "--worktype", dest="WorkPreference", default=str(primene
 161 (double-check Mersenne cofactors PRP)
 """
                   )
-parser.add_option("--min_exp", dest="GetMinExponent", type="int", default=0,
+parser.add_option("--min_exp", dest="GetMinExponent", type="int",
                   help="Minimum exponent to get from PrimeNet (2 - 999,999,999)")
-parser.add_option("--max_exp", dest="GetMaxExponent", type="int", default=0,
+parser.add_option("--max_exp", dest="GetMaxExponent", type="int",
                   help="Maximum exponent to get from PrimeNet (2 - 999,999,999)")
 
 parser.add_option("-g", "--gpuowl", action="store_true", dest="gpuowl", default=False,
