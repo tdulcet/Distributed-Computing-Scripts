@@ -349,7 +349,7 @@ primenet_v5_burl = "http://v5.mersenne.org/v5server/"
 TRANSACTION_API_VERSION = 0.95
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
-    {"name": "Prime95", "version": "30.8", "build": 15},
+    {"name": "Prime95", "version": "30.8", "build": 16},
     {"name": "Mlucas", "version": "20.1.1"},
     {"name": "GpuOwl", "version": "7.2"},
     {"name": "CUDALucas", "version": "2.06"}]

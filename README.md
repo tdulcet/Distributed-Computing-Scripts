@@ -217,7 +217,7 @@ PrimeNet script:
 * Support reserving a specific exponent.
 * Support setting more of the program options.
 * Support setting per thread options.
-    * Get different work types on different CPU cores or GPUs.
+	* Get different work types on different CPU cores or GPUs.
 * Improve the error handling of PrimeNet API calls.
 * Support the recovery of assignments if there is an error or the worktodo file was deleted.
 * Check for new results to submit when the results file is updated.

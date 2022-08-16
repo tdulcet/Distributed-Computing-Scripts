@@ -7,8 +7,8 @@
 # ./mprime.sh ANONYMOUS
 
 DIR="mprime"
-FILE="p95v308b15.linux64.tar.gz"
-SUM="2436b4e23fe52fa1660de08bcbc1f4cc85ff7b6f020587aa5e952850f529587a"
+FILE="p95v308b16.linux64.tar.gz"
+SUM="9fa9b30dd175be287d3a3f4b85139d02d4e64aa2dad88324abd4fdfcbbfe10d4"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
