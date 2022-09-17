@@ -35,5 +35,13 @@ send \x03
 sleep 10
 expect "Choose Test/Continue to restart."
 sleep 1
+send -- "15\r"
+expect {
+	"Days between sending end dates (*):" { sleep 1; send -- "0.25\r"; exp_continue }
+	"Your choice:" { }
+	" (*):" { sleep 1; send -- "\r"; exp_continue }
+}
+expect "Done communicating with server."
+sleep 1
 send -- "5\r"
 expect eof

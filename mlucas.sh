@@ -17,6 +17,7 @@ USERID=${1:-$USER}
 COMPUTER=${2:-$HOSTNAME}
 TYPE=${3:-150}
 TIME=${4:-10}
+# COMBO=0
 decimal_point=$(locale decimal_point)
 RE='^(4|1(0[0124]|5[01234]))$'
 if ! [[ $TYPE =~ $RE ]]; then
@@ -101,17 +102,17 @@ wait
 
 HP=$(lscpu | grep -i '^thread(s) per core' | sed -n 's/^.\+:[[:blank:]]*//p')
 CPU_CORES=$(lscpu -ap | grep -v '^#' | awk -F, '{ print $2 }' | sort -nu | wc -l)
-CPU_SOCKETS=$(lscpu | grep -i '^socket(s)' | sed -n 's/^.\+:[[:blank:]]*//p') # $(lscpu -ap | grep -v '^#' | awk -F, '{ print $3 }' | sort -nu | wc -l)
+CPU_SOCKETS=$(lscpu | grep -i '^\(socket\|cluster\)(s)' | sed -n 's/^.\+:[[:blank:]]*//p' | tail -n 1) # $(lscpu -ap | grep -v '^#' | awk -F, '{ print $3 }' | sort -nu | wc -l)
 echo -e "CPU Sockets/Cores/Threads:\t$CPU_SOCKETS/$CPU_CORES/$CPU_THREADS"
 
 ARCHITECTURE=$(getconf LONG_BIT)
 echo -e "Architecture:\t\t\t$HOSTTYPE (${ARCHITECTURE}-bit)"
 
 MEMINFO=$(</proc/meminfo)
-TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ {print $2}')
+TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ { print $2 }')
 echo -e "Total memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM / 1024))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM * 1024) / 1000) / 1000))) MB)"
 
-TOTAL_SWAP=$(echo "$MEMINFO" | awk '/^SwapTotal:/ {print $2}')
+TOTAL_SWAP=$(echo "$MEMINFO" | awk '/^SwapTotal:/ { print $2 }')
 echo -e "Total swap space:\t\t$(printf "%'d" $((TOTAL_SWAP / 1024))) MiB ($(printf "%'d" $((((TOTAL_SWAP * 1024) / 1000) / 1000))) MB)"
 
 if command -v lspci >/dev/null; then
@@ -175,7 +176,7 @@ else
 	fi
 	cat << EOF > Makefile
 CC?=gcc
-CFLAGS=-Wall -g -O3
+CFLAGS=-fdiagnostics-color -Wall -g -O3
 OBJS=\$(patsubst ../src/%.c, %.o, \$(wildcard ../src/*.c))
 
 Mlucas: \$(OBJS)
@@ -208,7 +209,7 @@ else
 		wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 	fi
 fi
-python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade pip || true
 if command -v pip3 >/dev/null; then
 	echo -e "\nInstalling the Requests library\n"
 	pip3 install requests
@@ -382,6 +383,9 @@ for i in "${!ARGS[@]}"; do
 				# done
 			# done
 			time ./Mlucas -s m -cpu "${args[index]}" |& tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|info'
+			if [[ ! -e mlucas.cfg ]]; then
+				> mlucas.cfg
+			fi
 			mv mlucas.cfg "$file"
 		fi
 		times+=( "$(awk 'BEGIN { fact='$(( (${#CORES[*]} == 0 ? threads[j] : threads[j] / CORES[i]) * (${#threads[*]}==1 ? ${#args[*]} : ((threads[0]<threads[1] && j==0) || (threads[0]>threads[1] && j==1) ? 1 : ${#args[*]}-1)) ))'/'${#args[*]}' } /^[[:space:]]*#/ || NF<4 { next } { printf "%.15g\n", $4*fact }' "$file")" )
@@ -438,37 +442,39 @@ for i in "${!ARGS[@]}"; do
 	iters=()
 	printf "\n#%'d\tWorkers/Runs: %'d\tThreads: %s\n" $((i+1)) ${#args[*]} "${THREADS[i]// /, }"
 	echo "[$(date)]" >> bench.txt
-	for j in "${!ffts[@]}"; do
-		printf '\n\tTiming FFT length: %sK (%s)\n\n' "${ffts[j]}" "$(numfmt --from=iec --to=iec "${ffts[j]}K")"
-		radices=( ${aradices[j]} )
-		for k in "${!args[@]}"; do
-			./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" >& "${files[k]}" &
-		done
-		wait
-		grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
-		if grep -iq 'fatal' "${files[@]::${#args[*]}}"; then
-			echo
+	if [[ -n "$ffts" ]]; then
+		for j in "${!ffts[@]}"; do
+			printf '\n\tTiming FFT length: %sK (%s)\n\n' "${ffts[j]}" "$(numfmt --from=iec --to=iec "${ffts[j]}K")"
+			radices=( ${aradices[j]} )
 			for k in "${!args[@]}"; do
-				./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" -shift $RANDOM >& "${files[k]}" &
+				./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" >& "${files[k]}" &
 			done
 			wait
 			grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
-		fi
-		times=( $(sed -n 's/^Clocks = //p' "${files[@]::${#args[*]}}" | awk -F'[:.]' '{ printf "%.15g\n", (($1*60*60*1000)+($2*60*1000)+($3*1000)+$4)/1000 }') )
-		throughput=$(printf '%s\n' "${times[@]}" | awk '{ sum+=1/$1 } END { printf "%.15g\n", 1000 * sum }')
-		echo
-		{
-			printf "Timings for %sK FFT length (%'d cores, %s threads, %'d workers): " "${ffts[j]}" "$CPU_CORES" "${THREADS[i]// /, }" ${#args[*]}
-			for k in "${!times[@]}"; do
-				if (( k )); then
-					printf ', '
-				fi
-				printf "%'5.2f" "${times[k]/./$decimal_point}"
-			done
-			printf " ms.  Throughput: %'5.3f iter/sec.\n" "${throughput/./$decimal_point}"
-		} | tee -a bench.txt
-		iters+=( "$throughput" )
-	done
+			if grep -iq 'fatal' "${files[@]::${#args[*]}}"; then
+				echo
+				for k in "${!args[@]}"; do
+					./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" -shift $RANDOM >& "${files[k]}" &
+				done
+				wait
+				grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
+			fi
+			times=( $(sed -n 's/^Clocks = //p' "${files[@]::${#args[*]}}" | awk -F'[:.]' '{ printf "%.15g\n", (($1*60*60*1000)+($2*60*1000)+($3*1000)+$4)/1000 }') )
+			throughput=$(printf '%s\n' "${times[@]}" | awk '{ sum+=1/$1 } END { printf "%.15g\n", 1000 * sum }')
+			echo
+			{
+				printf "Timings for %sK FFT length (%'d cores, %s threads, %'d workers): " "${ffts[j]}" "$CPU_CORES" "${THREADS[i]// /, }" ${#args[*]}
+				for k in "${!times[@]}"; do
+					if (( k )); then
+						printf ', '
+					fi
+					printf "%'5.2f" "${times[k]/./$decimal_point}"
+				done
+				printf " ms.  Throughput: %'5.3f iter/sec.\n" "${throughput/./$decimal_point}"
+			} | tee -a bench.txt
+			iters+=( "$throughput" )
+		done
+	fi
 	ITERS+=( "$(printf '%s\n' "${iters[@]}")" )
 done
 MAX=0
@@ -478,19 +484,18 @@ for i in "${!ITERS[@]}"; do
 	if [[ $i -gt 0 ]]; then
 		mapfile -t ffts <<< "${FFTS[i]}"
 		iters=( ${ITERS[i]} )
-		mean=$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${aiters[k]}" "${iters[j]}"; break; fi; done; done | awk '{ sum+=$1/$2 } END { printf "%.15g\n", sum / NR }')
-		if (( $(echo "$mean" | awk '{ print $1<1 }') )); then
-			MAX=$i
-			affts=( "${ffts[@]}" )
-			aiters=( "${iters[@]}" )
+		if [[ -n "$ffts" ]]; then
+			mean=$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${aiters[k]}" "${iters[j]}"; break; fi; done; done | awk '{ sum+=$1/$2 } END { printf "%.15g\n", sum / NR }')
+			if (( $(echo "$mean" | awk '{ print $1<1 }') )); then
+				MAX=$i
+				affts=( "${ffts[@]}" )
+				aiters=( "${iters[@]}" )
+			fi
 		fi
 	fi
 done
 RUNS=( ${ARGS[MAX]} )
 threads=( ${THREADS[MAX]} )
-for j in "${!threads[@]}"; do
-	ln -s "mlucas.${CORES:+${CORES[MAX]}c.}${threads[j]}t.$j.cfg" "mlucas.$j.cfg"
-done
 echo -e "\nBenchmark Summary\n"
 {
 	echo -e "\tAdjusted msec/iter times (ms/iter) vs Actual iters/sec total throughput (iter/s) for each combination\n"
@@ -508,7 +513,7 @@ echo -e "\nBenchmark Summary\n"
 			printf 'ms/iter\titer/s\t'
 		done
 		echo
-		mapfile -t affts < <(printf '%s\n' "${FFTS[@]}" | sort -nu)
+		mapfile -t affts < <(printf '%s\n' "${FFTS[@]}" | sed '/^$/d' | sort -nu)
 		for k in "${!affts[@]}"; do
 			printf '%sK\t' "${affts[k]}"
 			for i in "${!ITERS[@]}"; do
@@ -546,15 +551,28 @@ if [[ ${#ARGS[*]} -gt 1 ]]; then
 				threads=( ${THREADS[i]} )
 				mapfile -t ffts <<< "${FFTS[i]}"
 				iters=( ${ITERS[i]} )
-				# join -o 1.2,2.2 <(paste <(echo "${FFTS[MAX]}") <(echo "${ITERS[MAX]}")) <(paste <(echo "${FFTS[i]}") <(echo "${ITERS[i]}"))
-				array=( $(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${aiters[k]}" "${iters[j]}"; break; fi; done; done | awk '{ sum+=$1/$2; sumsq+=($1/$2)^2 } END { mean=sum/NR; variance=sumsq/NR-mean^2; printf "%.15g\t%.15g\t%.15g\n", mean, sqrt(variance<0 ? 0 : variance), (mean * 100) - 100 }') )
-				printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i+1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${args[-1]}"; fi)"
+				if [[ -n "$ffts" ]]; then
+					# join -o 1.2,2.2 <(paste <(echo "${FFTS[MAX]}") <(echo "${ITERS[MAX]}")) <(paste <(echo "${FFTS[i]}") <(echo "${ITERS[i]}"))
+					array=( $(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${aiters[k]}" "${iters[j]}"; break; fi; done; done | awk '{ sum+=$1/$2; sumsq+=($1/$2)^2 } END { mean=sum/NR; variance=sumsq/NR-mean^2; printf "%.15g\t%.15g\t%.15g\n", mean, sqrt(variance<0 ? 0 : variance), (mean * 100) - 100 }') )
+					printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i+1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${args[-1]}"; fi)"
+				else
+					printf -- "-\t%'d\t%'d\t%s\t%s\n" $((i+1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${args[-1]}"; fi)"
+				fi
 			fi
 		done
 	} | column -t -s $'\t'
 fi
 echo
 echo "The benchmark data was written to the 'bench.txt' file"
+if [[ -n "$COMBO" ]]; then
+	printf "\nUsing combination: %'d\n" $((COMBO+1))
+	RUNS=( ${ARGS[COMBO]} )
+	threads=( ${THREADS[COMBO]} )
+	MAX=$COMBO
+fi
+for j in "${!threads[@]}"; do
+	ln -s "mlucas.${CORES:+${CORES[MAX]}c.}${threads[j]}t.$j.cfg" "mlucas.$j.cfg"
+done
 echo -e "\nRegistering computer with PrimeNet\n"
 python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')

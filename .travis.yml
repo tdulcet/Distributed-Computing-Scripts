@@ -15,7 +15,7 @@ matrix:
     - sed -i '/^python3 / s/^/# /' cudalucas.sh
     - sed -i '/^crontab / s/^/# /' cudalucas.sh
     script:
-    - bash -e -- cudalucas.sh ANONYMOUS
+    - bash -e -o pipefail -- cudalucas.sh ANONYMOUS
     - cd cudalucas && cppcheck --enable=all *.cu *.c *.h
   - name: "Mlucas (Intel, gcc)"
     language: c
@@ -48,7 +48,7 @@ before_script:
     - sed -i '/^[[:blank:]]*pip3 / s/^/# /' mlucas.sh
     - sed -i '/^python3 / s/^/# /' mlucas.sh
 script:
-    - bash -e -- mlucas.sh ANONYMOUS
+    - bash -e -o pipefail -- mlucas.sh ANONYMOUS
 after_script:
     - bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
 

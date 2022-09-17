@@ -51,7 +51,7 @@ fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
 MEMINFO=$(</proc/meminfo)
-TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ {print $2}')
+TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ { print $2 }')
 echo -e "\nTotal memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM / 1024))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM * 1024) / 1000) / 1000))) MB)\n"
 
 if [[ -d "$DIR" && -x "$DIR/mprime" ]]; then

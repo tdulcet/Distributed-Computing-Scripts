@@ -128,7 +128,7 @@ else
 		wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 	fi
 fi
-python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade pip || true
 if command -v pip3 >/dev/null; then
 	echo -e "\nInstalling the Requests library\n"
 	pip3 install requests

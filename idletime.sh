@@ -32,5 +32,5 @@ getSecondsAsDigitalClock() {
 	echo "$text"
 }
 
-IDLETIME=$(awk '{print int($2)}' /proc/uptime)
+IDLETIME=$(awk '{ print int($2) }' /proc/uptime)
 echo -e "System idle time for all processor (CPU) threads since the last boot:\t$(getSecondsAsDigitalClock "$IDLETIME")\n"
