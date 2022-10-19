@@ -176,7 +176,7 @@ else
 	fi
 	cat << EOF > Makefile
 CC?=gcc
-CFLAGS=-fdiagnostics-color -Wall -g -O3
+CFLAGS=-fdiagnostics-color -Wall -g -O3 # -flto
 OBJS=\$(patsubst ../src/%.c, %.o, \$(wildcard ../src/*.c))
 
 Mlucas: \$(OBJS)
@@ -451,7 +451,7 @@ for i in "${!ARGS[@]}"; do
 			done
 			wait
 			grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
-			if grep -iq 'fatal' "${files[@]::${#args[*]}}"; then
+			if grep -iq 'fatal\|halt' "${files[@]::${#args[*]}}"; then
 				echo
 				for k in "${!args[@]}"; do
 					./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]}==1 || (threads[0]<threads[1] && k==0) || (threads[0]>threads[1] && k<${#args[*]}-1) ? 0 : 1]}" -cpu "${args[k]}" -shift $RANDOM >& "${files[k]}" &

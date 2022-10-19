@@ -62,6 +62,10 @@ if ! command -v nvcc >/dev/null; then
 	sudo apt-get update -y
 	sudo apt-get install nvidia-cuda-toolkit -y
 fi
+if [[ -n "$CC" ]] && ! command -v "$CC" >/dev/null; then
+	echo "Error: $CC is not installed." >&2
+	exit 1
+fi
 if ! command -v python3 >/dev/null; then
 	echo "Error: Python 3 is not installed." >&2
 	exit 1
@@ -85,10 +89,14 @@ else
 	echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
 fi
 echo -e "\nSetting up CUDALucas\n"
-# sed -i 's/\r//g' Makefile
+sed -i 's/\r//g' Makefile
 sed -i 's/^OptLevel = 1/OptLevel = 3/' Makefile
 CUDA=$(command -v nvcc | sed 's/\/bin\/nvcc$//')
 sed -i "s/^CUDA = \/usr\/local\/cuda/CUDA = ${CUDA//\//\\/}/" Makefile
+sed -i 's/--compiler-options=-Wall/--compiler-options="-O$(OptLevel) -flto -Wall"/' Makefile
+CC=$(command -v "${CC:-gcc}")
+# sed -i "/^CUFLAGS / s/\$/ -ccbin ${CC//\//\\/}/" Makefile # -dlto
+sed -i '/^CFLAGS / s/$/ -flto/' Makefile
 # sed -i '/^LDFLAGS / s/$/ -lstdc++/' Makefile
 
 # Adapted from: https://stackoverflow.com/a/37757606
@@ -103,13 +111,13 @@ int main()
 		return 1;
 	}
 	const int v = prop.major * 10 + prop.minor;
-	printf("--generate-code arch=compute_%d,code=sm_%d\n", v, v);
+	printf("-gencode arch=compute_%d,code=sm_%d\n", v, v);
 	return 0;
 }
 EOF
 
 trap 'rm /tmp/cudaComputeVersion.cu /tmp/cudaComputeVersion' EXIT
-nvcc /tmp/cudaComputeVersion.cu -O3 --compiler-options=-Wall -o /tmp/cudaComputeVersion
+nvcc /tmp/cudaComputeVersion.cu -O3 --compiler-options='-O3 -Wall' -o /tmp/cudaComputeVersion
 if ! COMPUTE=$(/tmp/cudaComputeVersion); then
 	echo "$COMPUTE"
 	echo "Error: CUDA compute capability not found" >&2
