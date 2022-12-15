@@ -41,22 +41,24 @@ Additionally, a user may only assign a GPU runtime to up to two notebooks at a t
 (This usage limit, the GPU runtime limit, and other usage limits are increased if one purchases a [Colab Pro or Colab Pro+](https://colab.research.google.com/signup) plan.)
 
 ## GPUs Offered
-Google Colab runs exclusively on Nvidia GPUs where the specific model assigned to you depends on availability.
+Google Colab provides Nvidia GPUs where the specific model assigned to you depends on availability.
 The most [powerful GPU](https://www.mersenne.ca/cudalucas.php) currently offered is the `NVIDIA A100-SXM4-40GB`.
 
-The other possible GPUs that may be assigned are listed below:
+The possible GPUs that may be assigned are listed below:
 
-```
-Tesla V100-SXM2-16GB
-Tesla P100-PCIE-16GB
-Tesla K80
-Tesla T4
-Tesla P4
-```
+GPU | Speed (MHz) | CUDA cores | GPU Memory (GiB) | Single precision/F32 (TFLOPS) | Double precision/F64 (TFLOPS)
+--- | ---: | ---: | ---: | ---: | ---:
+Tesla P4 | 810 - 1063 | 2560 | 8 | 4.15 - 5.44 | 0.129 - 0.17
+Tesla T4 | 585 - 1590 | 2560 | 16 | 8.1 | 0.254
+Tesla K80 | 560 - 875 | 2496 | 12 | 2.8 - 4.37 | 0.932 - 1.46
+Tesla P100-PCIE-16GB | 1126 - 1303 | 3584 | 16 | 8.07 - 9.34 | 4.04 - 4.67
+Tesla V100-SXM2-16GB | 1455 | 5120 | 16 | 14.8 | 7.45
+NVIDIA A100-SXM4-40GB | 765 - 1410 | 6912 | 40 | 19.5 | 9.7
+
 See the [gpu_optimizations](gpu_optimizations) directory for more information about each GPU, including the ms/iter speeds for CUDALucas at different FFT lengths.
 
 Though each GPU works well and will complete most assignments in a matter of days, one may use the following method to attain a new GPU:
-`Runtime → Factory reset runtime → YES`. After repeating 1-3 times, Google will usually assign a new GPU.
+“Runtime” → “Factory reset runtime” → “YES”. After repeating 1-3 times, Google will usually assign a new GPU.
 
 ## Acknowledgements
 We acknowledge the following projects, which enabled and encouraged us to create these notebooks:

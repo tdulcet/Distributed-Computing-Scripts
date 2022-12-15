@@ -76,7 +76,7 @@ Options:
   -l LOCALFILE, --localfile=LOCALFILE
                         Local configuration file filename, Default:
                         “local.ini”
-  --archive_proofs=PROOFARCHIVEDIR
+  --archive-proofs=PROOFARCHIVEDIR
                         Directory to archive PRP proof files after upload,
                         Default: none
   -u USERNAME, --username=USERNAME
@@ -99,31 +99,31 @@ Options:
                         factoring), 155 (double-check using PRP with proof),
                         160 (first time Mersenne cofactors PRP), 161 (double-
                         check Mersenne cofactors PRP)
-  --min_exp=GETMINEXPONENT
+  --min-exp=GETMINEXPONENT
                         Minimum exponent to get from PrimeNet (2 -
                         999,999,999)
-  --max_exp=GETMAXEXPONENT
+  --max-exp=GETMAXEXPONENT
                         Maximum exponent to get from PrimeNet (2 -
                         999,999,999)
   -g, --gpuowl          Get assignments for a GPU (GpuOwl) instead of the CPU
                         (Mlucas).
   --cudalucas=CUDALUCAS
                         Get assignments for a GPU (CUDALucas) instead of the
-                        CPU (Mlucas). This option takes as an argument the
-                        CUDALucas output filename.
-  --num_workers=WORKERTHREADS
+                        CPU (Mlucas). Provide the CUDALucas output filename as
+                        the argument.
+  --num-workers=WORKERTHREADS
                         Number of worker threads (CPU Cores/GPUs), Default: 1
-  -c CPU, --cpu_num=CPU
+  -c CPU, --cpu-num=CPU
                         CPU core or GPU number to get assignments for,
                         Default: 0
-  -n NUM_CACHE, --num_cache=NUM_CACHE
+  -n NUM_CACHE, --num-cache=NUM_CACHE
                         Number of assignments to cache, Default: 0
                         (automatically set to 1 when doing manual testing)
-  -W DAYSOFWORK, --days_work=DAYSOFWORK
+  -W DAYSOFWORK, --days-work=DAYSOFWORK
                         Days of work to queue (1-90 days), Default: 3.0 days.
                         Adds one to num_cache when the time left for the
                         current assignment is less then this number of days.
-  --no_report_100m      Do not report any prime results for exponents greater
+  --no-report-100m      Do not report any prime results for exponents greater
                         than 100 million digits. You must setup another method
                         to notify yourself.
   -t TIMEOUT, --timeout=TIMEOUT
@@ -133,18 +133,18 @@ Options:
                         to upload. Use 0 for a single update without looping.
   -s, --status          Output a status report and any expected completion
                         dates for all assignments and exit.
-  --upload_proofs       Report assignment results, upload all PRP proofs and
+  --upload-proofs       Report assignment results, upload all PRP proofs and
                         exit. Requires PrimeNet User ID.
-  --unreserve_all       Unreserve all assignments and exit. Quit GIMPS
+  --unreserve-all       Unreserve all assignments and exit. Quit GIMPS
                         immediately. Requires that the instance is registered
                         with PrimeNet.
-  --no_more_work        Prevent script from getting new assignments and exit.
+  --no-more-work        Prevent script from getting new assignments and exit.
                         Quit GIMPS after current work completes.
 
   Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).:
     -H COMPUTERID, --hostname=COMPUTERID
                         Optional computer name, Default: example
-    --cpu_model=CPU_MODEL
+    --cpu-model=CPU_MODEL
                         Processor (CPU) model, Default: cpu.unknown
     --features=FEATURES
                         CPU features, Default: ''

@@ -66,12 +66,9 @@ import locale
 try:
     # Python 3
     from urllib.parse import urlencode
-    from requests.exceptions import ConnectionError, HTTPError
 except ImportError:
     # Python 2
     from urllib import urlencode
-    from urllib2 import URLError as ConnectionError
-    from urllib2 import HTTPError
 
 try:
     from configparser import ConfigParser, Error as ConfigParserError
@@ -110,6 +107,7 @@ except ImportError:
 
 try:
     import requests
+    from requests.exceptions import ConnectionError, HTTPError, Timeout
 except ImportError:
     print("Installing requests as dependency")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
@@ -250,8 +248,8 @@ def program_options(guid, first_time, retry_count=0):
     # if not config.has_option("PrimeNet", "first_time"):
         # config.set("PrimeNet", "first_time", "false")
     if first_time:
-        config.set("PrimeNet", "SrvrP00", str(int(config.get(
-            "PrimeNet", "SrvrP00")) + 1 if config.has_option("PrimeNet", "SrvrP00") else 0))
+        config.set("PrimeNet", "SrvrP00", str(config.getint(
+            "PrimeNet", "SrvrP00") + 1 if config.has_option("PrimeNet", "SrvrP00") else 0))
     else:
         config.set("PrimeNet", "SrvrP00", result["od"])
 
@@ -534,9 +532,9 @@ def upload_proof(filename):
     exponent = header[4].partition("=")[2]
     logging.info("Proof file exponent is {0}".format(exponent))
     fileHash = checksum_md5(filename)
-    logging.info("MD5 of “{0}” is {1}".format(filename, fileHash))
+    logging.info("MD5 of {0} is {1}".format(repr(filename), fileHash))
     fileSize = os.path.getsize(filename)
-    logging.info("Filesize of “{0}” is {1:n}".format(filename, fileSize))
+    logging.info("Filesize of {0} is {1:n}".format(repr(filename), fileSize))
 
     while True:
         args = {"UserID": options.username,
@@ -548,22 +546,23 @@ def upload_proof(filename):
         json = r.json()
         if 'error_status' in json:
             if json['error_status'] == 409:
-                logging.error("Proof “{0}” already uploaded".format(filename))
+                logging.error(
+                    "Proof {0} already uploaded".format(repr(filename)))
                 logging.error(str(json))
                 return True
             logging.error(
-                "Unexpected error during “{0}” upload".format(filename))
+                "Unexpected error during {0} upload".format(repr(filename)))
             logging.error(str(json))
             return False
         r.raise_for_status()
         if 'URLToUse' not in json:
             logging.error(
-                "For proof “{0}”, server response missing URLToUse:".format(filename))
+                "For proof {0}, server response missing URLToUse:".format(repr(filename)))
             logging.error(str(json))
             return False
         if 'need' not in json:
             logging.error(
-                "For proof “{0}”, server response missing need list:".format(filename))
+                "For proof {0}, server response missing need list:".format(repr(filename)))
             logging.error(str(json))
             return False
 
@@ -573,7 +572,7 @@ def upload_proof(filename):
         pos, end = next((int(a), b) for a, b in json['need'].items())
         if pos > end or end >= fileSize:
             logging.error(
-                "For proof “{0}”, need list entry bad:".format(filename))
+                "For proof {0}, need list entry bad:".format(repr(filename)))
             logging.error(str(json))
             return False
 
@@ -595,29 +594,29 @@ def upload_proof(filename):
                 json = response.json()
                 if 'error_status' in json:
                     logging.error(
-                        "Unexpected error during “{0}” upload".format(filename))
+                        "Unexpected error during {0} upload".format(repr(filename)))
                     logging.error(str(json))
                     return False
                 response.raise_for_status()
                 if 'FileUploaded' in json:
                     logging.info(
-                        "Proof file “{0}” successfully uploaded".format(filename))
+                        "Proof file {0} successfully uploaded".format(repr(filename)))
                     return True
                 if 'need' not in json:
                     logging.error(
-                        "For proof “{0}”, no entries in need list:".format(filename))
+                        "For proof {0}, no entries in need list:".format(repr(filename)))
                     logging.error(str(json))
                     return False
                 start, end = next((int(a), b) for a, b in json['need'].items())
                 if start <= pos:
                     logging.error(
-                        "For proof “{0}”, sending data did not advance need list:".format(filename))
+                        "For proof {0}, sending data did not advance need list:".format(repr(filename)))
                     logging.error(str(json))
                     return False
                 pos = start
                 if pos > end or end >= fileSize:
                     logging.error(
-                        "For proof “{0}”, need list entry bad:".format(filename))
+                        "For proof {0}, need list entry bad:".format(repr(filename)))
                     logging.error(str(json))
                     return False
 
@@ -628,8 +627,8 @@ def upload_proofs(dir):
             "PrimeNet", "ProofUploads"):
         return
     proof = os.path.join(dir, 'proof')
-    if not os.path.isdir(proof):
-        logging.debug("Proof directory “{0}” does not exist".format(proof))
+    if not os.path.exists(proof) or not os.path.isdir(proof):
+        logging.debug("Proof directory {0} does not exist".format(repr(proof)))
         return
     entries = os.listdir(proof)
     if not entries:
@@ -637,7 +636,7 @@ def upload_proofs(dir):
         return
     if options.ProofArchiveDir:
         archive = os.path.join(dir, options.ProofArchiveDir)
-        if not os.path.isdir(archive):
+        if not os.path.exists(archive):
             os.makedirs(archive)
     for entry in entries:
         if entry.endswith(".proof"):
@@ -678,8 +677,8 @@ def output_status(dirs):
         msec_per_iter = p = None
         if config.has_option("PrimeNet", "msec_per_iter") and config.has_option(
                 "PrimeNet", "exponent"):
-            msec_per_iter = float(config.get("PrimeNet", "msec_per_iter"))
-            p = int(config.get("PrimeNet", "exponent"))
+            msec_per_iter = config.getfloat("PrimeNet", "msec_per_iter")
+            p = config.getint("PrimeNet", "exponent")
         cur_time_left = 0
         mersennes = True
         now = datetime.now()
@@ -885,9 +884,9 @@ def primenet_fetch(cpu, num_to_get):
     #  160						PRP on Mersenne cofactors
     #  161						PRP double-checks on Mersenne cofactors
 
-    try:
-        # Get assignment (Loarer's way)
-        if options.password:
+    # Get assignment (Loarer's way)
+    if options.password:
+        try:
             assignment = OrderedDict((
                 ("cores", options.WorkerThreads),
                 ("num_to_get", num_to_get),
@@ -897,10 +896,8 @@ def primenet_fetch(cpu, num_to_get):
                 ("B1", "Get Assignments")
             ))
             logging.debug("Fetching using manual assignments")
-            r = s.post(
-                primenet_baseurl +
-                "manual_assignment/?",
-                data=assignment)
+            r = s.post(primenet_baseurl +
+                       "manual_assignment/", data=assignment)
             r.raise_for_status()
             res = r.text
             BEGIN_MARK = "<!--BEGIN_ASSIGNMENTS_BLOCK-->"
@@ -910,23 +907,26 @@ def primenet_fetch(cpu, num_to_get):
                 end = res.find("<!--END_ASSIGNMENTS_BLOCK-->", begin)
                 if end >= 0:
                     return res[begin:end].splitlines()
-            return greplike(workpattern, (line.decode(
-                'utf-8') for line in r.iter_lines()))
+            return greplike(workpattern, (line.decode('utf-8')
+                            for line in r.iter_lines()))
+        except HTTPError:
+            logging.exception("")
+            return []
+        except ConnectionError:
+            logging.exception("URL open error at primenet_fetch")
+            return []
 
-        # Get assignment using v5 API
-        else:
-            tests = []
-            for _ in range(num_to_get):
-                test = get_assignment(cpu)
-                if test:
-                    tests.append(test)
-                else:
-                    break
+    # Get assignment using v5 API
+    else:
+        tests = []
+        for _ in range(num_to_get):
+            test = get_assignment(cpu)
+            if test:
+                tests.append(test)
+            else:
+                break
 
-            return tests
-    except ConnectionError:
-        logging.exception("URL open error at primenet_fetch")
-        return []
+        return tests
 
 
 def get_assignments(dir, cpu, progress):
@@ -956,29 +956,29 @@ def get_assignments(dir, cpu, progress):
     num_to_get = num_cache - length
 
     if num_to_get <= 0:
-        logging.debug("{0:n} ≥ {1:n} entries already in “{2}”, not getting new work".format(
-            length, num_cache, workfile))
+        logging.debug("{0:n} ≥ {1:n} entries already in {2}, not getting new work".format(
+            length, num_cache, repr(workfile)))
         return 0
-    logging.debug("Found {0:n} < {1:n} entries in “{2}”, getting {3:n} new assignment{4}".format(
-        length, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""))
+    logging.debug("Found {0:n} < {1:n} entries in {2}, getting {3:n} new assignment{4}".format(
+        length, num_cache, repr(workfile), num_to_get, "s" if num_to_get > 1 else ""))
 
     new_tasks = primenet_fetch(cpu, num_to_get)
     num_fetched = len(new_tasks)
-    if num_fetched > 0:
+    if num_fetched:
         logging.debug("Fetched {0:n} assignment{1}:".format(
             num_fetched, "s" if num_fetched > 1 else ""))
         for i, new_task in enumerate(new_tasks):
             assignment = parse_assignment(workfile, new_task)
             if not assignment:
-                logging.error("Invalid assignment '{0}'".format(new_task))
+                logging.error("Invalid assignment {0}".format(repr(new_task)))
             else:
                 if assignment.work_type == primenet_api.WORK_TYPE_PRP and not assignment.prp_dblchk and int(
                         options.WorkPreference) in option_dict:
                     logging.debug(
-                        "Original assignment: '{0}'".format(new_task))
+                        "Original assignment: {0}".format(repr(new_task)))
                     new_tasks[i] = "Test=" + ",".join(
                         [str(j) for j in [assignment.uid, assignment.n, int(assignment.sieve_depth), int(not assignment.tests_saved)]])
-                logging.debug("New assignment: '{0}'".format(new_tasks[i]))
+                logging.debug("New assignment: {0}".format(repr(new_tasks[i])))
     write_list_file(workfile, new_tasks, "a")
     output_status([dir])
     if num_fetched < num_to_get:
@@ -1002,7 +1002,7 @@ def parse_stat_file(dir, p):
     # Mlucas
     statfile = os.path.join(dir, 'p' + str(p) + '.stat')
     if not os.path.exists(statfile):
-        logging.debug("stat file “{0}” does not exist".format(statfile))
+        logging.debug("stat file {0} does not exist".format(repr(statfile)))
         return 0, None, None, 0, 0
 
     w = readonly_list_file(statfile)  # appended line by line, no lock needed
@@ -1096,9 +1096,18 @@ def send_request(guid, args):
             args["sh"] = "ABCDABCDABCDABCDABCDABCDABCDABCD"
         else:
             secure_v5_url(guid, args)
+        # logging.debug("URL: " + str(args))
         r = s.get(primenet_v5_burl, params=args, timeout=180)
         r.raise_for_status()
         result = parse_v5_resp(r.text)
+        # logging.debug("RESPONSE:\n" + str(result))
+        if "pnErrorResult" not in result:
+            logging.error(
+                "PnErrorResult value missing.  Full response was:\n" + str(result))
+            return None
+        if "pnErrorDetail" not in result:
+            logging.error("PnErrorDetail string missing")
+            return None
         rc = int(result["pnErrorResult"])
         if rc:
             if rc in errors:
@@ -1112,6 +1121,9 @@ def send_request(guid, args):
                 logging.info("PrimeNet success code with additional info:")
                 logging.info(result["pnErrorDetail"])
 
+    except Timeout as e:
+        logging.exception("")
+        return None
     except HTTPError as e:
         logging.exception("ERROR receiving answer to request: " + r.url)
         return None
@@ -1187,7 +1199,7 @@ def register_instance(guid):
     # if options_counter == 1:
     # program_options(guid, False)
     program_options(guid, True)
-    if options_counter > int(config.get("PrimeNet", "SrvrP00")):
+    if options_counter > config.getint("PrimeNet", "SrvrP00"):
         program_options(guid, False)
     merge_config_and_options(config, options)
     config_write(config)
@@ -1204,8 +1216,8 @@ def register_instance(guid):
         options.CpuNumHyperthreads))
     logging.info("CPU frequency/speed: {0:n} MHz".format(options.CpuSpeed))
     logging.info("Total RAM: {0:n} MiB".format(options.memory))
-    logging.info("To change these values, please rerun the script with different options or edit the “{0}” file".format(
-        options.localfile))
+    logging.info("To change these values, please rerun the script with different options or edit the {0} file".format(
+        repr(options.localfile)))
     logging.info("You can see the result in this page:")
     logging.info(
         "https://www.mersenne.org/editcpu/?g={guid}".format(guid=guid))
@@ -1220,7 +1232,7 @@ def config_read():
     try:
         config.read([localfile])
     except ConfigParserError as e:
-        logging.exception("ERROR reading “{0}” file:".format(localfile))
+        logging.exception("ERROR reading {0} file:".format(repr(localfile)))
     if not config.has_section("PrimeNet"):
         # Create the section to avoid having to test for it later
         config.add_section("PrimeNet")
@@ -1275,8 +1287,8 @@ def merge_config_and_options(config, options):
                                        or config.get("PrimeNet", attr) != str(attr_val)):
             # If an option is given (even default value) and it is not already
             # identical in local.ini, update local.ini
-            logging.debug("update “{0}” with {1}={2}".format(
-                options.localfile, attr, repr(attr_val)))
+            logging.debug("update {0} with {1}={2}".format(
+                repr(options.localfile), attr, attr_val))
             config.set("PrimeNet", attr, str(attr_val))
             updated = True
 
@@ -1334,8 +1346,8 @@ def update_progress_all(dir, cpu):
         config.set("PrimeNet", "exponent", str(p))
     elif config.has_option("PrimeNet", "msec_per_iter") and config.has_option("PrimeNet", "exponent"):
         # If not speed available, get it from the local.ini file
-        msec_per_iter = float(config.get("PrimeNet", "msec_per_iter"))
-        p = int(config.get("PrimeNet", "exponent"))
+        msec_per_iter = config.getfloat("PrimeNet", "msec_per_iter")
+        p = config.getint("PrimeNet", "exponent")
     # Do the other assignment accumulating the time_lefts
     cur_time_left = None if msec_per_iter is None else 0
     percent, cur_time_left = update_progress(
@@ -1376,7 +1388,7 @@ def parse_assignment(workfile, task):
     found = workpattern.search(task)
     if not found:
         logging.error(
-            "Unable to extract valid PrimeNet assignment ID from entry in “{0}” file: {1}".format(workfile, task))
+            "Unable to extract valid PrimeNet assignment ID from entry in {0} file: {1}".format(repr(workfile), task))
         return None
     # logging.debug(task)
     work_type = found.group(1)  # e.g., "Test"
@@ -1400,7 +1412,7 @@ def parse_assignment(workfile, task):
     idx = 1 if work_type == "Test" or work_type == "DoubleCheck" else 3
     if length <= idx:
         logging.error(
-            "Unable to extract valid exponent substring from entry in “{0}” file: {1}".format(workfile, task))
+            "Unable to extract valid exponent substring from entry in {0} file: {1}".format(repr(workfile), task))
         return None
     # Extract the subfield containing the exponent, whose position depends on
     # the assignment type:
@@ -1460,11 +1472,11 @@ def parse_assignment(workfile, task):
     if k == 1.0 and b == 2 and not is_prime(
             n) and c == -1 and work_type != primenet_api.WORK_TYPE_PMINUS1:
         logging.error(
-            "“{0}” file contained composite exponent: {1}.".format(workfile, n))
+            "{0} file contained composite exponent: {1}.".format(repr(workfile), n))
         return None
     if work_type == primenet_api.WORK_TYPE_PMINUS1 and B1 < 50000:
         logging.error(
-            "“{0}” file has P-1 with B1 < 50000 (exponent: {1}).".format(workfile, n))
+            "{0} file has P-1 with B1 < 50000 (exponent: {1}).".format(repr(workfile), n))
         return None
     # return Assignment(work_type, assignment_uid, k, b, n, c, sieve_depth,
     # pminus1ed, B1, B2, tests_saved, prp_base, prp_residue_type,
@@ -1479,7 +1491,7 @@ def parse_stat_file_cuda(dir, p):
     # appended line by line, no lock needed
     gpu = os.path.join(dir, options.cudalucas)
     if not os.path.exists(gpu):
-        logging.debug("CUDALucas file “{0}” does not exist".format(gpu))
+        logging.debug("CUDALucas file {0} does not exist".format(repr(gpu)))
         return 0, None, None
 
     w = readonly_list_file(gpu)
@@ -1537,7 +1549,7 @@ def parse_stat_file_gpu(dir, p):
     # appended line by line, no lock needed
     gpuowl = os.path.join(dir, 'gpuowl.log')
     if not os.path.exists(gpuowl):
-        logging.debug("Log file “{0}” does not exist".format(gpuowl))
+        logging.debug("Log file {0} does not exist".format(repr(gpuowl)))
         return 0, None, None, 0, 0
 
     w = readonly_list_file(gpuowl)
@@ -1728,7 +1740,7 @@ def send_progress(cpu, assignment, percent, time_left, now,
     return
 
 
-def get_cuda_ar_object(dir, sendline):
+def get_cuda_ar_object(resultsfile, sendline):
     # CUDALucas
 
     # sendline example: 'M( 108928711 )C, 0x810d83b6917d846c, offset = 106008371, n = 6272K, CUDALucas v2.06, AID: 02E4F2B14BB23E2E4B95FC138FC715A8'
@@ -1738,8 +1750,8 @@ def get_cuda_ar_object(dir, sendline):
         r'^M\( ([0-9]{7,}) \)(P|C, (0x[0-9a-f]{16})), offset = ([0-9]+), n = ([0-9]{3,})K, (CUDALucas v[^\s,]+)(?:, AID: ([0-9A-F]{32}))?$')
     res = regex.search(sendline)
     if not res:
-        logging.error("Unable to parse entry in “{0}”: {1}".format(
-            os.path.join(dir, options.resultsfile), sendline))
+        logging.error("Unable to parse entry in {0}: {1}".format(
+            repr(resultsfile), sendline))
         return None
 
     if res.group(7):
@@ -1756,15 +1768,15 @@ def get_cuda_ar_object(dir, sendline):
     return ar
 
 
-def submit_one_line(dir, sendline):
+def submit_one_line(dir, resultsfile, sendline):
     """Submits a result to the server."""
     if not options.cudalucas:  # Mlucas or GpuOwl
         try:
             ar = json.loads(sendline)
             is_json = True
         except json.decoder.JSONDecodeError:
-            logging.exception("Unable to decode entry in “{0}”: {1}".format(
-                os.path.join(dir, options.resultsfile), sendline))
+            logging.exception("Unable to decode entry in {0}: {1}".format(
+                repr(resultsfile), sendline))
             # Mlucas
             if not options.gpuowl and "Program: E" in sendline:
                 logging.info("Please upgrade to Mlucas v19 or greater.")
@@ -1773,7 +1785,7 @@ def submit_one_line(dir, sendline):
                 logging.info("Please upgrade to GpuOwl v0.7 or greater.")
             is_json = False
     else:  # CUDALucas
-        ar = get_cuda_ar_object(dir, sendline)
+        ar = get_cuda_ar_object(resultsfile, sendline)
 
     guid = get_guid(config)
     if guid is not None and ar is not None and (options.cudalucas or is_json):
@@ -1893,7 +1905,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     # elif result_type == primenet_api.AR_CERT:
     if 'fft-length' in ar:
         args['fftlen'] = ar['fft-length']
-    logging.info("Sending result to server: {0}".format(sendline))
+    logging.info("Sending result to server: {0}".format(repr(sendline)))
     result = send_request(guid, args)
     if result is None:
         logging.debug(
@@ -1941,7 +1953,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
 def submit_one_line_manually(sendline):
     """Submit results using manual testing, will be attributed to "Manual Testing" in mersenne.org"""
     logging.debug("Submitting using manual results")
-    logging.info("Sending result: " + sendline)
+    logging.info("Sending result: {0}".format(repr(sendline)))
     try:
         r = s.post(
             primenet_baseurl +
@@ -1963,8 +1975,11 @@ def submit_one_line_manually(sendline):
             if begin >= 0 and end >= 0:
                 logging.info(res_str[begin:end])
         else:
-            logging.error("Submission of results line '" + sendline +
-                          "' failed for reasons unknown - please try manual resubmission.")
+            logging.error(
+                "Submission of results line {0} failed for reasons unknown - please try manual resubmission.".format(repr(sendline)))
+    except HTTPError:
+        logging.exception("")
+        return False
     except ConnectionError:
         logging.exception("URL open ERROR")
         return False
@@ -1994,10 +2009,10 @@ def submit_work(dir):
 
     length = len(results_send)
     if length == 0:
-        logging.debug("No new results in “{0}”.".format(resultsfile))
+        logging.debug("No new results in {0}.".format(repr(resultsfile)))
         return
-    logging.debug("Found {0:n} new result{1} to report in “{2}”".format(
-        length, "s" if length > 1 else "", resultsfile))
+    logging.debug("Found {0:n} new result{1} to report in {2}".format(
+        length, "s" if length > 1 else "", repr(resultsfile)))
     # EWM: Switch to one-result-line-at-a-time submission to support
     # error-message-on-submit handling:
     for sendline in results_send:
@@ -2005,7 +2020,7 @@ def submit_work(dir):
         if options.password:
             is_sent = submit_one_line_manually(sendline)
         else:
-            is_sent = submit_one_line(dir, sendline)
+            is_sent = submit_one_line(dir, resultsfile, sendline)
         if is_sent:
             sent.append(sendline)
     write_list_file(sentfile, sent, "a")
@@ -2036,7 +2051,7 @@ parser.add_option("-r", "--resultsfile", dest="resultsfile",
                   default="results.txt", help="Results File filename, Default: “%default”")
 parser.add_option("-l", "--localfile", dest="localfile", default="local.ini",
                   help="Local configuration file filename, Default: “%default”")
-parser.add_option("--archive_proofs", dest="ProofArchiveDir",
+parser.add_option("--archive-proofs", dest="ProofArchiveDir",
                   help="Directory to archive PRP proof files after upload, Default: %default")
 
 # all other options are saved to local.ini
@@ -2062,42 +2077,42 @@ parser.add_option("-T", "--worktype", dest="WorkPreference", default=str(primene
 161 (double-check Mersenne cofactors PRP)
 """
                   )
-parser.add_option("--min_exp", dest="GetMinExponent", type="int",
+parser.add_option("--min-exp", dest="GetMinExponent", type="int",
                   help="Minimum exponent to get from PrimeNet (2 - 999,999,999)")
-parser.add_option("--max_exp", dest="GetMaxExponent", type="int",
+parser.add_option("--max-exp", dest="GetMaxExponent", type="int",
                   help="Maximum exponent to get from PrimeNet (2 - 999,999,999)")
 
-parser.add_option("-g", "--gpuowl", action="store_true", dest="gpuowl", default=False,
+parser.add_option("-g", "--gpuowl", action="store_true", dest="gpuowl",
                   help="Get assignments for a GPU (GpuOwl) instead of the CPU (Mlucas).")
 parser.add_option("--cudalucas", dest="cudalucas",
-                  help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas). This option takes as an argument the CUDALucas output filename.")
-parser.add_option("--num_workers", dest="WorkerThreads", type="int", default=1,
+                  help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas). Provide the CUDALucas output filename as the argument.")
+parser.add_option("--num-workers", dest="WorkerThreads", type="int", default=1,
                   help="Number of worker threads (CPU Cores/GPUs), Default: %default")
-parser.add_option("-c", "--cpu_num", dest="cpu", type="int", default=0,
+parser.add_option("-c", "--cpu-num", dest="cpu", type="int", default=0,
                   help="CPU core or GPU number to get assignments for, Default: %default")
-parser.add_option("-n", "--num_cache", dest="num_cache", type="int", default=0,
+parser.add_option("-n", "--num-cache", dest="num_cache", type="int", default=0,
                   help="Number of assignments to cache, Default: %default (automatically set to 1 when doing manual testing)")
-parser.add_option("-W", "--days_work", dest="DaysOfWork", type="float", default=3.0,
+parser.add_option("-W", "--days-work", dest="DaysOfWork", type="float", default=3.0,
                   help="Days of work to queue (1-90 days), Default: %default days. Adds one to num_cache when the time left for the current assignment is less then this number of days.")
-parser.add_option("--no_report_100m", action="store_true", dest="no_report_100m", default=False,
+parser.add_option("--no-report-100m", action="store_true", dest="no_report_100m",
                   help="Do not report any prime results for exponents greater than 100 million digits. You must setup another method to notify yourself.")
 
 parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60 * 60,
                   help="Seconds to wait between network updates, Default: %default seconds (1 hour). Users with slower internet may want to set a larger value to give time for any PRP proofs to upload. Use 0 for a single update without looping.")
 parser.add_option("-s", "--status", action="store_true", dest="status", default=False,
                   help="Output a status report and any expected completion dates for all assignments and exit.")
-parser.add_option("--upload_proofs", action="store_true", dest="proofs", default=False,
+parser.add_option("--upload-proofs", action="store_true", dest="proofs", default=False,
                   help="Report assignment results, upload all PRP proofs and exit. Requires PrimeNet User ID.")
-parser.add_option("--unreserve_all", action="store_true", dest="unreserve_all", default=False,
+parser.add_option("--unreserve-all", action="store_true", dest="unreserve_all", default=False,
                   help="Unreserve all assignments and exit. Quit GIMPS immediately. Requires that the instance is registered with PrimeNet.")
-parser.add_option("--no_more_work", action="store_true", dest="NoMoreWork", default=False,
+parser.add_option("--no-more-work", action="store_true", dest="NoMoreWork", default=False,
                   help="Prevent script from getting new assignments and exit. Quit GIMPS after current work completes.")
 
 group = optparse.OptionGroup(parser, "Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
 group.add_option("-H", "--hostname", dest="ComputerID", default=platform.node()[:20],
                  help="Optional computer name, Default: %default")
 # TODO: add detection for most parameter, including automatic change of the hardware
-group.add_option("--cpu_model", dest="cpu_model", default=cpu_signature if cpu_signature else "cpu.unknown",
+group.add_option("--cpu-model", dest="cpu_model", default=cpu_signature if cpu_signature else "cpu.unknown",
                  help="Processor (CPU) model, Default: %default")
 group.add_option("--features", dest="features", default="",
                  help="CPU features, Default: '%default'")
@@ -2127,7 +2142,7 @@ options = optparse.Values(parser.get_default_values().__dict__)
 options._update_careful(opts_no_defaults.__dict__)
 
 logging.basicConfig(level=max(logging.INFO - (options.debug * 10), 0), format='%(filename)s: ' + (
-    '%(funcName)s:\t' if options.debug > 0 else '') + '[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s')
+    '%(funcName)s:\t' if options.debug > 1 else '') + '[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s')
 
 workdir = os.path.expanduser(options.workdir)
 dirs = [os.path.join(workdir, dir)
@@ -2212,7 +2227,7 @@ if worktype in option_dict:
 
 # write back local.ini if necessary
 if config_updated:
-    logging.debug("write " + options.localfile)
+    logging.debug("write {0}".format(repr(options.localfile)))
     config_write(config)
 
 # if guid already exist, recover it, this way, one can (re)register to change
@@ -2285,6 +2300,8 @@ while True:
             else:
                 primenet_login = True
         except HTTPError as e:
+            logging.exception("Login failed.")
+        except ConnectionError as e:
             logging.exception("Login failed.")
 
     for i, dir in enumerate(dirs):
