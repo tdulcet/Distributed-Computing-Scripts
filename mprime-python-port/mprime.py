@@ -14,8 +14,8 @@ import hashlib  # sha256
 import time
 
 DIR = "mprime"
-FILE = "p95v308b16.linux64.tar.gz"
-SUM = "9fa9b30dd175be287d3a3f4b85139d02d4e64aa2dad88324abd4fdfcbbfe10d4"
+FILE = "p95v308b17.linux64.tar.gz"
+SUM = "5180c3843d2b5a7c7de4aa5393c13171b0e0709e377c01ca44154608f498bec7"
 
 
 def regex_check(reg, var, err):
@@ -47,11 +47,9 @@ def sha256sum(filename):
     The hash sum string in hexidecimal digits
     '''
     h = hashlib.sha256()
-    b = bytearray(128 * 1024)
-    mv = memoryview(b)
-    with open(filename, 'rb', buffering=0) as f:
-        for n in iter(lambda: f.readinto(mv), 0):
-            h.update(mv[:n])
+    with open(filename, 'rb') as f:
+        for chunk in iter(lambda: f.read(128 * h.block_size), b''):
+            h.update(chunk)
     return h.hexdigest()
 
 
@@ -96,8 +94,8 @@ os.chdir(DIR)
 os.environ["DIR"] = os.getcwd()
 
 print("\nDownloading Prime95\n")
-wget.download('https://www.mersenne.org/ftp_root/gimps/' + FILE)
 misc_check(sha256sum(FILE).lower() == SUM, "Error: sha256sum does not match. Please run \"rm -r " + DIR + "\" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
+wget.download('https://www.mersenne.org/download/software/v30/30.8/' + FILE)
 
 print("\nDecompressing the files")
 subprocess.run(['tar', '-xzvf', FILE])

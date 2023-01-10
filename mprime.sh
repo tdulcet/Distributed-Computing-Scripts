@@ -7,8 +7,8 @@
 # ./mprime.sh ANONYMOUS
 
 DIR="mprime"
-FILE="p95v308b16.linux64.tar.gz"
-SUM="9fa9b30dd175be287d3a3f4b85139d02d4e64aa2dad88324abd4fdfcbbfe10d4"
+FILE="p95v308b17.linux64.tar.gz"
+SUM="5180c3843d2b5a7c7de4aa5393c13171b0e0709e377c01ca44154608f498bec7"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -59,7 +59,7 @@ fi
 cd "$DIR"
 DIR=$PWD
 echo -e "Downloading Prime95\n"
-wget https://www.mersenne.org/ftp_root/gimps/$FILE
+wget https://www.mersenne.org/download/software/v30/30.8/$FILE
 if [[ "$(sha256sum $FILE | head -c 64)" != "$SUM" ]]; then
 	echo "Error: sha256sum does not match" >&2
 	echo "Please run \"rm -r ${DIR@Q}\" make sure you are using the latest version of this script and try running it again" >&2

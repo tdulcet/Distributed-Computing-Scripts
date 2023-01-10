@@ -347,7 +347,7 @@ primenet_v5_burl = "http://v5.mersenne.org/v5server/"
 TRANSACTION_API_VERSION = 0.95
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
-    {"name": "Prime95", "version": "30.8", "build": 16},
+    {"name": "Prime95", "version": "30.8", "build": 17},
     {"name": "Mlucas", "version": "20.1.1"},
     {"name": "GpuOwl", "version": "7.2"},
     {"name": "CUDALucas", "version": "2.06"}]
@@ -1100,10 +1100,10 @@ def send_request(guid, args):
         r = s.get(primenet_v5_burl, params=args, timeout=180)
         r.raise_for_status()
         result = parse_v5_resp(r.text)
-        # logging.debug("RESPONSE:\n" + str(result))
+        # logging.debug("RESPONSE:\n" + r.text)
         if "pnErrorResult" not in result:
             logging.error(
-                "PnErrorResult value missing.  Full response was:\n" + str(result))
+                "PnErrorResult value missing.  Full response was:\n" + r.text)
             return None
         if "pnErrorDetail" not in result:
             logging.error("PnErrorDetail string missing")
@@ -1955,11 +1955,8 @@ def submit_one_line_manually(sendline):
     logging.debug("Submitting using manual results")
     logging.info("Sending result: {0}".format(repr(sendline)))
     try:
-        r = s.post(
-            primenet_baseurl +
-            "manual_result/default.php",
-            data={
-                "data": sendline})
+        r = s.post(primenet_baseurl + "manual_result/default.php",
+                   data={"data": sendline})
         r.raise_for_status()
         res_str = r.text
         if "Error code" in res_str:

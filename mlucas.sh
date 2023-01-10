@@ -574,17 +574,24 @@ for j in "${!threads[@]}"; do
 	ln -s "mlucas.${CORES:+${CORES[MAX]}c.}${threads[j]}t.$j.cfg" "mlucas.$j.cfg"
 done
 echo -e "\nRegistering computer with PrimeNet\n"
-python3 ../primenet.py -d -t 0 -T "$TYPE" -u "$USERID" --num_workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
+python3 ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
+args=()
+for i in "${!RUNS[@]}"; do
+	dir="run$i"
+	mkdir "$dir"
+	pushd "$dir" >/dev/null
+	ln -s ../mlucas.$((${#threads[*]}==1 || (threads[0]<threads[1] && i==0) || (threads[0]>threads[1] && i<${#RUNS[*]}-1) ? 0 : 1)).cfg mlucas.cfg
+	ln -s ../local.ini .
+	args+=( -D "$dir" )
+	popd >/dev/null
+done
+echo -e "\nStarting PrimeNet\n"
+nohup python3 ../primenet.py -t 21600 "${args[@]}" >> "primenet.out" &
+sleep ${#RUNS[*]}
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" $((i+1)) "${RUNS[i]}"
-	mkdir "run$i"
 	pushd "run$i" >/dev/null
-	ln -s ../mlucas.$((${#threads[*]}==1 || (threads[0]<threads[1] && i==0) || (threads[0]>threads[1] && i<${#RUNS[*]}-1) ? 0 : 1)).cfg mlucas.cfg
-	echo -e "\tStarting PrimeNet\n"
-	ln -s ../local.ini .
-	nohup python3 ../../primenet.py -d -t 21600 -c "$i" >> "primenet.out" &
-	sleep 1
 	echo -e "\n\tStarting Mlucas\n"
 	nohup nice ../Mlucas -cpu "${RUNS[i]}" -maxalloc "$maxalloc" &
 	sleep 1
@@ -602,12 +609,14 @@ set -e
 
 pgrep -x Mlucas >/dev/null || {
 echo -e "\nStarting Mlucas\n"
+set -x
 $(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -cpu '${RUNS[i]}' -maxalloc $maxalloc &) "; done)
 }
 
-pgrep -f '^python3 \.\./\.\./primenet\.py' >/dev/null || {
+pgrep -f '^python3 \.\./primenet\.py' >/dev/null || {
 echo -e "\nStarting PrimeNet\n"
-$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup python3 ../../primenet.py -d -t 21600 -c $i >> 'primenet.out' &) "; done)
+set -x
+exec nohup python3 ../primenet.py -t 21600 ${args[@]} >> 'primenet.out' &
 }
 EOF
 chmod +x jobs.sh
