@@ -27,6 +27,7 @@ jobs:
         sed -i '/^nohup / s/^/# /' cudalucas.sh
         sed -i '/^python3 / s/^/# /' cudalucas.sh
         sed -i '/^crontab / s/^/# /' cudalucas.sh
+        gcc --version
     - name: Script
       run: bash -e -o pipefail -- cudalucas.sh ANONYMOUS
     - uses: actions/upload-artifact@v3
@@ -37,6 +38,8 @@ jobs:
           cudalucas/
     - name: ShellCheck
       run: bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
+    - name: Clang-Tidy
+      run: cd cudalucas && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-const-correctness,misc-redundant-expression,misc-unused-*,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-anyofallof' -header-filter='.*' *.c *.cu -- -Wall -O3 --cuda-gpu-arch=sm_35
 
   Mlucas:
     name: Mlucas
@@ -72,6 +75,14 @@ jobs:
         make clean
         echo -e '## GCC analyzer\n```' >> $GITHUB_STEP_SUMMARY
         grep 'warning:' analyzer.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+    - name: Clang-Tidy
+      if: ${{ matrix.cc == 'clang' }}
+      run: |
+        set -x
+        cd mlucas_v*/obj/ && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-const-correctness,misc-redundant-expression,misc-unused-*,modernize-*,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-anyofallof' -header-filter='.*' ../src/*.c -- -Wall -O3 -march=native -DUSE_THREADS |& tee clang-tidy.log
+        echo -e '## Clang-Tidy\n```' >> $GITHUB_STEP_SUMMARY
+        grep 'warning:' clang-tidy.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
     - uses: actions/upload-artifact@v3
       if: always()

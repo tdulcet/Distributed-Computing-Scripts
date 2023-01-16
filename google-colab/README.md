@@ -17,7 +17,7 @@ Each notebook makes use of Google Drive storage, which is provided to all Google
 
 2. **If Running the GPU** notebook, you must enable the GPU runtime. On the upper left, click “Runtime” → “Change runtime type”, under “Hardware accelerator” select “GPU” and click “SAVE”.
 
-3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes can use several GiB of your Drive storage. The `prp_proof_power` defaults to 8 for Prime95. Every lower value will halve Drive storage requirements for PRP tests, but double the certification cost. Set the highest `prp_proof_power` value that you have available Drive storage for (see the [Prime95 README](https://www.mersenne.org/download/#download) for the space needed for several proof powers and exponents).
+3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes can use several GiB of your Drive storage. Every lower value will halve Drive storage requirements for PRP tests, but double the certification cost. Set the highest `prp_proof_power` value that you have available Drive storage for (see below for the space needed for several proof powers and exponents).
 
 4. **Click** “▶️” to run the notebook.
 
@@ -35,6 +35,54 @@ A user may optionally perform other steps to gain more insight into GIMPS and/or
 
 ## Required Tools, Restrictions
 Anyone with an internet connection and a free Google/Gmail account with just [~50 MiB of free space](https://www.google.com/settings/storage) on Google Drive can use both our notebooks to “crunch” primes.
+
+Drive storage (GiB) needed to store the proof interim residues file during each PRP test:
+
+Proof Power | Exp 50M | Exp 100M | Exp 150M | Exp 200M | Exp 250M | Exp 300M | Exp 332.1M (100M digits) | Exp 1,000M (PrimeNet limit)
+--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---:
+5 | 0.186 | 0.372 | 0.558 | 0.745 | 0.931 | 1.117 | 1.237 | **3.725**
+6 | 0.372 | 0.745 | 1.117 | 1.49 | 1.862 | 2.235 | 2.475 | 7.45
+7 | 0.745 | 1.49 | 2.235 | **2.98** | **3.725** | **4.47** | **4.95** | 14.9
+8 | 1.49^ | **2.98**^ | **4.47**^ | 5.96^ | 7.45^ | 8.94^ | 9.9^ | 29.8^
+9 | ***2.98*** | *5.96* | 8.94 | 11.9 | 14.9 | 17.88 | 19.8 | 59.6
+10 | 5.96 | 11.92 | *17.88* | *23.84* | *29.8* | *35.76* | *39.6* | 119.2
+11 | 11.92 | 23.84 | 35.76 | 47.68 | 59.6 | 71.52 | 79.2 | *238.4*
+12 | 23.84 | 47.68 | 71.52 | 95.36 | 119.2 | 143 | 158.4 | 476.8
+
+Drive storage (MiB) needed to generate proof file at the end of each PRP test:
+
+Proof Power | Proof Power Multiplier | Certification Cost | Exp 50M | Exp 100M | Exp 150M | Exp 200M | Exp 250M | Exp 300M | Exp 332.1M | Exp 1,000M
+--- | --- |  --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---:
+5 | 1 | 1⁄32 | 35.76 | 71.52 | 107.2 | 143 | 178.8 | 214.5| 237.6 | 715.2
+- | 2 | 1⁄64 | 71.52 | 143 | 214.5 | 286.1 | 357.6 | 429.1 | 475.2 | 1430
+- | 3 | 1⁄128 | 107.2 | 214.5 | 321.8 | 429.1 | 536.4 | 643.7 | 712.8 | **2145**
+- | 4 | 1⁄256 | 143 | 286.1 | 429.1 | 572.2 | 715.2 | 858.3 | 950.4 | 2861
+6 | 1 | 1⁄64 | 41.72 | 83.44 | 125.1 | 166.8 | 208.6 | 250.3 | 277.2 | 834.4
+- | 2 | 1⁄128 | 83.44 | 166.8 | 250.3 | 333.7 | 417.2 | 500.6 | 554.4 | 1668
+- | 3 | 1⁄256 | 125.1 | 250.3 | 375.5 | 500.6 | 625.8 | 751 | 831.6 | 2503
+- | 4 | 1⁄512 | 166.8 | 333.7 | 500.6 | 667.5 | 834.4 | 1001 | 1108 | 3337
+7 | 1 | 1⁄128 | 47.68 | 95.36 | 143 | 190.7 | 238.4 | 286.1 | 316.8 | 953.6
+- | 2 | 1⁄256 | 95.36 | 190.7 | 286.1 | **381.4** | **476.8** | **572.2** | **633** | 1907
+- | 3 | 1⁄512 | 143 | 286.1 | 429.1 | 572.2 | 715.2 | 858.3 | 950 | 2861
+- | 4 | 1⁄1024 | 190.7 | 381.4 | 572.2 | 762.9 | 953.6 | 1144 | 1267 | 3814
+8 | 1 | 1⁄256 | 53.6^ | **107.2**^ | **160.9**^ | 214.5^ | 268.2^ | 321.8^ | 356.4^ | 1072^
+- | 2 | 1⁄512 | 107.2 | 214.5 | 321.8 | 429.1 | 536.4 | 643.7 | 712.8 | 2145
+- | 3 | 1⁄1024 | 160.9 | 321.8 | 482.7 | 643.7 | 804.6 | 965.5 | 1069 | 3218
+- | 4 | 1⁄2048 | 214.5 | 429.1 | 643.7 | 858.3 | 1072.8 | 1287 | 1425 | 4291
+9 | 1 | 1⁄512 | ***59.6*** | *119.2* | 178.8 | 238.4 | 298 | 357.6 | 396 | 1192
+- | 2 | 1⁄1024 | 119.2 | 238.4 | 357.6 | 476.8 | 596 | 715.2 | 792 | 2384
+- | 3 | 1⁄2048 | 178.8 | 357.6 | 536.4 | 715.2 | 894 | 1072 | 1188 | 3576
+- | 4 | 1⁄4096 | 238.4 | 476.8 | 715.2 | 953.6 | 1192 | 1430 | 19.8 | 4768
+10 | 1 | 1⁄1024 | 65.56 | 131.1 | *196.6* | *262.2* | *327.82* | *393.3* | *1584* | 1311
+- | 2 | 1⁄2048 | 131.1 | 262.2 | 393.3 | 524.5 | 655.6 | 786.7 | 435.6 | 2622
+- | 3 | 1⁄4096 | 196.6 | 393.3 | 590 | 786.7 | 983.4 | 1180 | 871.2 | 3933
+11 | 1 | 1⁄2048 | 71.52 | 143 | 214.5 | 286.1 | 357.6 | 429.1 | 1742 | *1430*
+- | 2 | 1⁄4096 | 143 | 286.1 | 429.1 | 572.2 | 715.2 | 858.3 | 475.2 | 2861
+12 | 1 | 1⁄4096 | 77.48 | 154.9 | 232.4 | 309.9 | 387.4 | 464.9 | 514.8 | 1549
+
+**Bold** - Prime95 default proof power and multiplier, uses a maximum of 6 GB (5.587 GiB) per exponent\
+*Italic* - Optimal proof power, 9 for exponents above 26.6M, 10 above 106.5M and 11 above 414.2M\
+^ GpuOwl default proof power, uses 8 for all exponents
 
 Please note, though the [resource limits](https://research.google.com/colaboratory/faq.html#resource-limits) are at times variable, generally the free version of Colab imposes a 12-hour usage limit per notebook. 
 Additionally, a user may only assign a GPU runtime to up to two notebooks at a time whereas one may run an unknown upper-bound of notebooks with the CPU runtime enabled. 

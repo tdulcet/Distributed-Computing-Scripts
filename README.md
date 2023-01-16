@@ -123,6 +123,14 @@ Options:
                         Days of work to queue (1-90 days), Default: 3.0 days.
                         Adds one to num_cache when the time left for the
                         current assignment is less then this number of days.
+  --force-pminus1=TESTS_SAVED
+                        Force P-1 factoring before LL/PRP tests and/or change
+                        the default PrimeNet PRP tests_saved value.
+  --pminus1-threshold=PM1_THRESHOLD
+                        Redo the P-1 factoring before LL/PRP tests only if the
+                        existing P-1 bounds are less than the recommended
+                        bounds (as listed on mersenne.ca) times this
+                        threshold. Requires the --force-pminus1 option.
   --no-report-100m      Do not report any prime results for exponents greater
                         than 100 million digits. You must setup another method
                         to notify yourself.

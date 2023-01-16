@@ -94,8 +94,8 @@ os.chdir(DIR)
 os.environ["DIR"] = os.getcwd()
 
 print("\nDownloading Prime95\n")
-misc_check(sha256sum(FILE).lower() == SUM, "Error: sha256sum does not match. Please run \"rm -r " + DIR + "\" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
 wget.download('https://www.mersenne.org/download/software/v30/30.8/' + FILE)
+misc_check(sha256sum(FILE).lower() == SUM, "Error: sha256sum does not match. Please run \"rm -r " + repr(DIR) + "\" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
 
 print("\nDecompressing the files")
 subprocess.run(['tar', '-xzvf', FILE])
