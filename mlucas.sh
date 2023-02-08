@@ -88,9 +88,9 @@ sleep 1
 
 CPU_FREQS=( $(sed -n 's/^cpu MHz[[:blank:]]*: *//p' /proc/cpuinfo) )
 if [[ -z "$CPU_FREQS" ]]; then
-	for file in /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq; do
+	for file in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq; do
 		if [[ -r "$file" ]]; then
-			CPU_FREQS=( $(awk '{ printf "%g\n", $1 / 1000 }' /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq) )
+			CPU_FREQS=( $(awk '{ printf "%g\n", $1 / 1000 }' /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq) )
 		fi
 		break
 	done
@@ -208,13 +208,17 @@ else
 	else
 		wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 	fi
+	chmod +x primenet.py
 fi
+# python3 -m ensurepip --default-pip || true
 python3 -m pip install --upgrade pip || true
-if command -v pip3 >/dev/null; then
-	echo -e "\nInstalling the Requests library\n"
-	pip3 install requests
-else
-	echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
+echo -e "\nInstalling the Requests library\n"
+if ! python3 -m pip install requests; then
+	if command -v pip3 >/dev/null; then
+		pip3 install requests
+	else
+		echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
+	fi
 fi
 cd obj
 DIR=$PWD
@@ -424,6 +428,7 @@ done
 	# fi
 # done
 files=()
+trap 'rm "${files[@]}"' EXIT
 for ((i=0; i<CPU_CORES; ++i)); do
 	if [[ -d /dev/shm ]]; then
 		file=$(mktemp -p /dev/shm)
@@ -432,7 +437,6 @@ for ((i=0; i<CPU_CORES; ++i)); do
 	fi
 	files+=( "$file" )
 done
-trap 'rm "${files[@]}"' EXIT
 ITERS=()
 for i in "${!ARGS[@]}"; do
 	args=( ${ARGS[i]} )

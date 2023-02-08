@@ -39,6 +39,14 @@ This script follows the recommended instructions on the [Mlucas README](https://
 wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
+### GpuOwl
+
+Downloads, builds, sets up and runs both the latest version of [GpuOwl](https://github.com/preda/gpuowl) for PRP tests, version 7.2-112 for PRP tests with combined P-1 and the [v6 branch](https://github.com/preda/gpuowl/tree/v6) for LL and standalone P-1 tests. Downloads, sets up and runs our [PrimeNet Python script](#primenet) for automated PrimeNet assignments. Creates wrapper script to run the correct version of GpuOwl based on the next assignment. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that [GpuOwl uses C++20](https://github.com/preda/gpuowl#build) and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
+
+```
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
+```
+
 ### PrimeNet
 
 Automatically gets assignments, reports assignment results and optionally progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. Supports both Python 2 and 3 and Windows, macOS and Linux. Requires the [Requests library](https://requests.readthedocs.io/en/master/), which is included with many Python 3 installations. The script will automatically install Requests on first run if it is not already installed. GIMPS [discontinued first time LL assignments](https://mersenneforum.org/showthread.php?t=26682) in April 2021, although the script [still supports them](https://mersenneforum.org/showthread.php?p=575260#post575260) for users of CUDALucas or with limited disk space. Our [GpuOwl](#gpuowl), [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by [Loïc Le Loarer](https://github.com/llloic11/primenet) and Ernst W. Mayer, which itself was adapted from primetools by [Mark Rose](https://github.com/MarkRose/primetools) and [teknohog](https://github.com/teknohog/primetools).
@@ -127,8 +135,8 @@ Options:
                         Force P-1 factoring before LL/PRP tests and/or change
                         the default PrimeNet PRP tests_saved value.
   --pminus1-threshold=PM1_THRESHOLD
-                        Redo the P-1 factoring before LL/PRP tests only if the
-                        existing P-1 bounds are less than the recommended
+                        Retry the P-1 factoring before LL/PRP tests only if
+                        the existing P-1 bounds are less than the target
                         bounds (as listed on mersenne.ca) times this
                         threshold. Requires the --force-pminus1 option.
   --no-report-100m      Do not report any prime results for exponents greater
@@ -190,6 +198,12 @@ wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime2
 wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas2.sh -qO - | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 ```
 
+#### GpuOwl
+
+```
+wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl2.sh -qO - | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+```
+
 ## BOINC
 
 Downloads, installs and sets up [BOINC](https://boinc.berkeley.edu/download.php).
@@ -240,7 +254,6 @@ PrimeNet script:
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 
 General:
-* Create install script for the [GpuOwl](https://github.com/preda/gpuowl) GIMPS program
 * Update install scripts to support CLI options
 * Add options for setting the maximum CPU time
 * Update CUDALucas to support PRP tests and the Jacobi error check for LL tests

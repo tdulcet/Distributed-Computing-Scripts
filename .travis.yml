@@ -17,6 +17,32 @@ matrix:
     script:
     - bash -e -o pipefail -- cudalucas.sh ANONYMOUS
     - cd cudalucas && cppcheck --enable=all *.cu *.c *.h
+  - name: "GpuOwl"
+    os: linux
+    dist: focal
+    language: c
+    compiler: gcc
+    before_script:
+    - sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
+    - sed -i '/^time \./gpuowl-bench\.sh / s/^/# /' gpuowl.sh
+    - sed -i '/^nohup / s/^/# /' gpuowl.sh
+    - sed -i '/^python3 / s/^/# /' gpuowl.sh
+    - sed -i '/^crontab / s/^/# /' gpuowl.sh
+    script:
+    - bash -e -o pipefail -- gpuowl.sh ANONYMOUS
+  - name: "GpuOwl"
+    os: linux
+    dist: focal
+    language: c
+    compiler: clang
+    before_script:
+    - sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
+    - sed -i '/^time \./gpuowl-bench\.sh / s/^/# /' gpuowl.sh
+    - sed -i '/^nohup / s/^/# /' gpuowl.sh
+    - sed -i '/^python3 / s/^/# /' gpuowl.sh
+    - sed -i '/^crontab / s/^/# /' gpuowl.sh
+    script:
+    - bash -e -- gpuowl.sh ANONYMOUS
   - name: "Mlucas (Intel, gcc)"
     language: c
     compiler: gcc

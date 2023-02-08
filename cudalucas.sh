@@ -81,12 +81,16 @@ if [[ -e ../primenet.py ]]; then
 else
 	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
 fi
+chmod +x primenet.py
+# python3 -m ensurepip --default-pip || true
 python3 -m pip install --upgrade pip || true
-if command -v pip3 >/dev/null; then
-	echo -e "\nInstalling the Requests library\n"
-	pip3 install requests
-else
-	echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
+echo -e "\nInstalling the Requests library\n"
+if ! python3 -m pip install requests; then
+	if command -v pip3 >/dev/null; then
+		pip3 install requests
+	else
+		echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
+	fi
 fi
 echo -e "\nSetting up CUDALucas\n"
 sed -i 's/\r//g' Makefile
@@ -116,7 +120,7 @@ int main()
 }
 EOF
 
-trap 'rm /tmp/cudaComputeVersion.cu /tmp/cudaComputeVersion' EXIT
+trap 'rm /tmp/cudaComputeVersion{.cu,}' EXIT
 nvcc /tmp/cudaComputeVersion.cu -O3 --compiler-options='-O3 -Wall' -o /tmp/cudaComputeVersion
 if ! COMPUTE=$(/tmp/cudaComputeVersion); then
 	echo "$COMPUTE"
