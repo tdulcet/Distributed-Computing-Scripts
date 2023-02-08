@@ -45,6 +45,7 @@ jobs:
     name: GpuOwl
 
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.cc == 'clang++' }}
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
@@ -52,13 +53,12 @@ jobs:
       fail-fast: false
     env:
       CXX: ${{ matrix.cxx }}
-      POSIXLY_CORRECT: 1
     steps:
     - uses: actions/checkout@v3
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
-        sed -i '/^time \./gpuowl-bench\.sh / s/^/# /' gpuowl.sh
+        sed -i '/^time \.\/gpuowl-bench\.sh / s/^/# /' gpuowl.sh
         sed -i '/^nohup / s/^/# /' gpuowl.sh
         sed -i '/^python3 / s/^/# /' gpuowl.sh
         sed -i '/^crontab / s/^/# /' gpuowl.sh

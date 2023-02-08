@@ -182,6 +182,7 @@ sed -i 's/"DoubleCheck"/"Test"/' Task.h
 # sed -i 's/-Wall -O2/-Wall -g -O3 -flto/' Makefile
 popd >/dev/null
 for dir in $DIR1 $DIR2 $DIR3; do
+	echo
 	pushd "$dir" >/dev/null
 	sed -i 's/-O3/-O3 -funsafe-math-optimizations -ffinite-math-only/' Makefile
 	make -j "$(nproc)"
