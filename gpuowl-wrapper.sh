@@ -116,7 +116,7 @@ if [[ -n "$TOTAL_GPU_MEM" ]]; then
 		# echo -n "$([[ $i -gt 0 ]] && echo ", ")$(printf "%'d" "${TOTAL_GPU_MEM[i]}") MiB ($(numfmt --from=iec --to=iec-i "${TOTAL_GPU_MEM[i]}M")B)"
 	# done
 	# echo
-	echo -e -n "\tGPU Memory (RAM):\t$(printf "%'d" "${TOTAL_GPU_MEM[DEVICE]}") MiB ($(numfmt --from=iec --to=iec-i "${TOTAL_GPU_MEM[DEVICE]}M")B)"
+	echo -e "\tGPU Memory (RAM):\t$(printf "%'d" "${TOTAL_GPU_MEM[DEVICE]}") MiB ($(numfmt --from=iec --to=iec-i "${TOTAL_GPU_MEM[DEVICE]}M")B)"
 fi
 if [[ -z "$maxAlloc" ]]; then
 	if [[ -n "$TOTAL_GPU_MEM" ]]; then
@@ -278,6 +278,7 @@ while true; do
 					fi
 					sleep -- "$TIME"
 				fi
+				sleep 1
 			fi
 			break
 		else

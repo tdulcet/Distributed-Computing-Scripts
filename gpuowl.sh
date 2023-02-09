@@ -107,12 +107,12 @@ if command -v git >/dev/null; then
 	sed -i 's/--dirty //' $DIR1/Makefile
 	echo
 	pushd $DIR2 >/dev/null
-	git checkout -b v7.2-112 d6ad1e0cf5a323fc4e0ee67e79884448a503a818
+	git checkout -f -b v7.2-112 d6ad1e0cf5a323fc4e0ee67e79884448a503a818
 	sed -i 's/--dirty //' Makefile
 	popd >/dev/null
 	echo
 	pushd $DIR3 >/dev/null
-	git checkout v6
+	git checkout -f v6
 	sed -i 's/--dirty //' Makefile
 	popd >/dev/null
 else
