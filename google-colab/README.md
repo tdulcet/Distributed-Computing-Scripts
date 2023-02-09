@@ -1,9 +1,9 @@
 # Google Colaboratory and GIMPS
 Google offers a service known as [Colaboratory](https://research.google.com/colaboratory/faq.html) (Colab), which allows anyone with an internet connection free access to high-performance TPU, GPU and CPU-powered [Jupyter Notebooks](https://en.wikipedia.org/wiki/Project_Jupyter#Jupyter_Notebook).
 This service can be used to run Distributed Computing projects such as the [Great Internet Mersenne Prime Search](https://www.mersenne.org/) (GIMPS) for free.
-GIMPS can be run on an Nvidia GPU using the [CUDALucas](https://sourceforge.net/projects/cudalucas/) program or a CPU using the [Prime95](https://www.mersenne.org/download/) program.
+GIMPS can be run on some Nvidia, AMD and Intel GPUs using the [GpuOwl](https://github.com/preda/gpuowl) program or a CPU using the [Prime95](https://www.mersenne.org/download/) program.
 
-This repository contains two Jupyter Notebooks, a “CPU” only notebook (`GoogleColabCPU.ipynb`) and a “GPU and CPU” notebook (`GoogleColabGPU.ipynb`). The “CPU” only notebook runs `Prime95`, while the “GPU and CPU” notebook runs both `CUDALucas` and `Prime95` since they can run simultaneously to “crunch” more prime numbers.
+This repository contains two Jupyter Notebooks, a “CPU” only notebook (`GoogleColabCPU.ipynb`) and a “GPU and CPU” notebook (`GoogleColabGPU.ipynb`). The “CPU” only notebook runs `Prime95`, while the “GPU and CPU” notebook runs both `GpuOwl` and `Prime95` since they can run simultaneously to “crunch” more prime numbers. Previous versions of the GPU notebook ran `CUDALucas`.
 Each notebook makes use of Google Drive storage, which is provided to all Google accounts. See [here](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime/wiki/Usage-and-Arguments) for a “TPU” only notebook which runs `TensorPrime`.
 
 ## How to Use
@@ -31,7 +31,7 @@ A user may optionally perform other steps to gain more insight into GIMPS and/or
 
 1. Create a GIMPS/PrimeNet account [here](https://www.mersenne.org/update/) and [join](https://www.mersenne.org/jteam/) the “Portland State University” team!
 
-2. Set the `debug` option to view the last 100 lines of output and the status from the respective GIMPS program. Alternatively, you may access the `cpu1.out`…`cpuN.out`, `gpu1.out`…`gpuN.out`, and `primenet1.out`…`primenetN.out` files, where `N` is the `computer_number` value, in your Google Drive under the `GIMPS` and `mprime_gpu`/`mprime_cpu` or `cudalucas` folders to see the full Prime95 and/or CUDALucas output respectively.
+2. Set the `debug` option to view the last 100 lines of output and the status from the respective GIMPS program. Alternatively, you may access the `cpu1.out`…`cpuN.out`, `1/gpu.out`…`N/gpu.out`, and `1/primenet.out`…`N/primenet.out` files, where `N` is the `computer_number` value, in your Google Drive under the `GIMPS` and `mprime_gpu`/`mprime_cpu` or `gpuowl` folders to see the full Prime95 and/or GpuOwl output respectively.
 
 ## Required Tools, Restrictions
 Anyone with an internet connection and a free Google/Gmail account with just [~50 MiB of free space](https://www.google.com/settings/storage) on Google Drive can use both our notebooks to “crunch” primes.

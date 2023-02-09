@@ -21,11 +21,22 @@ DIR3="gpuowl-6"
 # GpuOwl arguments
 
 # 1. Current version of GpuOwl (master branch)
-ARGS1=( -unsafeMath )
+ARGS1=(
+# -mprimeDir ../mprime
+-unsafeMath
+
+)
 # 2. GpuOwl v7.2-112
-ARGS2=( -unsafeMath )
+ARGS2=(
+-unsafeMath
+
+)
 # 3. GpuOwl v6.11 (v6 branch)
-ARGS3=( -cleanup -log 10000 )
+ARGS3=(
+-cleanup
+-log 10000
+
+)
 
 # GpuOwl version to use for each worktype
 

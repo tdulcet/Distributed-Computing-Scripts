@@ -45,7 +45,7 @@ jobs:
     name: GpuOwl
 
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.cc == 'clang++' }}
+    continue-on-error: ${{ matrix.cxx == 'clang++' && matrix.os == 'ubuntu-22.04' }}
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]

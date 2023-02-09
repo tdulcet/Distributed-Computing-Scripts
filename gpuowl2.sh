@@ -251,14 +251,14 @@ if [[ -e ../../gpuowl-wrapper.sh ]]; then
 else
 	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-wrapper.sh -nv
 fi
-mv -v gpuowl-wrapper{.sh,}
-sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl-wrapper
-sed -i "s/gpuowl-/..\/gpuowl-/" gpuowl-wrapper
-chmod +x gpuowl-wrapper
+mv -v gpuowl{-wrapper.sh,}
+sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl
+sed -i "s/gpuowl-/..\/gpuowl-/" gpuowl
+chmod +x gpuowl
 echo -e "\nStarting GpuOwl\n"
-nohup ./gpuowl-wrapper >> "gpuowl.out" &
+nohup ./gpuowl >> "gpuowl.out" &
 sleep 1
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "cd ${DIR@Q} && nohup ./gpuowl-wrapper >> 'gpuowl.out' &"; } | crontab -
+#crontab -l | { cat; echo "cd ${DIR@Q} && nohup ./gpuowl >> 'gpuowl.out' &"; } | crontab -
 #crontab -l | { cat; echo "cd ${DIR@Q} && nohup python3 ../primenet.py >> 'primenet.out' &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x gpuowl-wrapper >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl-wrapper >> 'gpuowl.out' &); pgrep -f '^python3 \.\./primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 ../primenet.py >> 'primenet.out' &); else pgrep -x gpuowl-wrapper >/dev/null && killall -g -INT gpuowl-wrapper; fi"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl >> 'gpuowl.out' &); pgrep -f '^python3 \.\./primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 ../primenet.py >> 'primenet.out' &); else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi"; } | crontab -
