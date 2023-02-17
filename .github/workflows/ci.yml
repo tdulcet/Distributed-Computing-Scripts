@@ -126,3 +126,61 @@ jobs:
     - name: ShellCheck
       run: bash -c 'shopt -s globstar; shellcheck -s bash **/*.sh || true'
 
+  Linux:
+    name: PrimeNet Linux
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+    - name: Script
+      run: |
+        set -x
+        wget https://raw.github.com/tdulcet/Linux-System-Information/master/info.sh -qO - | bash -s --
+        python -X dev primenet.py --help
+
+  macOS:
+    name: PrimeNet macOS
+
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install requests
+        pip3 install requests
+    - name: Script
+      run: |
+        set -x
+        sysctl -n machdep.cpu.brand_string
+        sysctl -n hw.physicalcpu_max hw.logicalcpu_max
+        sysctl -n hw.cpufrequency_max
+        sysctl -n hw.memsize
+        python primenet.py --help
+        python3 -X dev primenet.py --help
+
+  Windows:
+    name: PrimeNet Windows
+
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+    - name: Script
+      run: |
+        wmic cpu get name
+        wmic cpu get NumberOfCores,NumberOfLogicalProcessors
+        wmic cpu get MaxClockSpeed
+        wmic memphysical get MaxCapacity
+        python -X dev primenet.py --help

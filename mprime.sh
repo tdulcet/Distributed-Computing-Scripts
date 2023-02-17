@@ -79,7 +79,7 @@ fi
 sed -i '/^expect {/a \\t"stage 2 memory in GB (*):" { sleep 1; send -- "'"$(echo "$TOTAL_PHYSICAL_MEM" | awk '{ printf "%g", ($1 * 0.8) / 1024 / 1024 }')"'\\r"; exp_continue }' mprime.exp
 expect mprime.exp -- "$USERID" "$COMPUTER" "$TYPE"
 echo -e "\nStarting Prime95\n"
-nohup ./mprime &
+nohup ./mprime -d >> "mprime.out" &
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "cd ${DIR@Q} && nohup ./mprime &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime &); else pgrep -x mprime >/dev/null && killall mprime; fi"; } | crontab -
+#crontab -l | { cat; echo "cd ${DIR@Q} && nohup ./mprime -d >> 'mprime.out' &"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -d >> 'mprime.out' &); else pgrep -x mprime >/dev/null && killall mprime; fi"; } | crontab -

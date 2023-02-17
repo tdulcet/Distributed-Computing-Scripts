@@ -41,7 +41,7 @@ wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.
 
 ### GpuOwl
 
-Downloads, builds, sets up and runs both the latest version of [GpuOwl](https://github.com/preda/gpuowl) for PRP tests, version 7.2-112 for PRP tests with combined P-1 and the [v6 branch](https://github.com/preda/gpuowl/tree/v6) for LL and standalone P-1 tests. Downloads, sets up and runs our [PrimeNet Python script](#primenet) for automated PrimeNet assignments. Creates wrapper script to run the correct version of GpuOwl based on the next assignment. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that [GpuOwl uses C++20](https://github.com/preda/gpuowl#build) and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
+Downloads, builds, sets up and runs the latest version of [GpuOwl](https://github.com/preda/gpuowl) for PRP tests, version 7.2-112 for PRP tests with combined P-1 and the [v6 branch](https://github.com/preda/gpuowl/tree/v6) for LL and standalone P-1 tests. Downloads, sets up and runs our [PrimeNet Python script](#primenet) for automated PrimeNet assignments. Creates wrapper script to run the correct version of GpuOwl based on the next assignment. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that [GpuOwl uses C++20](https://github.com/preda/gpuowl#build) and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
 
 ```
 wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
@@ -134,11 +134,12 @@ Options:
   --force-pminus1=TESTS_SAVED
                         Force P-1 factoring before LL/PRP tests and/or change
                         the default PrimeNet PRP tests_saved value.
-  --pminus1-threshold=PM1_THRESHOLD
+  --pminus1-threshold=PM1_MULTIPLIER
                         Retry the P-1 factoring before LL/PRP tests only if
                         the existing P-1 bounds are less than the target
                         bounds (as listed on mersenne.ca) times this
-                        threshold. Requires the --force-pminus1 option.
+                        threshold/multiplier. Requires the --force-pminus1
+                        option.
   --no-report-100m      Do not report any prime results for exponents greater
                         than 100 million digits. You must setup another method
                         to notify yourself.
@@ -167,8 +168,11 @@ Options:
     --frequency=CPUSPEED
                         CPU frequency/speed (MHz), Default: 1000 MHz
     -m MEMORY, --memory=MEMORY
-                        Total memory (RAM) (MiB), Default: 0 MiB. Required for
-                        P-1 assignments.
+                        Total physical memory (RAM) (MiB), Default: 1024 MiB
+    --max-memory=MEMORY
+                        Configured day/night P-1 stage 2 memory (MiB),
+                        Default: 921 MiB (90% of physical memory). Required
+                        for P-1 assignments.
     --L1=L1             L1 Cache size (KiB), Default: 8 KiB
     --L2=L2             L2 Cache size (KiB), Default: 512 KiB
     --L3=L3             L3 Cache size (KiB), Default: 0 KiB

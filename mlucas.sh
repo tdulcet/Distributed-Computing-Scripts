@@ -614,7 +614,7 @@ set -e
 pgrep -x Mlucas >/dev/null || {
 echo -e "\nStarting Mlucas\n"
 set -x
-$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -cpu '${RUNS[i]}' -maxalloc $maxalloc &) "; done)
+$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -cpu '${RUNS[i]}' -maxalloc $maxalloc >> 'Mlucas.out' &) "; done)
 }
 
 pgrep -f '^python3 \.\./primenet\.py' >/dev/null || {

@@ -60,6 +60,9 @@ aResultsFile="results.txt"
 # Limit GpuOwl GPU memory usage (MiB)
 # maxAlloc=1024
 
+# Maximum PRP proof power
+PROOF_POWER=8
+
 # Device number
 DEVICE=0
 
@@ -94,11 +97,13 @@ workpattern='^(Test|DoubleCheck|PRP(DC)?|P[Ff]actor|Cert)=((([[:xdigit:]]{32})|[
 
 ARGS+=( "$@" )
 
+echo
+
 if command -v lspci >/dev/null; then
 	mapfile -t GPU < <(lspci 2>/dev/null | grep -i 'vga\|3d\|2d' | sed -n 's/^.*: //p')
 fi
 if [[ -n "$GPU" ]]; then
-	echo -e "\nGraphics Processor (GPU):\t${GPU[0]}$([[ ${#GPU[*]} -gt 1 ]] && printf '\n\t\t\t\t%s' "${GPU[@]:1}")"
+	echo -e "Graphics Processor (GPU):\t${GPU[0]}$([[ ${#GPU[*]} -gt 1 ]] && printf '\n\t\t\t\t%s' "${GPU[@]:1}")"
 	# echo -e "Graphics Processor (GPU):\t${GPU[DEVICE]}"
 fi
 
@@ -263,8 +268,18 @@ while true; do
 			esac
 			dir="DIR$temp"
 			args="ARGS${temp}[@]"
+			args=( "${!args}" "${ARGS[@]}" )
+			if [[ -n "$PROOF_POWER" ]]; then
+				proof_power=$PROOF_POWER
+				# Best proof powers adapted from Prime95/MPrime
+				best_power=$(( n > 414200000 ? 11 : n > 106500000 ? 10 : n > 26600000 ? 9 : n > 6700000 ? 8 : n > 1700000 ? 7 : n > 420000 ? 6 : n > 105000 ? 5 : 0 ))
+				if [[ $proof_power -gt $best_power ]]; then
+					proof_power=$best_power
+				fi
+				args+=( -proof "$proof_power" )
+			fi
 			echo -e "with GpuOwl $(<${!dir}/version.inc).\n"
-			gpuowl=(nice "./${!dir}/gpuowl" "${!args}" "${ARGS[@]}")
+			gpuowl=(nice "./${!dir}/gpuowl" "${args[@]}")
 			if [[ -z "$RESTART" ]]; then
 				exec "${gpuowl[@]}"
 			else

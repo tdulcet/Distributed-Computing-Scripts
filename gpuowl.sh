@@ -177,8 +177,13 @@ if ! python3 -m pip install requests; then
 fi
 echo -e "\nSetting up GpuOwl\n"
 echo "-user $USERID -cpu ${COMPUTER//[[:space:]]/_}" > config.txt
+sed -i 's/power <= 10/power <= 12/' {"$DIR1","$DIR2"}/Proof.cpp
+sed -i 's/power > 10/power > 12/' {"$DIR1","$DIR2"}/Args.cpp
 pushd $DIR3 >/dev/null
 sed -i 's/"DoubleCheck"/"Test"/' Task.h
+sed -i 's/power >= 6 && power <= 10/power > 0 and power <= 12/' ProofSet.h
+sed -i 's/proofPow >= 6 && proofPow <= 10/proofPow > 0 and proofPow <= 12/' Args.cpp
+sed -i 's/< 6 || power > 10/< 1 || power > 12/' Args.cpp
 # sed -i 's/-Wall -O2/-Wall -g -O3 -flto/' Makefile
 popd >/dev/null
 for dir in $DIR1 $DIR2 $DIR3; do
@@ -216,7 +221,7 @@ elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=( -m "${TOTAL_GPU_MEM[DEVICE]}" )
 	fi
 fi
-python3 primenet.py -t 0 -T "$TYPE" -u "$USERID" -r "results.ini" -g -H "$COMPUTER" "${ARGS[@]}"
+python3 primenet.py -t 0 -T "$TYPE" -u "$USERID" -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting PrimeNet\n"
 nohup python3 primenet.py >> "primenet.out" &
 sleep 1
