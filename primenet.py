@@ -343,7 +343,7 @@ def get_cpu_model():
         output = check_output("wmic cpu get name").splitlines()[2].rstrip()
     elif system == "Darwin":
         os.environ['PATH'] += os.pathsep + '/usr/sbin'
-        output = check_output("sysctl -n machdep.cpu.brand_string").rstrip()
+        output = check_output(['sysctl', '-n', 'machdep.cpu.brand_string']).rstrip()
     elif system == "Linux":
         with open('/proc/cpuinfo', 'r') as f:
             for line in f:
@@ -364,7 +364,7 @@ def get_cpu_cores_threads():
             "wmic cpu get NumberOfCores,NumberOfLogicalProcessors").splitlines()[2].split()
     elif system == "Darwin":
         os.environ['PATH'] += os.pathsep + '/usr/sbin'
-        cores, threads = check_output("sysctl -n hw.physicalcpu_max hw.logicalcpu_max").splitlines()
+        cores, threads = check_output(['sysctl', '-n', 'hw.physicalcpu_max', 'hw.logicalcpu_max']).splitlines()
     elif system == "Linux":
         acores = set()
         # athreads = set()
@@ -395,7 +395,7 @@ def get_cpu_frequency():
             output = int(output)
     elif system == "Darwin":
         os.environ['PATH'] += os.pathsep + '/usr/sbin'
-        output = check_output("sysctl -n hw.cpufrequency_max").rstrip()
+        output = check_output(['sysctl', '-n', 'hw.cpufrequency_max']).rstrip()
         if output:
             output = int(output) // 1000 // 1000
     elif system == "Linux":
@@ -407,7 +407,7 @@ def get_cpu_frequency():
         if freqs:
             freq = set(freqs)
             if len(freq) == 1:
-                output = freq.pop()
+                output = int(freq.pop())
     return output
 
 
@@ -422,7 +422,7 @@ def get_physical_memory():
             output = int(output) // 1024
     elif system == "Darwin":
         os.environ['PATH'] += os.pathsep + '/usr/sbin'
-        output = check_output("sysctl -n hw.memsize").rstrip()
+        output = check_output(['sysctl', '-n', 'hw.memsize']).rstrip()
         if output:
             output = int(output) // 1024 // 1024
     elif system == "Linux":
