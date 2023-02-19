@@ -149,7 +149,7 @@ while true; do
 	date
 
 	if [[ -r "$aResultsFile" ]] && mapfile -t aresults < "$aResultsFile" && [[ ${#aresults[*]} -gt 0 ]]; then
-		printf "Found %'d new result(s) in '%s'. Moving to '%s'.\n" ${#aresults[*]} "$aResultsFile" "$ResultsFile"
+		printf "Found %'d new result(s) in %s. Moving to %s.\n" ${#aresults[*]} "${aResultsFile@Q}" "${ResultsFile@Q}"
 		for result in "${aresults[@]}"; do
 			if echo "$result" | grep -q 'gpuowl'; then
 				if [[ -r "$WorkFile" ]] && mapfile -t worktodo < "$WorkFile" && [[ ${#worktodo[*]} -gt 0 ]]; then
@@ -206,15 +206,15 @@ while true; do
 
 	if ! [[ -r "$aWorkFile" ]] || ! mapfile -t aworktodo < "$aWorkFile" || ! [[ ${#aworktodo[*]} -gt 0 ]]; then
 		if [[ -r "$WorkFile" ]] && mapfile -t worktodo < "$WorkFile" && [[ ${#worktodo[*]} -gt 0 ]]; then
-			printf "Found %'d work to do(s) in the '%s' file. Copying the first one to '%s'.\n" ${#worktodo[*]} "$WorkFile" "$aWorkFile"
+			printf "Found %'d work to do(s) in the %s file. Copying the first one to %s.\n" ${#worktodo[*]} "${WorkFile@Q}" "${aWorkFile@Q}"
 			printf '%s\n' "${worktodo[0]}" >> "$aWorkFile"
 			mapfile -t aworktodo < "$aWorkFile"
 		else
-			echo "Error: No work to do. Please run the PrimeNet script or manually add some work to the '$WorkFile' file." >&2
+			echo "Error: No work to do. Please run the PrimeNet script or manually add some work to the ${WorkFile@Q} file." >&2
 			exit 1
 		fi
 	else
-		printf "Found %'d work to do(s) in the '%s' file.\n" ${#aworktodo[*]} "$aWorkFile"
+		printf "Found %'d work to do(s) in the %s file.\n" ${#aworktodo[*]} "${aWorkFile@Q}"
 	fi
 
 	for work in "${aworktodo[@]}"; do
