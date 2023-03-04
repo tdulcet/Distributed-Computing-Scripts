@@ -184,12 +184,13 @@ sed -i 's/"DoubleCheck"/"Test"/' Task.h
 sed -i 's/power >= 6 && power <= 10/power > 0 and power <= 12/' ProofSet.h
 sed -i 's/proofPow >= 6 && proofPow <= 10/proofPow > 0 and proofPow <= 12/' Args.cpp
 sed -i 's/< 6 || power > 10/< 1 || power > 12/' Args.cpp
-# sed -i 's/-Wall -O2/-Wall -g -O3 -flto/' Makefile
+# sed -i 's/-Wall -O2/-Wall -g -O3/' Makefile
 popd >/dev/null
 for dir in $DIR1 $DIR2 $DIR3; do
 	echo
 	pushd "$dir" >/dev/null
-	sed -i 's/-O3/-O3 -funsafe-math-optimizations -ffinite-math-only/' Makefile
+	# sed -i 's/-O3/-O3 -flto -funsafe-math-optimizations -ffinite-math-only/' Makefile
+	sed -i 's/-O3/-O3 -flto -ffinite-math-only/' Makefile
 	make -j "$(nproc)"
 	# make clean
 	rm -- *.o

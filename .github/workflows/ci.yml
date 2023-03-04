@@ -55,10 +55,13 @@ jobs:
       CXX: ${{ matrix.cxx }}
     steps:
     - uses: actions/checkout@v3
+    - name: Install
+      run: |
+        sudo apt-get -yqq update
+        sudo apt-get -yqq install ocl-icd-opencl-dev pocl-opencl-icd
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
-        sed -i '/^time \.\/gpuowl-bench\.sh / s/^/# /' gpuowl.sh
         sed -i '/^nohup / s/^/# /' gpuowl.sh
         sed -i '/^python3 / s/^/# /' gpuowl.sh
         sed -i '/^crontab / s/^/# /' gpuowl.sh
