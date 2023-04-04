@@ -343,7 +343,8 @@ def get_cpu_model():
         output = check_output("wmic cpu get name").splitlines()[2].rstrip()
     elif system == "Darwin":
         os.environ['PATH'] += os.pathsep + '/usr/sbin'
-        output = check_output(['sysctl', '-n', 'machdep.cpu.brand_string']).rstrip()
+        output = check_output(
+            ['sysctl', '-n', 'machdep.cpu.brand_string']).rstrip()
     elif system == "Linux":
         with open('/proc/cpuinfo', 'r') as f:
             for line in f:
@@ -364,7 +365,8 @@ def get_cpu_cores_threads():
             "wmic cpu get NumberOfCores,NumberOfLogicalProcessors").splitlines()[2].split()
     elif system == "Darwin":
         os.environ['PATH'] += os.pathsep + '/usr/sbin'
-        cores, threads = check_output(['sysctl', '-n', 'hw.physicalcpu_max', 'hw.logicalcpu_max']).splitlines()
+        cores, threads = check_output(
+            ['sysctl', '-n', 'hw.physicalcpu_max', 'hw.logicalcpu_max']).splitlines()
     elif system == "Linux":
         acores = set()
         # athreads = set()
@@ -441,7 +443,7 @@ TRANSACTION_API_VERSION = 0.95
 PROGRAMS = [
     {"name": "Prime95", "version": "30.8", "build": 17},
     {"name": "Mlucas", "version": "20.1.1"},
-    {"name": "GpuOwl", "version": "7.2"},
+    {"name": "GpuOwl", "version": "7.2.1"},
     {"name": "CUDALucas", "version": "2.06"}]
 ERROR_RATE = 0.018  # Estimated LL error rate on clean run
 # Estimated PRP error rate (assumes Gerbicz error-checking)
@@ -605,14 +607,18 @@ def is_prime(n):
     """Return True if n is a prime number, else False."""
     if n < 2:
         return False
-    if n in [2, 3]:
+    if n in [2, 3, 5]:
         return True
-    if n % 2 == 0 or n % 3 == 0:
-        return False
+    for p in [2, 3, 5]:
+        if n % p == 0:
+            return False
 
     # math.isqrt(n)
-    return not any(n % p == 0 or n % (p + 2) == 0
-                   for p in range(5, int(math.sqrt(n)) + 1, 6))
+    for p in range(7, int(math.sqrt(n)) + 1, 30):
+        for i in [0, 4, 6, 10, 12, 16, 22, 24]:
+            if n % (p + i) == 0:
+                return False
+    return True
 
 
 def header_lines(filename):
@@ -1081,8 +1087,8 @@ def rho(x):
     x = (x - 2) * 20
     pos = int(x)
 
-    return rhotab[-1] if pos + 1 >= len(rhotab) else rhotab[pos] + (x - pos) * (
-        rhotab[pos + 1] - rhotab[pos])
+    return rhotab[-1] if pos + 1 >= len(rhotab) else rhotab[pos] + (
+        x - pos) * (rhotab[pos + 1] - rhotab[pos])
 
 
 def integral(a, b, f, STEPS=20):
@@ -1186,7 +1192,7 @@ def walk(exponent, factoredTo):
     B1mult = (60 - log2(exponent)) / 10000
     B1 = nextNiceNumber(int(B1mult * exponent))
 
-    B2mult = (4 + ((log2(exponent) - 20) * 8))
+    B2mult = 4 + (log2(exponent) - 20) * 8
     B2 = nextNiceNumber(int(B1 * B2mult))
     # End of changes by James Heinrich
 
@@ -1254,13 +1260,13 @@ def get_exponent(n):
 
     except Timeout as e:
         logging.exception("")
-        return None
+        return
     except HTTPError as e:
         logging.exception("")
-        return None
+        return
     except ConnectionError as e:
         logging.exception("")
-        return None
+        return
     return json
 
 
@@ -1448,7 +1454,7 @@ def parse_stat_file(dir, p, last_time):
                     msec_per_iter *= 1000
                 list_msec_per_iter.append(msec_per_iter)
         elif s2 and s2_res:
-            s2 = int(((iteration - int(s2_res.group(1))) / (percent / 100)) / 20)
+            s2 = int((iteration - int(s2_res.group(1))) / (percent / 100) / 20)
             iteration = int(s2 * (percent / 100))
         elif fft_res and not fftlen:
             fftlen = int(fft_res.group(1))
@@ -1480,8 +1486,8 @@ def secure_v5_url(guid, args):
     k = bytearray(md5(guid.encode("utf-8")).digest())
 
     for i in range(16):
-        k[i] ^= k[(k[i] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF)) %
-                  16] ^ (_V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256)
+        k[i] ^= k[(k[i] ^ _V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ & 0xFF) %
+                  16] ^ _V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ // 256
 
     p_v5key = md5(k).hexdigest().upper()
 
@@ -1515,10 +1521,10 @@ def send_request(guid, args):
         if "pnErrorResult" not in result:
             logging.error(
                 "PnErrorResult value missing.  Full response was:\n" + r.text)
-            return None
+            return
         if "pnErrorDetail" not in result:
             logging.error("PnErrorDetail string missing")
-            return None
+            return
         rc = int(result["pnErrorResult"])
         if rc:
             if rc in errors:
@@ -1534,13 +1540,13 @@ def send_request(guid, args):
 
     except Timeout as e:
         logging.exception("")
-        return None
+        return
     except HTTPError as e:
         logging.exception("ERROR receiving answer to request: " + r.url)
-        return None
+        return
     except ConnectionError as e:
         logging.exception("ERROR connecting to server for request: ")
-        return None
+        return
     return result
 
 
@@ -1632,7 +1638,6 @@ def register_instance(guid):
     logging.info("You can see the result in this page:")
     logging.info(
         "https://www.mersenne.org/editcpu/?g={guid}".format(guid=guid))
-    return
 
 
 def config_read():
@@ -1655,7 +1660,7 @@ def get_guid(config):
     try:
         return config.get("PrimeNet", "ComputerGUID")
     except ConfigParserError:
-        return None
+        return
 
 
 def config_write(config, guid=None):
@@ -1686,7 +1691,8 @@ def merge_config_and_options(config, options):
     for attr in attr_to_copy:
         # if "attr" has its default value in options, copy it from config
         attr_val = getattr(options, attr)
-        if not hasattr(opts_no_defaults, attr) and config.has_option("PrimeNet", attr):
+        if not hasattr(opts_no_defaults, attr) and config.has_option(
+                "PrimeNet", attr):
             # If no option is given and the option exists in local.ini, take it
             # from local.ini
             if isinstance(attr_val, bool):
@@ -1939,12 +1945,12 @@ def parse_stat_file_cuda(dir, p, last_time):
             if found == 1:
                 iteration = int(iter_res[0])
                 eta = eta_res[1]
-                time_left = int(eta[3]) + (int(eta[2]) * 60)
+                time_left = int(eta[3]) + int(eta[2]) * 60
                 if eta[1]:
                     time_left += int(eta[1]) * 60 * 60
                 if eta[0]:
                     time_left += int(eta[0]) * 60 * 60 * 24
-                avg_msec_per_iter = (time_left * 1000) / (p - iteration)
+                avg_msec_per_iter = time_left * 1000 / (p - iteration)
                 fftlen = int(fft_res[0]) * 1024  # << 10
             elif int(iter_res[0]) > iteration:
                 break
@@ -2058,8 +2064,9 @@ def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
     if msec_per_iter is None:
         return percent, None, msec_per_iter
     if assignment.n != p:
-        msec_per_iter *= (assignment.n * log2(assignment.n) *
-                          log2(log2(assignment.n))) / (p * log2(p) * log2(log2(p)))
+        msec_per_iter *= assignment.n * \
+            log2(assignment.n) * log2(log2(assignment.n)) / \
+            (p * log2(p) * log2(log2(p)))
     if bits:
         time_left = msec_per_iter * (bits - iteration)
         # 1.5 suggested by EWM for Mlucas v20.0 and 1.13-1.275 for v20.1
@@ -2159,7 +2166,6 @@ def send_progress(cpu, assignment, percent, time_left, now,
     if retry:
         return send_progress(cpu, assignment, percent, time_left,
                              now, delta, fftlen, s1, s2, retry_count + 1)
-    return
 
 
 def get_cuda_ar_object(resultsfile, sendline):
@@ -2174,7 +2180,7 @@ def get_cuda_ar_object(resultsfile, sendline):
     if not res:
         logging.error("Unable to parse entry in {0!r}: {1}".format(
             resultsfile, sendline))
-        return None
+        return
 
     if res.group(7):
         ar['aid'] = res.group(7)
@@ -2240,28 +2246,6 @@ def announce_prime_to_user(exponent, worktype):
         time.sleep(1)
 
 
-def get_result_type(ar):
-    """Returns the result type for the assignment result."""
-    if ar['worktype'] == 'LL':
-        if ar['status'] == 'P':
-            return primenet.AR_LL_PRIME
-        else:  # elif ar['status'] == 'C':
-            return primenet.AR_LL_RESULT
-    elif ar['worktype'].startswith('PRP'):
-        if ar['status'] == 'P':
-            return primenet.AR_PRP_PRIME
-        else:  # elif ar['status'] == 'C':
-            return primenet.AR_PRP_RESULT
-    elif ar['worktype'] == 'PM1':
-        if ar['status'] == 'F':
-            return primenet.AR_P1_FACTOR
-        else:  # elif ar['status'] == 'NF':
-            return primenet.AR_P1_NOFACTOR
-    else:
-        raise ValueError(
-            "This is a bug in the script, Unsupported worktype {0}".format(ar['worktype']))
-
-
 def report_result(dir, sendline, guid, ar, retry_count=0):
     """Submit one result line using v5 API, will be attributed to the computed identified by guid"""
     """Return False if the submission should be retried"""
@@ -2274,12 +2258,30 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     logging.debug("Program: " + " ".join(ar['program'].values()))
     aid = ar.get('aid', 0)
     exponent = int(ar['exponent'])
-    result_type = get_result_type(ar)
+    worktype = ar['worktype']
+    if worktype == 'LL':
+        if ar['status'] == 'P':
+            result_type = primenet.AR_LL_PRIME
+        else:  # elif ar['status'] == 'C':
+            result_type = primenet.AR_LL_RESULT
+    elif worktype.startswith('PRP'):
+        if ar['status'] == 'P':
+            result_type = primenet.AR_PRP_PRIME
+        else:  # elif ar['status'] == 'C':
+            result_type = primenet.AR_PRP_RESULT
+    elif worktype == 'PM1':
+        if ar['status'] == 'F':
+            result_type = primenet.AR_P1_FACTOR
+        else:  # elif ar['status'] == 'NF':
+            result_type = primenet.AR_P1_NOFACTOR
+    else:
+        logging.error("Unsupported worktype {0}".format(worktype))
+        return False
     if result_type in [primenet.AR_LL_PRIME, primenet.AR_PRP_PRIME]:
         if not (config.has_option("PrimeNet", "SilentVictory") and config.getboolean(
                 "PrimeNet", "SilentVictory")) and not is_known_mersenne_prime(exponent):
             thread = threading.Thread(target=announce_prime_to_user, args=(
-                exponent, ar['worktype']), daemon=True)
+                exponent, worktype), daemon=True)
             thread.start()
         if options.no_report_100m and digits(exponent) >= 100000000:
             return True
@@ -2306,7 +2308,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
         args["ec"] = ar['error-code'] if 'error-code' in ar else "00000000"
         if 'known-factors' in ar:
             args['nkf'] = len(ar['known-factors'])
-        args["base"] = ar['worktype'][4:]  # worktype == PRP-base
+        args["base"] = worktype[4:]  # worktype == PRP-base
         if 'shift-count' in ar:
             args['sc'] = ar['shift-count']
         # 1 if Gerbicz error checking used in PRP test
@@ -2575,7 +2577,7 @@ if args:
 options = optparse.Values(parser.get_default_values().__dict__)
 options._update_careful(opts_no_defaults.__dict__)
 
-logging.basicConfig(level=max(logging.INFO - (options.debug * 10), 0), format='%(filename)s: ' + (
+logging.basicConfig(level=max(logging.INFO - options.debug * 10, 0), format='%(filename)s: ' + (
     '%(funcName)s:\t' if options.debug > 1 else '') + '[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s')
 
 workdir = os.path.expanduser(options.workdir)
@@ -2612,7 +2614,7 @@ config_updated = merge_config_and_options(config, options)
 # check options after merging so that if local.ini file is changed by hand,
 # values are also checked
 # TODO: check that input char are ascii or at least supported by the server
-if not (8 <= len(options.cpu_model) <= 64):
+if not 8 <= len(options.cpu_model) <= 64:
     parser.error("cpu_model must be between 8 and 64 characters")
 if options.ComputerID is not None and len(options.ComputerID) > 20:
     parser.error("ComputerID must be less than 21 characters")

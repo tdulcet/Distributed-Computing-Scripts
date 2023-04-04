@@ -164,8 +164,8 @@ else
 		fi
 	fi
 	echo -e "\nSetting up GpuOwl\n"
-	sed -i 's/power <= 10/power <= 12/' {"$DIR1","$DIR2"}/Proof.cpp
-	sed -i 's/power > 10/power > 12/' {"$DIR1","$DIR2"}/Args.cpp
+	sed -i 's/power <= 10/power <= 12/' {"$DIR1"/src,"$DIR2"}/Proof.cpp
+	sed -i 's/power > 10/power > 12/' {"$DIR1"/src,"$DIR2"}/Args.cpp
 	pushd $DIR3 >/dev/null
 	sed -i 's/"DoubleCheck"/"Test"/' Task.h
 	sed -i 's/power >= 6 && power <= 10/power > 0 and power <= 12/' ProofSet.h
@@ -183,6 +183,10 @@ else
 		rm -- *.o
 		popd >/dev/null
 	done
+	pushd $DIR1/build >/dev/null
+	rm -- *.o
+	mv -v gpuowl ..
+	popd >/dev/null
 fi
 if [[ -f "primenet.py" ]]; then
 	echo -e "The PrimeNet script is already downloaded\n"
@@ -248,8 +252,8 @@ fi
 sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl-bench.sh
 chmod +x gpuowl-bench.sh
 echo -e "\nRunning self tests\nThis may take a while…\n"
-time ./gpuowl-bench.sh ../$DIR3/gpuowl
-time ./gpuowl-bench.sh ../$DIR1/gpuowl
+time ./gpuowl-bench.sh ../$DIR3/gpuowl 10000 STATS
+time ./gpuowl-bench.sh ../$DIR1/gpuowl 20000 ROE1,ROE2
 echo "The benchmark data was written to the 'bench.txt' file"
 echo -e "\nDownloading GpuOwl wrapper script\n"
 if [[ -e ../../gpuowl-wrapper.sh ]]; then

@@ -6,8 +6,8 @@
 
 set -e
 
-if [[ $# -ne 1 ]]; then
-	echo "Usage: $0 <GpuOwl binary>" >&2
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+	echo "Usage: $0 <GpuOwl binary> [iterations] [ROE option]" >&2
 	exit 1
 fi
 
@@ -15,7 +15,7 @@ fi
 GPUOWL=$1
 
 # Number of iterations
-ITERS=10000
+ITERS=${2:-20000}
 
 # Device number
 DEVICE=0
@@ -27,11 +27,16 @@ MIN=1024
 MAX=8192
 # MAX=32768
 
+# GpuOwl -use option to show roundoff error (ROE)
+# USE=STATS
+# USE=ROE1,ROE2
+USE=${3:-ROE1,ROE2}
+
 # GpuOwl arguments
 ARGS=(
 -device $DEVICE
 # -log 10000
--use STATS
+-use "$USE"
 
 )
 
@@ -64,7 +69,13 @@ fi
 	if [[ -r "$file" ]]; then
 		cat "$file"
 	fi
-	printf 'FFT length\tVariant\tMax exp\tus/iter\tError mean / max / z\n\n'
+	printf 'FFT length\tVariant\tMax exp\tus/iter\tError '
+	if [[ "$USE" == STATS ]]; then
+		printf 'mean / max / SD / z / N'
+	else
+		printf 'max / SD / N'
+	fi
+	printf '\n\n'
 } >> bench.txt
 
 DIR=$PWD
@@ -89,7 +100,7 @@ for i in "${!MAX_EXPS[@]}"; do
 		variants=( ${VARIANTS[i]} )
 		for j in "${!variants[@]}"; do
 			printf "\n\t%'d Variant: %s\n\n" $((j+1)) "${variants[j]}"
-			"$DIR/$GPUOWL" -prp "$exp" -iters $ITERS -fft "${variants[j]}" -nospin "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|error\| E :\|exception\|exiting'
+			"$DIR/$GPUOWL" -prp "$exp" -iters $ITERS -fft "${variants[j]}" -nospin "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|ROE\|error\| E :\|exception\|exiting'
 			time=''
 			if output=$(grep '[[:digit:]]\{7,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{5,\}' gpuowl.log | grep $ITERS); then
 				RE='([[:digit:]]+) us/it'
@@ -99,7 +110,9 @@ for i in "${!MAX_EXPS[@]}"; do
 			fi
 			mean=''
 			max=''
+			stddev=''
 			z=''
+			N=''
 			if output=$(grep -i 'roundoff' gpuowl.log); then
 				output=$(echo "$output" | tail -n 1)
 				RE='mean ([[:digit:]]+(\.[[:digit:]]+)?)'
@@ -110,12 +123,36 @@ for i in "${!MAX_EXPS[@]}"; do
 				if [[ $output =~ $RE ]]; then
 					max=${BASH_REMATCH[1]}
 				fi
+				RE='SD ([[:digit:]]+(\.[[:digit:]]+)?)'
+				if [[ $output =~ $RE ]]; then
+					stddev=${BASH_REMATCH[1]}
+				fi
 				RE=' z ([[:digit:]]+(\.[[:digit:]]+)?)'
 				if [[ $output =~ $RE ]]; then
 					z=${BASH_REMATCH[1]}
 				fi
+				RE='N=([[:digit:]]+)'
+				if [[ $output =~ $RE ]]; then
+					N=${BASH_REMATCH[1]}
+				fi
+			elif output=$(grep -i 'ROE=' gpuowl.log); then
+				output=$(echo "$output" | tail -n 1)
+				RE='ROE=([[:digit:]]+(\.[[:digit:]]+)?) ([[:digit:]]+(\.[[:digit:]]+)?) ([[:digit:]]+)'
+				if [[ $output =~ $RE ]]; then
+					max=${BASH_REMATCH[1]}
+					stddev=${BASH_REMATCH[3]}
+					N=${BASH_REMATCH[5]}
+				fi
 			fi
-			printf '%s\t%s\t%s\t%s\t%s / %s / %s\n' "${FFTS[i]}" "${variants[j]}" "$exp" "${time:--}" "$mean" "$max" "$z" >> "$DIR/bench.txt"
+			{
+				printf '%s\t%s\t%s\t%s\t' "${FFTS[i]}" "${variants[j]}" "$exp" "${time:--}"
+				if [[ "$USE" == STATS ]]; then
+					printf '%s / %s / %s / %s / %s' "$mean" "$max" "$stddev" "$z" "$N"
+				else
+					printf '%s / %s / %s' "$max" "$stddev" "$N"
+				fi
+				echo
+			} >> "$DIR/bench.txt"
 			rm -rf -- "$exp" gpuowl.log
 			# sleep 1
 		done

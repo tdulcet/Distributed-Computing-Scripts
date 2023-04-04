@@ -2,7 +2,7 @@
 [![Actions Status](https://github.com/tdulcet/Distributed-Computing-Scripts/workflows/CI/badge.svg?branch=master)](https://github.com/tdulcet/Distributed-Computing-Scripts/actions)
 
 # Distributed Computing Scripts
-Distributed Computing Scripts
+Distributed Computing Scripts for GIMPS, BOINC and Folding@home
 
 Copyright © 2018 Teal Dulcet and Daniel Connelly
 

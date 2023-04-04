@@ -24,17 +24,21 @@ DIR3="gpuowl-6"
 ARGS1=(
 # -mprimeDir ../mprime
 -unsafeMath
+# -use ROE1,ROE2
+-use ROE2
 
 )
 # 2. GpuOwl v7.2-112
 ARGS2=(
 -unsafeMath
+# -use STATS
 
 )
 # 3. GpuOwl v6.11 (v6 branch)
 ARGS3=(
 -cleanup
 -log 10000
+# -use STATS
 
 )
 
@@ -70,7 +74,6 @@ DEVICE=0
 ARGS=(
 -device $DEVICE
 # -results "$aResultsFile"
-# -use STATS
 
 )
 
