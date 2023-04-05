@@ -2,12 +2,12 @@
 
 # Copyright © 2020 Teal Dulcet
 # Benchmark GpuOwl
-# Run: ./bench.sh <GpuOwl binary>
+# Run: ./bench.sh <GpuOwl binary> [Iterations] [ROE option]
 
 set -e
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
-	echo "Usage: $0 <GpuOwl binary> [iterations] [ROE option]" >&2
+if [[ $# -lt 1 || $# -gt 3 ]]; then
+	echo "Usage: $0 <GpuOwl binary> [Iterations] [ROE option]" >&2
 	exit 1
 fi
 
@@ -100,7 +100,7 @@ for i in "${!MAX_EXPS[@]}"; do
 		variants=( ${VARIANTS[i]} )
 		for j in "${!variants[@]}"; do
 			printf "\n\t%'d Variant: %s\n\n" $((j+1)) "${variants[j]}"
-			"$DIR/$GPUOWL" -prp "$exp" -iters $ITERS -fft "${variants[j]}" -nospin "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|ROE\|error\| E :\|exception\|exiting'
+			"$DIR/$GPUOWL" -prp "$exp" -iters $ITERS -fft "${variants[j]}" -nospin "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|ROE=\|error\| E :\|exception\|exiting'
 			time=''
 			if output=$(grep '[[:digit:]]\{7,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{5,\}' gpuowl.log | grep $ITERS); then
 				RE='([[:digit:]]+) us/it'

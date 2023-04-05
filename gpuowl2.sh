@@ -180,7 +180,7 @@ else
 		sed -i 's/-O3/-O3 -flto -ffinite-math-only/' Makefile
 		make -j "$(nproc)"
 		# make clean
-		rm -- *.o
+		rm -f -- *.o
 		popd >/dev/null
 	done
 	pushd $DIR1/build >/dev/null
