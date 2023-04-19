@@ -75,12 +75,12 @@ Options:
                         program, Default: . (current directory)
   -D DIRS, --dir=DIRS   Directories with the work and results files from the
                         GIMPS program. Provide once for each worker thread. It
-                        automatically sets the --cpu_num option for each
+                        automatically sets the --cpu-num option for each
                         directory.
   -i WORKFILE, --workfile=WORKFILE
-                        Work File filename, Default: “worktodo.ini”
+                        Work file filename, Default: “worktodo.ini”
   -r RESULTSFILE, --resultsfile=RESULTSFILE
-                        Results File filename, Default: “results.txt”
+                        Results file filename, Default: “results.txt”
   -l LOCALFILE, --localfile=LOCALFILE
                         Local configuration file filename, Default:
                         “local.ini”
@@ -126,11 +126,12 @@ Options:
                         Default: 0
   -n NUM_CACHE, --num-cache=NUM_CACHE
                         Number of assignments to cache, Default: 0
-                        (automatically set to 1 when doing manual testing)
+                        (automatically incremented by 1 when doing manual
+                        testing)
   -W DAYSOFWORK, --days-work=DAYSOFWORK
-                        Days of work to queue (1-90 days), Default: 3.0 days.
-                        Adds one to num_cache when the time left for the
-                        current assignment is less then this number of days.
+                        Days of work to queue (1-180 days), Default: 3.0 days.
+                        Adds one to num_cache when the time left for all
+                        assignments is less then this number of days.
   --force-pminus1=TESTS_SAVED
                         Force P-1 factoring before LL/PRP tests and/or change
                         the default PrimeNet PRP tests_saved value.
@@ -146,8 +147,8 @@ Options:
   -t TIMEOUT, --timeout=TIMEOUT
                         Seconds to wait between network updates, Default: 3600
                         seconds (1 hour). Users with slower internet may want
-                        to set a larger value to give time for any PRP proofs
-                        to upload. Use 0 for a single update without looping.
+                        to set a larger value to give time for any PRP proof
+                        files to upload. Use 0 to update once and exit.
   -s, --status          Output a status report and any expected completion
                         dates for all assignments and exit.
   --upload-proofs       Report assignment results, upload all PRP proofs and
@@ -155,15 +156,15 @@ Options:
   --unreserve-all       Unreserve all assignments and exit. Quit GIMPS
                         immediately. Requires that the instance is registered
                         with PrimeNet.
-  --no-more-work        Prevent script from getting new assignments and exit.
-                        Quit GIMPS after current work completes.
+  --no-more-work        Prevent the script from getting new assignments and
+                        exit. Quit GIMPS after current work completes.
 
-  Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).:
+  Registering Options: Sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).:
     -H COMPUTERID, --hostname=COMPUTERID
                         Optional computer name, Default: example
-    --cpu-model=CPU_MODEL
+    --cpu-model=CPUBRAND
                         Processor (CPU) model, Default: cpu.unknown
-    --features=FEATURES
+    --features=CPU_FEATURES
                         CPU features, Default: ''
     --frequency=CPUSPEED
                         CPU frequency/speed (MHz), Default: 1000 MHz
@@ -248,13 +249,13 @@ PrimeNet script:
 * Support the recovery of assignments if there is an error or the worktodo file was deleted.
 * Check for new results to submit when the results file is updated.
 * Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
-	* Currently this requires using the Bash scripts.
+	* Currently this requires using the Bash install scripts for Linux.
 * Improve the performance.
 * Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has not made any progress in a while or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
 * Support reporting interim residues.
 * Calculate the rolling average.
 * Support downloading certification assignments.
-* Translate the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
+* Localize the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 
 General:

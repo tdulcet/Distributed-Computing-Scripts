@@ -132,6 +132,7 @@ def register_assignment(cpu, assignment, retry_count=0):
     if retry_count >= 5:
         logging.info("Retry count exceeded.")
         return
+    guid = get_guid(config)
     args = primenet_v5_bargs.copy()
     args["t"] = "ra"
     args["g"] = guid
@@ -140,10 +141,7 @@ def register_assignment(cpu, assignment, retry_count=0):
     args["n"] = assignment.n
     if assignment.work_type in [
             primenet.WORK_TYPE_FIRST_LL, primenet.WORK_TYPE_DBLCHK]:
-        if assignment.work_type == primenet.WORK_TYPE_FIRST_LL:
-            work_type_str = "LL"
-        else:
-            work_type_str = "Double check"
+        work_type_str = "LL" if assignment.work_type == primenet.WORK_TYPE_FIRST_LL else "Double check"
         args["sf"] = assignment.sieve_depth
         args["p1"] = assignment.pminus1ed
     elif assignment.work_type == primenet.WORK_TYPE_PRP:
@@ -168,48 +166,51 @@ def register_assignment(cpu, assignment, retry_count=0):
         args["B1"] = "{0:.0f}".format(assignment.B1)
         if assignment.B2 != 0:
             args["B2"] = "{0:.0f}".format(assignment.B2)
+    # elif assignment.work_type == primenet.WORK_TYPE_CERT:
     retry = False
     logging.info("Registering assignment: {0} {1}".format(
         work_type_str, assignment.n))
     result = send_request(guid, args)
     if result is None:
-        logging.debug("ERROR while registering assignment on mersenne.org")
         retry = True
     else:
         rc = int(result["pnErrorResult"])
         if rc == primenet.ERROR_OK:
-            assignment.uid = result["k"]
+            assignment = assignment._replace(uid=result["k"])
             logging.info(
                 "Assignment registered as: {0}".format(assignment.uid))
             # TODO: Update assignment in workfile
         else:
-            logging.debug("ERROR while registering assignment on mersenne.org")
-            if rc == primenet.ERROR_UNREGISTERED_CPU:
-                logging.debug(
-                    "UNREGISTERED CPU ERROR: pick a new GUID and register again")
-                register_instance(None)
+            if rc == primenet.ERROR_NO_ASSIGNMENT:
+                pass
+            elif rc == primenet.ERROR_INVALID_ASSIGNMENT_TYPE:
+                pass
+            elif rc == primenet.ERROR_INVALID_PARAMETER:
+                pass
+            elif rc == primenet.ERROR_UNREGISTERED_CPU:
+                register_instance()
                 retry = True
             elif rc == primenet.ERROR_STALE_CPU_INFO:
-                logging.debug("STALE CPU INFO ERROR: re-send computer update")
                 register_instance(guid)
                 retry = True
     if retry:
-        return ra(assignment, retry_count + 1)
+        return register_assignment(cpu, assignment, retry_count + 1)
 
 
 # TODO -- have people set their own program options for commented out portions
-def program_options(guid, first_time, retry_count=0):
+def program_options(first_time=False, retry_count=0):
     """Sets the program options on the PrimeNet server."""
     if retry_count >= 5:
         logging.info("Retry count exceeded.")
         return
+    guid = get_guid(config)
     args = primenet_v5_bargs.copy()
     args["t"] = "po"
     args["g"] = guid
     # no value updates all cpu threads with given worktype
     args["c"] = ""  # cpu
     if first_time:
-        args["w"] = worktype
+        args["w"] = work_preference
         args["nw"] = options.WorkerThreads
         # args["Priority"] = 1
         args["DaysOfWork"] = int(round(options.DaysOfWork))
@@ -229,25 +230,31 @@ def program_options(guid, first_time, retry_count=0):
             pass
         else:
             if rc == primenet.ERROR_UNREGISTERED_CPU:
-                logging.debug(
-                    "UNREGISTERED CPU ERROR: pick a new GUID and register again")
-                register_instance(None)
+                register_instance()
                 retry = True
             elif rc == primenet.ERROR_STALE_CPU_INFO:
-                logging.debug("STALE CPU INFO ERROR: re-send computer update")
                 register_instance(guid)
                 retry = True
-            if retry:
-                return program_options(guid, first_time, retry_count + 1)
-            parser.error("Error while setting program options on mersenne.org")
-    if "w" in result and int(result["w"]):
+            if not retry:
+                parser.error(
+                    "Error while setting program options on mersenne.org")
+    if retry:
+        return program_options(first_time, retry_count + 1)
+    if "w" in result:
+        w = int(result["w"])
         config.set("PrimeNet", "WorkPreference", result["w"])
+        if w not in supported:
+            parser.error("Unsupported worktype = {0} for {1}".format(
+                w, PROGRAMS[idx]["name"]))
     if "nw" in result:
         config.set("PrimeNet", "WorkerThreads", result["nw"])
     if "Priority" in result:
         config.set("PrimeNet", "Priority", result["Priority"])
     if "DaysOfWork" in result:
         config.set("PrimeNet", "DaysOfWork", result["DaysOfWork"])
+    if "DayMemory" in result and "NightMemory" in result:
+        config.set("PrimeNet", "Memory", str(
+            max(int(result[x]) for x in ["DayMemory", "NightMemory"])))
     if "RunOnBattery" in result:
         config.set("PrimeNet", "RunOnBattery", result["RunOnBattery"])
     # if not config.has_option("PrimeNet", "first_time"):
@@ -261,8 +268,10 @@ def program_options(guid, first_time, retry_count=0):
 
 def assignment_unreserve(assignment, retry_count=0):
     """Unreserves an assignment from the PrimeNet server."""
+    guid = get_guid(config)
     if guid is None:
         logging.error("Cannot unreserve, the registration is not done")
+        return
     if not assignment or not assignment.uid:
         return
     if retry_count >= 5:
@@ -276,8 +285,6 @@ def assignment_unreserve(assignment, retry_count=0):
     logging.info("Unreserving {0}".format(assignment.n))
     result = send_request(guid, args)
     if result is None:
-        logging.debug(
-            "ERROR while releasing assignment on mersenne.org: assignment_id={0}".format(assignment.uid))
         retry = True
     else:
         rc = int(result["pnErrorResult"])
@@ -285,12 +292,10 @@ def assignment_unreserve(assignment, retry_count=0):
             # TODO: Delete assignment from workfile
             pass
         else:
-            logging.debug(
-                "ERROR while releasing assignment on mersenne.org: assignment_id={0}".format(assignment.uid))
-            if rc == primenet.ERROR_UNREGISTERED_CPU:
-                logging.debug(
-                    "UNREGISTERED CPU ERROR: pick a new GUID and register again")
-                register_instance(None)
+            if rc == primenet.ERROR_INVALID_ASSIGNMENT_KEY:
+                pass
+            elif rc == primenet.ERROR_UNREGISTERED_CPU:
+                register_instance()
                 retry = True
     if retry:
         return assignment_unreserve(assignment, retry_count + 1)
@@ -346,7 +351,7 @@ def get_cpu_model():
         output = check_output(
             ['sysctl', '-n', 'machdep.cpu.brand_string']).rstrip()
     elif system == "Linux":
-        with open('/proc/cpuinfo', 'r') as f:
+        with open('/proc/cpuinfo') as f:
             for line in f:
                 if line.startswith("model name"):
                     output = re.sub("^.*: *", "", line.rstrip(), 1)
@@ -402,7 +407,7 @@ def get_cpu_frequency():
             output = int(output) // 1000 // 1000
     elif system == "Linux":
         freqs = []
-        with open('/proc/cpuinfo', 'r') as f:
+        with open('/proc/cpuinfo') as f:
             for line in f:
                 if line.startswith("cpu MHz"):
                     freqs.append(float(re.sub("^.*: *", "", line.rstrip(), 1)))
@@ -429,7 +434,7 @@ def get_physical_memory():
             output = int(output) // 1024 // 1024
     elif system == "Linux":
         # os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
-        with open('/proc/meminfo', 'r') as f:
+        with open('/proc/meminfo') as f:
             for line in f:
                 if line.startswith("MemTotal:"):
                     output = int(line.split()[1]) // 1024
@@ -559,16 +564,6 @@ Assignment = namedtuple('Assignment',
                          "prp_residue_type", "known_factors", "prp_dblchk"])
 
 
-def greplike(pattern, lines):
-    """Return a list of all the strings in lines that match the regular expression pattern."""
-    output = []
-    for line in lines:
-        s = pattern.search(line)
-        if s:
-            output.append(s.group(0))
-    return output
-
-
 def readonly_list_file(filename, mode="r"):
     """Reads a file line by line into a list. """
     # Used when there is no intention to write the file back, so don't
@@ -577,6 +572,7 @@ def readonly_list_file(filename, mode="r"):
         with open(filename, mode) as File:
             return [line.rstrip() for line in File]
     except (IOError, OSError):
+        # logging.debug("Error reading {0!r} file.".format(filename))
         return []
 
 
@@ -584,7 +580,7 @@ def write_list_file(filename, line, mode="w"):
     """Write a list of strings to a file."""
     # A "null append" is meaningful, as we can call this to clear the
     # lockfile. In this case the main file need not be touched.
-    if not ("a" in mode and len(line) == 0):
+    if "a" not in mode or line:
         newline = b'\n' if 'b' in mode else '\n'
         content = newline.join(line) + newline
         with open(filename, mode) as File:
@@ -801,8 +797,7 @@ def output_status(dirs):
             _, time_left, _ = compute_progress(
                 assignment, iteration, msec_per_iter, p, bits, s2)
             bits = int(assignment.sieve_depth)
-            if bits < 32:
-                bits = 32
+            bits = max(bits, 32)
             all_and_prp_cnt = False
             aprob = 0.0
             if assignment.work_type == primenet.WORK_TYPE_FIRST_LL:
@@ -832,7 +827,7 @@ def output_status(dirs):
             elif assignment.work_type == primenet.WORK_TYPE_CERT:
                 work_type_str = "Certify"
             prob += aprob
-            if assignment.k != 1.0 or assignment.b != 2 or assignment.c != -1:
+            if assignment.k != 1.0 or assignment.b != 2 or assignment.c != -1 or assignment.known_factors is not None:
                 amersennes = mersennes = False
             else:
                 amersennes = True
@@ -881,27 +876,19 @@ def get_assignment(cpu, retry_count=0):
     logging.info("Getting assignment from server")
     r = send_request(guid, args)
     if r is None:
-        logging.debug("ERROR while requesting an assignment on mersenne.org")
         retry = True
     else:
         rc = int(r["pnErrorResult"])
         if rc == primenet.ERROR_OK:
             pass
         else:
-            logging.debug(
-                "ERROR while requesting an assignment on mersenne.org")
             if rc == primenet.ERROR_UNREGISTERED_CPU:
-                logging.debug(
-                    "UNREGISTERED CPU ERROR: pick a new GUID and register again")
-                register_instance(None)
+                register_instance()
                 retry = True
             elif rc == primenet.ERROR_STALE_CPU_INFO:
-                logging.debug("STALE CPU INFO ERROR: re-send computer update")
                 register_instance(guid)
                 retry = True
             elif rc == primenet.ERROR_CPU_CONFIGURATION_MISMATCH:
-                logging.debug(
-                    "CPU CONFIGURATION MISMATCH: re-send computer update")
                 register_instance(guid)
                 retry = True
             if not retry:
@@ -1004,7 +991,7 @@ def primenet_fetch(cpu, num_to_get):
             assignment = OrderedDict((
                 ("cores", options.WorkerThreads),
                 ("num_to_get", num_to_get),
-                ("pref", worktype),
+                ("pref", work_preference),
                 ("exp_lo", options.GetMinExponent if options.GetMinExponent else ""),
                 ("exp_hi", options.GetMaxExponent if options.GetMaxExponent else ""),
                 ("B1", "Get Assignments")
@@ -1021,8 +1008,7 @@ def primenet_fetch(cpu, num_to_get):
                 end = res.find("<!--END_ASSIGNMENTS_BLOCK-->", begin)
                 if end >= 0:
                     return res[begin:end].splitlines()
-            return greplike(workpattern, (line.decode('utf-8')
-                            for line in r.iter_lines()))
+            return []
         except HTTPError:
             logging.exception("")
             return []
@@ -1035,10 +1021,9 @@ def primenet_fetch(cpu, num_to_get):
         tests = []
         for _ in range(num_to_get):
             test = get_assignment(cpu)
-            if test:
-                tests.append(test)
-            else:
+            if test is None:
                 break
+            tests.append(test)
 
         return tests
 
@@ -1258,13 +1243,13 @@ def get_exponent(n):
         r.raise_for_status()
         json = r.json()
 
-    except Timeout as e:
+    except Timeout:
         logging.exception("")
         return
-    except HTTPError as e:
+    except HTTPError:
         logging.exception("")
         return
-    except ConnectionError as e:
+    except ConnectionError:
         logging.exception("")
         return
     return json
@@ -1293,19 +1278,18 @@ def get_assignments(dir, cpu, progress):
             num_cache += 1
             logging.debug("Time left is {0} and smaller than DaysOfWork ({1}), so num_cache is increased by one to {2:n}".format(
                 time_left, days_work, num_cache))
-    max = config.getint("PrimeNet", "MaxExponents") if config.has_option(
+    amax = config.getint("PrimeNet", "MaxExponents") if config.has_option(
         "PrimeNet", "MaxExponents") else 15
-    if num_cache > max:
-        num_cache = max
-    length = len(assignments)
-    num_to_get = num_cache - length
+    num_cache = min(num_cache, amax)
+    num_existing = len(assignments)
+    num_to_get = num_cache - num_existing
 
     if num_to_get <= 0:
         logging.debug("{0:n} ≥ {1:n} entries already in {2!r}, not getting new work".format(
-            length, num_cache, workfile))
+            num_existing, num_cache, workfile))
         return 0
     logging.debug("Found {0:n} < {1:n} entries in {2!r}, getting {3:n} new assignment{4}".format(
-        length, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""))
+        num_existing, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""))
 
     new_tasks = primenet_fetch(cpu, num_to_get)
     num_fetched = len(new_tasks)
@@ -1471,11 +1455,11 @@ def parse_stat_file(dir, p, last_time):
 def parse_v5_resp(r):
     """Parse the response from the server into a dict."""
     ans = {}
-    for line in r.splitlines():
+    for line in r.split('\n'):
         if line == "==END==":
             break
         option, _, value = line.partition("=")
-        ans[option] = value
+        ans[option] = value.replace('\r', '\n')
     return ans
 
 
@@ -1513,8 +1497,9 @@ def send_request(guid, args):
             args["sh"] = "ABCDABCDABCDABCDABCDABCDABCDABCD"
         else:
             secure_v5_url(guid, args)
-        # logging.debug("URL: " + str(args))
+        # logging.debug("Args: {0}".format(args))
         r = s.get(primenet_v5_burl, params=args, timeout=180)
+        # logging.debug("URL: " + r.url)
         r.raise_for_status()
         result = parse_v5_resp(r.text)
         # logging.debug("RESPONSE:\n" + r.text)
@@ -1538,13 +1523,13 @@ def send_request(guid, args):
                 logging.info("PrimeNet success code with additional info:")
                 logging.info(result["pnErrorDetail"])
 
-    except Timeout as e:
+    except Timeout:
         logging.exception("")
         return
-    except HTTPError as e:
+    except HTTPError:
         logging.exception("ERROR receiving answer to request: " + r.url)
         return
-    except ConnectionError as e:
+    except ConnectionError:
         logging.exception("ERROR connecting to server for request: ")
         return
     return result
@@ -1552,19 +1537,18 @@ def send_request(guid, args):
 
 def create_new_guid():
     """Create a new GUID."""
-    global guid
     guid = uuid.uuid4().hex
     return guid
 
 
-def register_instance(guid):
+def register_instance(guid=None):
     """Register the computer with the PrimeNet server."""
     # register the instance to server, guid is the instance identifier
+    hardware_id = md5((options.CpuBrand + str(uuid.getnode())
+                       ).encode("utf-8")).hexdigest()  # similar as MPrime
     if config.has_option("PrimeNet", "HardwareGUID"):
         hardware_id = config.get("PrimeNet", "HardwareGUID")
     else:
-        hardware_id = md5((options.cpu_model + str(uuid.getnode())
-                           ).encode("utf-8")).hexdigest()  # similar as MPrime
         config.set("PrimeNet", "HardwareGUID", hardware_id)
     args = primenet_v5_bargs.copy()
     args["t"] = "uc"					# update compute command
@@ -1573,12 +1557,19 @@ def register_instance(guid):
     args["g"] = guid
     args["hg"] = hardware_id			# 32 hex char (128 bits)
     args["wg"] = ""						# only filled on Windows by MPrime
-    args["a"] = "{0},{1},v{2}{3}".format(platform.system() + ('64' if platform.machine().endswith('64') else ''), PROGRAMS[idx]
-                                         ["name"], PROGRAMS[idx]["version"], ",build " + str(PROGRAMS[idx]["build"]) if "build" in PROGRAMS[idx] else '')
+    system = platform.system()
+    is_64bit = platform.machine().endswith('64')
+    if system == "Darwin":
+        aplatform = "Mac OS X" + (' 64-bit' if is_64bit else '')
+    else:
+        aplatform = system + ('64' if is_64bit else '')
+    program = PROGRAMS[idx]
+    args["a"] = "{0},{1},v{2}{3}".format(
+        aplatform, program["name"], program["version"], ",build " + str(program["build"]) if "build" in program else '')
     if config.has_option("PrimeNet", "sw_version"):
         args["a"] = config.get("PrimeNet", "sw_version")
-    args["c"] = options.cpu_model[:64]  # CPU model (len between 8 and 64)
-    args["f"] = options.features[:64]  # CPU option (like asimd, max len 64)
+    args["c"] = options.CpuBrand  # CPU model (len between 8 and 64)
+    args["f"] = options.cpu_features  # CPU option (like asimd, max len 64)
     args["L1"] = options.L1				# L1 cache size in KBytes
     args["L2"] = options.L2				# L2 cache size in KBytes
     # if smaller or equal to 256,
@@ -1596,7 +1587,7 @@ def register_instance(guid):
     if options.username:
         args["u"] = options.username		#
     if options.ComputerID:
-        args["cn"] = options.ComputerID[:20]  # truncate to 20 char max
+        args["cn"] = options.ComputerID  # truncate to 20 char max
     logging.info("Updating computer information on the server")
     result = send_request(guid, args)
     if result is None:
@@ -1610,22 +1601,23 @@ def register_instance(guid):
     # Save program options in case they are changed by the PrimeNet server.
     config.set("PrimeNet", "username", result["u"])
     config.set("PrimeNet", "ComputerID", result["cn"])
-    config.set("PrimeNet", "name", result["un"])
+    config.set("PrimeNet", "user_name", result["un"])
     options_counter = int(result["od"])
-    config_write(config, guid=guid)
+    guid = result["g"]
+    config_write(config, guid)
     # if options_counter == 1:
-    # program_options(guid, False)
-    program_options(guid, True)
+    # program_options()
+    program_options(True)
     if options_counter > config.getint("PrimeNet", "SrvrP00"):
-        program_options(guid, False)
+        program_options()
     merge_config_and_options(config, options)
     config_write(config)
     logging.info("GUID {guid} correctly registered with the following features:".format(
         guid=guid))
     logging.info("Username: {0}".format(options.username))
     logging.info("Computer name: {0}".format(options.ComputerID))
-    logging.info("CPU model: {0}".format(options.cpu_model))
-    logging.info("CPU features: {0}".format(options.features))
+    logging.info("CPU model: {0}".format(options.CpuBrand))
+    logging.info("CPU features: {0}".format(options.cpu_features))
     logging.info("CPU L1 Cache size: {0:n} KIB".format(options.L1))
     logging.info("CPU L2 Cache size: {0:n} KiB".format(options.L2))
     logging.info("CPU cores: {0:n}".format(options.NumCores))
@@ -1647,7 +1639,7 @@ def config_read():
     localfile = os.path.join(workdir, options.localfile)
     try:
         config.read([localfile])
-    except ConfigParserError as e:
+    except ConfigParserError:
         logging.exception("ERROR reading {0!r} file:".format(localfile))
     if not config.has_section("PrimeNet"):
         # Create the section to avoid having to test for it later
@@ -1684,8 +1676,8 @@ def merge_config_and_options(config, options):
         "workfile", "resultsfile", "ProofArchiveDir", "username", "password",
         "WorkPreference", "GetMinExponent", "GetMaxExponent", "gpuowl",
         "cudalucas", "WorkerThreads", "num_cache", "DaysOfWork", "tests_saved",
-        "pm1_multiplier", "no_report_100m", "ComputerID", "cpu_model",
-        "features", "CpuSpeed", "memory", "Memory", "L1", "L2", "L3",
+        "pm1_multiplier", "no_report_100m", "ComputerID", "CpuBrand",
+        "cpu_features", "CpuSpeed", "memory", "Memory", "L1", "L2", "L3",
         "NumCores", "CpuNumHyperthreads", "CPUHours"]
     updated = False
     for attr in attr_to_copy:
@@ -1723,17 +1715,30 @@ def update_progress(cpu, assignment, iteration, msec_per_iter,
         return
     percent, time_left, msec_per_iter = compute_progress(
         assignment, iteration, msec_per_iter, p, bits, s2)
-    logging.debug("p:{0} is {1:.4n}% done ({2:n} / {3:n})".format(assignment.n, percent, iteration,
+    logging.debug("{0} is {1:.4%} done ({2:n} / {3:n})".format(assignment.n, percent, iteration,
                   s2 if s2 else bits if bits else assignment.n if assignment.work_type == primenet.WORK_TYPE_PRP else assignment.n - 2))
+    stage = None
+    if percent > 0:
+        if bits:
+            stage = "S1"
+        elif s2:
+            stage = "S2"
+        elif assignment.work_type in [primenet.WORK_TYPE_FIRST_LL, primenet.WORK_TYPE_DBLCHK]:
+            stage = "LL"
+        elif assignment.work_type == primenet.WORK_TYPE_PRP:
+            stage = "PRP"
+        elif assignment.work_type == primenet.WORK_TYPE_CERT:
+            stage = "CERT"
     if time_left is None:
+        cur_time_left += 7 * 24 * 60 * 60
         logging.debug("Finish cannot be estimated")
     else:
         cur_time_left += time_left
         delta = timedelta(seconds=cur_time_left)
         logging.debug(
             "Finish estimated in {0} (used {1:.4n} msec/iter estimation)".format(delta, msec_per_iter))
-        send_progress(cpu, assignment, percent, cur_time_left,
-                      now, delta, fftlen, bits, s2)
+    send_progress(cpu, assignment, percent,
+                  stage, cur_time_left, now, fftlen)
     return percent, cur_time_left
 
 
@@ -1770,7 +1775,7 @@ def update_progress_all(dir, cpu, last_time):
         msec_per_iter = config.getfloat("PrimeNet", "msec_per_iter")
         p = config.getint("PrimeNet", "exponent")
     # Do the other assignment accumulating the time_lefts
-    cur_time_left = None if msec_per_iter is None else 0
+    cur_time_left = 0
     percent, cur_time_left = update_progress(
         cpu, assignment, iteration, msec_per_iter, p, fftlen, bits, s2, now, cur_time_left)
     for assignment in assignments:
@@ -1829,21 +1834,20 @@ def parse_assignment(workfile, task):
     if not assignment_uid:
         found.insert(0, "")
     length = len(found)
-    idx = 1 if work_type == "Test" or work_type == "DoubleCheck" else 3
+    idx = 1 if work_type in ["Test", "DoubleCheck"] else 3
     if length <= idx:
         logging.error(
             "Unable to extract valid exponent substring from entry in {0!r} file: {1}".format(workfile, task))
         return None
     # Extract the subfield containing the exponent, whose position depends on
     # the assignment type:
-    if work_type == "Test" or work_type == "DoubleCheck":
+    if work_type in ["Test", "DoubleCheck"]:
         work_type = primenet.WORK_TYPE_FIRST_LL if work_type == "Test" else primenet.WORK_TYPE_DBLCHK
         n = int(found[1])
         sieve_depth = float(found[2])
         pminus1ed = int(found[3])
-    elif work_type == "PRP" or work_type == "PRPDC":
-        if work_type == "PRPDC":
-            prp_dblchk = True
+    elif work_type in ["PRP", "PRPDC"]:
+        prp_dblchk = work_type == "PRPDC"
         work_type = primenet.WORK_TYPE_PRP
         k = float(found[1])
         b = int(found[2])
@@ -1860,7 +1864,7 @@ def parse_assignment(workfile, task):
                 idx = 9
         if length > idx:
             known_factors = found[idx]
-    elif work_type == "PFactor" or work_type == "Pfactor":
+    elif work_type in ["PFactor", "Pfactor"]:
         work_type = primenet.WORK_TYPE_PFACTOR
         k = float(found[1])
         b = int(found[2])
@@ -1868,7 +1872,7 @@ def parse_assignment(workfile, task):
         c = int(found[4])
         sieve_depth = float(found[5])
         tests_saved = float(found[6])
-    elif work_type == "PMinus1" or work_type == "Pminus1":
+    elif work_type in ["PMinus1", "Pminus1"]:
         work_type = primenet.WORK_TYPE_PMINUS1
         k = float(found[1])
         b = int(found[2])
@@ -2040,8 +2044,7 @@ def parse_stat_file_gpu(dir, p, last_time):
         elif p1 and bits_res:
             if not bits:
                 bits = int(bits_res[0])
-                if iteration > bits:
-                    iteration = bits
+                iteration = min(iteration, bits)
         elif fft_res and not fftlen:
             unit = fft_res[0][-1:]
             fftlen = int(float(
@@ -2059,8 +2062,8 @@ def parse_stat_file_gpu(dir, p, last_time):
 
 def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
     """Computes the progress of a given assignment."""
-    percent = 100 * iteration / (s2 if s2 else bits if bits else assignment.n if assignment.work_type ==
-                                 primenet.WORK_TYPE_PRP else assignment.n - 2)
+    percent = iteration / (s2 if s2 else bits if bits else assignment.n if assignment.work_type ==
+                           primenet.WORK_TYPE_PRP else assignment.n - 2)
     if msec_per_iter is None:
         return percent, None, msec_per_iter
     if assignment.n != p:
@@ -2083,12 +2086,15 @@ def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
     else:
         time_left = msec_per_iter * ((assignment.n if assignment.work_type ==
                                      primenet.WORK_TYPE_PRP else assignment.n - 2) - iteration)
-    time_left *= 24.0 / options.CPUHours
+    rolling_average = 1000
+    if config.has_option("PrimeNet", "RollingAverage"):
+        rolling_average = config.getint("PrimeNet", "RollingAverage")
+    time_left *= (24 / options.CPUHours) * (1000 / rolling_average)
     return percent, time_left / 1000, msec_per_iter
 
 
-def send_progress(cpu, assignment, percent, time_left, now,
-                  delta, fftlen, s1, s2, retry_count=0):
+def send_progress(cpu, assignment, percent, stage,
+                  time_left, now, fftlen, retry_count=0):
     """Sends the expected completion date for a given assignment to the server."""
     guid = get_guid(config)
     if guid is None:
@@ -2108,7 +2114,7 @@ def send_progress(cpu, assignment, percent, time_left, now,
     # k= the assignment ID (32 chars, follows '=' in Primenet-generated workfile entries)
     args["k"] = assignment.uid
     # p= progress in %-done, 4-char format = xy.z
-    args["p"] = "{0:.4f}".format(percent)
+    args["p"] = "{0:.4f}".format(percent * 100)
     # d= when the client is expected to check in again (in seconds ... )
     args["d"] = options.timeout if options.timeout else 24 * 60 * 60
     # e= the ETA of completion in seconds, if unknown, just put 1 week
@@ -2117,26 +2123,16 @@ def send_progress(cpu, assignment, percent, time_left, now,
     args["c"] = cpu
     # stage= LL in this case, although an LL test may be doing TF or P-1 work
     # first so it's possible to be something besides LL
-    if percent > 0:
-        if s1:
-            args["stage"] = "S1"
-        elif s2:
-            args["stage"] = "S2"
-        elif assignment.work_type in [primenet.WORK_TYPE_FIRST_LL, primenet.WORK_TYPE_DBLCHK]:
-            args["stage"] = "LL"
-        elif assignment.work_type == primenet.WORK_TYPE_PRP:
-            args["stage"] = "PRP"
-        elif assignment.work_type == primenet.WORK_TYPE_CERT:
-            args["stage"] = "CERT"
+    if stage:
+        args["stage"] = stage
     if fftlen:
         args["fftlen"] = fftlen
     retry = False
+    delta = timedelta(seconds=time_left)
     logging.info("Sending expected completion date for {0}: {1} ({2:%c})".format(
         assignment.n, delta, now + delta))
     result = send_request(guid, args)
     if result is None:
-        logging.debug(
-            "ERROR while sending progress on mersenne.org: assignment_id={0}".format(assignment.uid))
         # Try again
         retry = True
     else:
@@ -2144,28 +2140,23 @@ def send_progress(cpu, assignment, percent, time_left, now,
         if rc == primenet.ERROR_OK:
             logging.debug("Update correctly sent to server")
         else:
-            logging.debug(
-                "ERROR while sending progress on mersenne.org: assignment_id={0}".format(assignment.uid))
-            if rc == primenet.ERROR_STALE_CPU_INFO:
-                logging.debug("STALE CPU INFO ERROR: re-send computer update")
-                register_instance(guid)
-                retry = True
-            elif rc == primenet.ERROR_UNREGISTERED_CPU:
-                logging.debug(
-                    "UNREGISTERED CPU ERROR: pick a new GUID and register again")
-                register_instance(None)
-                retry = True
-            elif rc == primenet.ERROR_INVALID_ASSIGNMENT_KEY:
+            if rc == primenet.ERROR_INVALID_ASSIGNMENT_KEY:
                 # TODO: Delete assignment from workfile
                 pass
             elif rc == primenet.ERROR_WORK_NO_LONGER_NEEDED:
                 # TODO: Delete assignment from workfile
                 pass
+            elif rc == primenet.ERROR_UNREGISTERED_CPU:
+                register_instance()
+                retry = True
+            elif rc == primenet.ERROR_STALE_CPU_INFO:
+                register_instance(guid)
+                retry = True
             elif rc == primenet.ERROR_SERVER_BUSY:
                 retry = True
     if retry:
-        return send_progress(cpu, assignment, percent, time_left,
-                             now, delta, fftlen, s1, s2, retry_count + 1)
+        return send_progress(cpu, assignment, percent,
+                             stage, time_left, now, fftlen, retry_count + 1)
 
 
 def get_cuda_ar_object(resultsfile, sendline):
@@ -2216,12 +2207,12 @@ def submit_one_line(dir, resultsfile, sendline):
         ar = get_cuda_ar_object(resultsfile, sendline)
 
     guid = get_guid(config)
-    if guid is not None and ar is not None and (options.cudalucas or is_json):
+    if guid is not None and (options.cudalucas or is_json) and ar is not None:
         # If registered and the ar object was returned successfully, submit using the v5 API
         # The result will be attributed to the registered computer
         # If registered and the line is a JSON, submit using the v5 API
         # The result will be attributed to the registered computer
-        sent = report_result(dir, sendline, guid, ar)
+        sent = report_result(dir, sendline, ar)
     else:
         # The result will be attributed to "Manual testing"
         sent = submit_one_line_manually(sendline)
@@ -2246,17 +2237,20 @@ def announce_prime_to_user(exponent, worktype):
         time.sleep(1)
 
 
-def report_result(dir, sendline, guid, ar, retry_count=0):
+def report_result(dir, sendline, ar, retry_count=0):
     """Submit one result line using v5 API, will be attributed to the computed identified by guid"""
     """Return False if the submission should be retried"""
     if retry_count >= 5:
         logging.info("Retry count exceeded.")
         return False
+    guid = get_guid(config)
     # JSON is required because assignment_id is necessary in that case
     # and it is not present in old output format.
     logging.debug("Submitting using v5 API")
-    logging.debug("Program: " + " ".join(ar['program'].values()))
-    aid = ar.get('aid', 0)
+    program = " ".join(ar['program'].values())
+    logging.debug("Program: {0}".format(program))
+    config.set("PrimeNet", "program", program)
+    assignment_uid = ar.get('aid', 0)
     exponent = int(ar['exponent'])
     worktype = ar['worktype']
     if worktype == 'LL':
@@ -2288,7 +2282,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     args = primenet_v5_bargs.copy()
     args["t"] = "ar"								# assignment result
     args["g"] = guid
-    args["k"] = aid			# assignment id
+    args["k"] = assignment_uid			# assignment id
     args["m"] = sendline							# message is the complete JSON string
     args["r"] = result_type							# result type
     args["n"] = exponent
@@ -2338,8 +2332,7 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
     logging.info("Sending result to server: {0!r}".format(sendline))
     result = send_request(guid, args)
     if result is None:
-        logging.debug(
-            "ERROR while submitting result on mersenne.org: assignment_id={0}".format(aid))
+        pass
         # if this happens, the submission can be retried
         # since no answer has been received from the server
         # return False
@@ -2349,21 +2342,12 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
             logging.info("Result correctly send to server")
             return True
         else:  # non zero ERROR code
-            logging.debug(
-                "ERROR while submitting result on mersenne.org: assignment_id={0}".format(aid))
-            if rc == primenet.ERROR_STALE_CPU_INFO:
-                logging.debug("STALE CPU INFO ERROR: re-send computer update")
-                register_instance(guid)
-            elif rc == primenet.ERROR_UNREGISTERED_CPU:
+            if rc == primenet.ERROR_UNREGISTERED_CPU:
                 # should register again and retry
-                logging.debug(
-                    "UNREGISTERED CPU ERROR: pick a new GUID and register again")
-                register_instance(None)
+                register_instance()
                 # return False
-            elif rc == primenet.ERROR_INVALID_PARAMETER:
-                logging.error(
-                    "INVALID PARAMETER: This may be a bug in the script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
-                return False
+            elif rc == primenet.ERROR_STALE_CPU_INFO:
+                register_instance(guid)
             # In all other error case, the submission must not be retried
             elif rc == primenet.ERROR_INVALID_ASSIGNMENT_KEY:
                 # TODO: Delete assignment from workfile if it is not done
@@ -2376,8 +2360,12 @@ def report_result(dir, sendline, guid, ar, retry_count=0):
                 return True
             elif rc == primenet.ERROR_INVALID_RESULT_TYPE:
                 return True
+            elif rc == primenet.ERROR_INVALID_PARAMETER:
+                logging.error(
+                    "INVALID PARAMETER: This may be a bug in the script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
+                return False
 
-    return report_result(dir, sendline, guid, ar, retry_count + 1)
+    return report_result(dir, sendline, ar, retry_count + 1)
 
 
 def submit_one_line_manually(sendline):
@@ -2419,7 +2407,7 @@ def submit_work(dir):
     """Submits the results file to PrimeNet."""
     # A cumulative backup
     sentfile = os.path.join(dir, "results_sent.txt")
-    results_send = frozenset(readonly_list_file(sentfile))
+    results_sent = frozenset(readonly_list_file(sentfile))
     # Only submit completed work, i.e. the exponent must not exist in worktodo file any more
     # appended line by line, no lock needed
     resultsfile = os.path.join(dir, options.resultsfile)
@@ -2429,7 +2417,7 @@ def submit_work(dir):
     results = filter(mersenne_find, results)
 
     # if a line was previously submitted, discard
-    results_send = [line for line in results if line not in results_send]
+    results_send = [line for line in results if line not in results_sent]
 
     # Only for new results, to be appended to results_sent
     sent = []
@@ -2461,21 +2449,21 @@ def submit_work(dir):
 
 parser = optparse.OptionParser(version="%prog 1.0", description="""This program will automatically get assignments, report assignment results and optionally progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. It also saves its configuration to a “local.ini” file, so it is only necessary to give most of the arguments the first time it is run.
 The first time it is run, if a password is NOT provided, it will register the current GpuOwl/CUDALucas/Mlucas instance with PrimeNet (see below).
-Then, it will get assignments, report the results, upload any proofs and report the progress, if registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
+Then, it will get assignments, report the results, upload any proof files and report the progress, if registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
 """
                                )
 
 # options not saved to local.ini
-parser.add_option("-d", "--debug", action="count", dest="debug", default=0,
+parser.add_option("-d", "--debug", action="count", dest="debug",
                   help="Output detailed information. Provide multiple times for even more verbose output.")
 parser.add_option("-w", "--workdir", dest="workdir", default=".",
                   help="Working directory with the local file from this program, Default: %default (current directory)")
 parser.add_option("-D", "--dir", action="append", dest="dirs",
-                  help="Directories with the work and results files from the GIMPS program. Provide once for each worker thread. It automatically sets the --cpu_num option for each directory.")
+                  help="Directories with the work and results files from the GIMPS program. Provide once for each worker thread. It automatically sets the --cpu-num option for each directory.")
 parser.add_option("-i", "--workfile", dest="workfile",
-                  default="worktodo.ini", help="Work File filename, Default: “%default”")
+                  default="worktodo.ini", help="Work file filename, Default: “%default”")
 parser.add_option("-r", "--resultsfile", dest="resultsfile",
-                  default="results.txt", help="Results File filename, Default: “%default”")
+                  default="results.txt", help="Results file filename, Default: “%default”")
 parser.add_option("-l", "--localfile", dest="localfile", default="local.ini",
                   help="Local configuration file filename, Default: “%default”")
 parser.add_option("--archive-proofs", dest="ProofArchiveDir",
@@ -2518,9 +2506,9 @@ parser.add_option("--num-workers", dest="WorkerThreads", type="int", default=1,
 parser.add_option("-c", "--cpu-num", dest="cpu", type="int", default=0,
                   help="CPU core or GPU number to get assignments for, Default: %default")
 parser.add_option("-n", "--num-cache", dest="num_cache", type="int", default=0,
-                  help="Number of assignments to cache, Default: %default (automatically set to 1 when doing manual testing)")
+                  help="Number of assignments to cache, Default: %default (automatically incremented by 1 when doing manual testing)")
 parser.add_option("-W", "--days-work", dest="DaysOfWork", type="float", default=3.0,
-                  help="Days of work to queue (1-90 days), Default: %default days. Adds one to num_cache when the time left for the current assignment is less then this number of days.")
+                  help="Days of work to queue (1-180 days), Default: %default days. Adds one to num_cache when the time left for all assignments is less then this number of days.")
 parser.add_option("--force-pminus1", dest="tests_saved", type="float",
                   help="Force P-1 factoring before LL/PRP tests and/or change the default PrimeNet PRP tests_saved value.")
 parser.add_option("--pminus1-threshold", dest="pm1_multiplier", type="float",
@@ -2529,7 +2517,7 @@ parser.add_option("--no-report-100m", action="store_true", dest="no_report_100m"
                   help="Do not report any prime results for exponents greater than 100 million digits. You must setup another method to notify yourself.")
 
 parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60 * 60,
-                  help="Seconds to wait between network updates, Default: %default seconds (1 hour). Users with slower internet may want to set a larger value to give time for any PRP proofs to upload. Use 0 for a single update without looping.")
+                  help="Seconds to wait between network updates, Default: %default seconds (1 hour). Users with slower internet may want to set a larger value to give time for any PRP proof files to upload. Use 0 to update once and exit.")
 parser.add_option("-s", "--status", action="store_true", dest="status", default=False,
                   help="Output a status report and any expected completion dates for all assignments and exit.")
 parser.add_option("--upload-proofs", action="store_true", dest="proofs", default=False,
@@ -2537,18 +2525,18 @@ parser.add_option("--upload-proofs", action="store_true", dest="proofs", default
 parser.add_option("--unreserve-all", action="store_true", dest="unreserve_all", default=False,
                   help="Unreserve all assignments and exit. Quit GIMPS immediately. Requires that the instance is registered with PrimeNet.")
 parser.add_option("--no-more-work", action="store_true", dest="NoMoreWork", default=False,
-                  help="Prevent script from getting new assignments and exit. Quit GIMPS after current work completes.")
+                  help="Prevent the script from getting new assignments and exit. Quit GIMPS after current work completes.")
 
 # TODO: add detection for most parameter, including automatic change of the hardware
 memory = get_physical_memory() or 1024
 cores, threads = get_cpu_cores_threads()
 
-group = optparse.OptionGroup(parser, "Registering Options: sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
+group = optparse.OptionGroup(parser, "Registering Options: Sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
 group.add_option("-H", "--hostname", dest="ComputerID", default=platform.node()[:20],
                  help="Optional computer name, Default: %default")
-group.add_option("--cpu-model", dest="cpu_model", default=get_cpu_model() or "cpu.unknown",
+group.add_option("--cpu-model", dest="CpuBrand", default=get_cpu_model() or "cpu.unknown",
                  help="Processor (CPU) model, Default: %default")
-group.add_option("--features", dest="features", default="",
+group.add_option("--features", dest="cpu_features", default="",
                  help="CPU features, Default: '%default'")
 group.add_option("--frequency", dest="CpuSpeed", type="int", default=get_cpu_frequency() or 1000,
                  help="CPU frequency/speed (MHz), Default: %default MHz")
@@ -2564,7 +2552,7 @@ group.add_option("--L3", dest="L3", type="int", default=0,
                  help="L3 Cache size (KiB), Default: %default KiB")
 group.add_option("--np", dest="NumCores", type="int", default=cores or 1,
                  help="Number of physical CPU cores, Default: %default")
-group.add_option("--hp", dest="CpuNumHyperthreads", type="int", default=threads // cores if cores else 0,
+group.add_option("--hp", dest="CpuNumHyperthreads", type="int", default=-(threads // -cores) if cores else 0,
                  help="Number of CPU threads per core (0 is unknown), Default: %default. Choose 1 for non-hyperthreaded and 2 or more for hyperthreaded.")
 group.add_option("--hours", dest="CPUHours", type="int", default=24,
                  help="Hours per day you expect to run the GIMPS program (1 - 24), Default: %default hours. Used to give better estimated completion dates.")
@@ -2613,13 +2601,13 @@ config_updated = merge_config_and_options(config, options)
 
 # check options after merging so that if local.ini file is changed by hand,
 # values are also checked
-# TODO: check that input char are ascii or at least supported by the server
-if not 8 <= len(options.cpu_model) <= 64:
-    parser.error("cpu_model must be between 8 and 64 characters")
+# TODO: check that input char are ASCII or at least supported by the server
+if not 8 <= len(options.CpuBrand) <= 64:
+    parser.error("CPU model must be between 8 and 64 characters")
 if options.ComputerID is not None and len(options.ComputerID) > 20:
-    parser.error("ComputerID must be less than 21 characters")
-if options.features is not None and len(options.features) > 64:
-    parser.error("features must be less than 64 characters")
+    parser.error("Computer name must be less than or equal to 20 characters")
+if options.cpu_features is not None and len(options.cpu_features) > 64:
+    parser.error("CPU features must be less than or equal to 64 characters")
 
 # Index into programs array
 idx = 3 if options.cudalucas else 2 if options.gpuowl else 1
@@ -2650,16 +2638,16 @@ supported = frozenset([primenet.WP_LL_FIRST,
                                                 primenet.WP_PRP_NO_PMINUS1] if not options.cudalucas else []) + ([primenet.WP_PRP_DC_PROOF] if options.gpuowl else []))
 if not options.WorkPreference.isdigit() or int(
         options.WorkPreference) not in supported:
-    parser.error("Unsupported/unrecognized worktype = " +
-                 options.WorkPreference + " for " + PROGRAMS[idx]["name"])
-worktype = int(options.WorkPreference)
+    parser.error("Unsupported/unrecognized worktype = {0} for {1}".format(
+        options.WorkPreference, PROGRAMS[idx]["name"]))
+work_preference = int(options.WorkPreference)
 # Convert first time LL worktypes to PRP
 option_dict = {
     primenet.WP_LL_FIRST: primenet.WP_PRP_FIRST,
     primenet.WP_LL_WORLD_RECORD: primenet.WP_PRP_WORLD_RECORD,
     primenet.WP_LL_100M: primenet.WP_PRP_100M}
-if worktype in option_dict:
-    worktype = option_dict[worktype]
+if work_preference in option_dict:
+    work_preference = option_dict[work_preference]
 
 # write back local.ini if necessary
 if config_updated:
@@ -2683,6 +2671,12 @@ if options.cpu >= options.WorkerThreads:
 if options.gpuowl and options.cudalucas:
     parser.error(
         "This script can only be used with GpuOwl or CUDALucas")
+
+if not 0 <= options.DaysOfWork <= 180:
+    parser.error("Days of work must be less than or equal to 180 days")
+
+if not 1 <= options.CPUHours <= 24:
+    parser.error("Hours per day must be between 1 and 24 hours")
 
 if 0 < options.timeout < 60 * 60:
     parser.error(
@@ -2739,9 +2733,9 @@ while True:
                 logging.error("Login failed.")
             else:
                 primenet_login = True
-        except HTTPError as e:
+        except HTTPError:
             logging.exception("Login failed.")
-        except ConnectionError as e:
+        except ConnectionError:
             logging.exception("Login failed.")
 
     for i, dir in enumerate(dirs):
@@ -2765,7 +2759,9 @@ while True:
     config.set("PrimeNet", "LastEndDatesSent", str(int(current_time)))
     config_write(config)
     if options.timeout <= 0:
+        logging.info("Done communicating with server.")
         break
+    logging.debug("Done communicating with server.")
     thread = threading.Thread(target=aupload_proofs, args=(dirs,))
     thread.start()
     try:

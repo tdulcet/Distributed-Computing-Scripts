@@ -143,7 +143,7 @@ echo -e "\nRegistering computer with PrimeNet\n"
 ARGS=()
 if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
-	ARGS+=( --cpu_model="${GPU[DEVICE]}" )
+	ARGS+=( --cpu-model="${GPU[DEVICE]}" )
 	
 	mapfile -t GPU_FREQ < <(nvidia-smi --query-gpu=clocks.max.gr --format=csv,noheader,nounits | grep -iv 'not supported')
 	if [[ -n "$GPU_FREQ" ]]; then

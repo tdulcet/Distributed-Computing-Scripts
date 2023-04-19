@@ -57,6 +57,16 @@ if [[ ! -x "$GPUOWL" ]]; then
 	exit 1
 fi
 
+RE='^[0-9]+$'
+if ! [[ $ITERS =~ $RE ]]; then
+	echo "Usage: [Iterations] must be a number" >&2
+	exit 1
+fi
+if ! (( ITERS && ITERS % 10000 == 0 )); then
+	echo "Usage: [Iterations] must be a multiple of 10000" >&2
+	exit 1
+fi
+
 output=$("$GPUOWL" -h)
 if echo "$output" | grep -q '^-unsafeMath'; then
 	ARGS+=( -unsafeMath )
@@ -100,9 +110,9 @@ for i in "${!MAX_EXPS[@]}"; do
 		variants=( ${VARIANTS[i]} )
 		for j in "${!variants[@]}"; do
 			printf "\n\t%'d Variant: %s\n\n" $((j+1)) "${variants[j]}"
-			"$DIR/$GPUOWL" -prp "$exp" -iters $ITERS -fft "${variants[j]}" -nospin "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|ROE=\|error\| E :\|exception\|exiting'
+			"$DIR/$GPUOWL" -prp "$exp" -iters "$ITERS" -fft "${variants[j]}" -nospin "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|ROE=\|error\| E :\|exception\|exiting'
 			time=''
-			if output=$(grep '[[:digit:]]\{7,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{5,\}' gpuowl.log | grep $ITERS); then
+			if output=$(grep '[[:digit:]]\{7,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{5,\}' gpuowl.log | grep "$ITERS"); then
 				RE='([[:digit:]]+) us/it'
 				if [[ $output =~ $RE ]]; then
 					time=${BASH_REMATCH[1]}

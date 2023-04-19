@@ -218,7 +218,7 @@ ARGS=()
 if command -v clinfo >/dev/null; then
 	clinfo=$(clinfo --raw)
 	mapfile -t GPU < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_NAME *//p')
-	ARGS+=( --cpu_model="${GPU[DEVICE]//\[*\]}" )
+	ARGS+=( --cpu-model="${GPU[DEVICE]//\[*\]}" )
 	
 	mapfile -t GPU_FREQ < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_MAX_CLOCK_FREQUENCY *//p')
 	ARGS+=( --frequency="${GPU_FREQ[DEVICE]}" )
@@ -227,7 +227,7 @@ if command -v clinfo >/dev/null; then
 	ARGS+=( -m $(( TOTAL_GPU_MEM[DEVICE] / 1024 / 1024 )) )
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
-	ARGS+=( --cpu_model="${GPU[DEVICE]}" )
+	ARGS+=( --cpu-model="${GPU[DEVICE]}" )
 	
 	mapfile -t GPU_FREQ < <(nvidia-smi --query-gpu=clocks.max.gr --format=csv,noheader,nounits | grep -iv 'not supported')
 	if [[ -n "$GPU_FREQ" ]]; then
