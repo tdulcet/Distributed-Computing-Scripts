@@ -2454,7 +2454,7 @@ Then, it will get assignments, report the results, upload any proof files and re
                                )
 
 # options not saved to local.ini
-parser.add_option("-d", "--debug", action="count", dest="debug",
+parser.add_option("-d", "--debug", action="count", dest="debug", default=0,
                   help="Output detailed information. Provide multiple times for even more verbose output.")
 parser.add_option("-w", "--workdir", dest="workdir", default=".",
                   help="Working directory with the local file from this program, Default: %default (current directory)")
