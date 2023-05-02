@@ -37,7 +37,8 @@ jobs:
         path: |
           cudalucas/
     - name: ShellCheck
-      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh || true'
+      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh'
+      continue-on-error: true
     - name: Clang-Tidy
       run: cd cudalucas && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-const-correctness,misc-redundant-expression,misc-unused-*,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-anyofallof' -header-filter='.*' *.c *.cu -- -Wall -O3 --cuda-gpu-arch=sm_35
 
@@ -75,7 +76,8 @@ jobs:
         path: |
           gpuowl/
     - name: ShellCheck
-      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh || true'
+      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh'
+      continue-on-error: true
 
   Mlucas:
     name: Mlucas
@@ -127,7 +129,8 @@ jobs:
         path: |
           mlucas_v*/
     - name: ShellCheck
-      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh || true'
+      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh'
+      continue-on-error: true
 
   Linux:
     name: PrimeNet Linux
@@ -142,7 +145,7 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        pip3 install requests
+        python3 -m pip install requests
     - name: Script
       run: |
         set -x
@@ -158,8 +161,8 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        pip install requests
-        pip3 install requests
+        python -m pip install requests
+        python3 -m pip install requests
     - name: Script
       run: |
         set -x
@@ -179,7 +182,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests
+        python -m pip install requests
     - name: Script
       run: |
         wmic cpu get name

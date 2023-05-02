@@ -5,13 +5,12 @@
 # ./mprime.py "$USER" "$HOSTNAME" 150 10
 # ./mprime.py ANONYMOUS
 
-import sys
-import subprocess
-import os
-import socket
-import re  # regular expression matching
 import hashlib  # sha256
-import time
+import os
+import re  # regular expression matching
+import socket
+import subprocess
+import sys
 
 DIR = "mprime"
 FILE = "p95v308b17.linux64.tar.gz"
@@ -19,14 +18,14 @@ SUM = "5180c3843d2b5a7c7de4aa5393c13171b0e0709e377c01ca44154608f498bec7"
 
 
 def regex_check(reg, var, err):
-    '''Checks cmdline args for proper bounds using regex
+    """Checks cmdline args for proper bounds using regex
     Parameters:
     reg (string): regex string to check against
     var (string): variable to check against regex string
     err (string): output to put to STDERR if regex does not match
     Returns:
-    None
-    '''
+    None.
+    """
     if not re.match(reg, var):
         sys.stderr.write(err)
         sys.exit(1)
@@ -40,15 +39,15 @@ def misc_check(condition, err):
 # Source: https://stackoverflow.com/questions/22058048/hashing-a-file-in-python
 # There is no sha256sum in the hashlib library normally
 def sha256sum(filename):
-    '''Completes a checksum of the folder
+    """Completes a checksum of the folder
     Parameters:
     filename (string): directory to be checked
     Returns:
-    The hash sum string in hexidecimal digits
-    '''
+    The hash sum string in hexidecimal digits.
+    """
     h = hashlib.sha256()
-    with open(filename, 'rb') as f:
-        for chunk in iter(lambda: f.read(128 * h.block_size), b''):
+    with open(filename, "rb") as f:
+        for chunk in iter(lambda: f.read(128 * h.block_size), b""):
             h.update(chunk)
     return h.hexdigest()
 
@@ -57,55 +56,55 @@ def sha256sum(filename):
 USERID = sys.argv[1] if len(sys.argv) > 1 else os.environ["USER"]
 COMPUTER = sys.argv[2] if len(sys.argv) > 2 else socket.gethostname()
 TYPE = sys.argv[3] if len(sys.argv) > 3 else str(150)
-TIME = str(int(sys.argv[4]) * 60) if len(sys.argv) > 4 else str(10 * 60)
+TIME = str((int(sys.argv[4]) if len(sys.argv) > 4 else 10) * 60)
 
 
-print("PrimeNet User ID:\t" + USERID)
-print("Computer name:\t\t" + COMPUTER)
-print("Type of work:\t\t" + TYPE)
-print("Idle time to run:\t" + str(int(TIME) // 60) + " minutes\n")
+print(f"PrimeNet User ID:\t{USERID}")
+print(f"Computer name:\t\t{COMPUTER}")
+print(f"Type of work:\t\t{TYPE}")
+print(f"Idle time to run:\t{int(TIME) // 60} minutes\n")
 
 #---Dependencies/Downloads---#
 print("Asserting Python version is >= Python3.6")
-assert sys.version_info >= (3, 0)
+assert sys.version_info >= (3, 6)
 
 try:
     import wget
-except ImportError as error:
+except ImportError:
     print("Installing wget dependency")
-    p = subprocess.run('pip install wget', shell=True)
+    p = subprocess.run([sys.executable, "-m", "pip", "install", "wget"])
     import wget
 except Exception as error:
-    misc_check(True, "Unexpected error occurred when installing Python dependency:\n\n" + str(error) + "\n")
+    misc_check(True, f"Unexpected error occurred when installing Python dependency:\n\n{error}\n")
 #----------------------------#
 #---Command Line Checks------#
-misc_check(len(sys.argv) > 5, "Usage: " + sys.argv[0] + " [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]")
-regex_check(r'^([024568]|1(0[0124]|5[0123]|6[01])?)$', TYPE, "Usage: [Type of work] is not a valid number")
-regex_check(r'^([0-9]*[.])?[0-9]+$', TIME, err="Usage: [Idle time to run] must be a number")
+misc_check(len(sys.argv) > 5, f"Usage: {sys.argv[0]} [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]")
+regex_check(r"^([024568]|1(0[0124]|5[0123]|6[01])?)$", TYPE, "Usage: [Type of work] is not a valid number")
+regex_check(r"^([0-9]*[.])?[0-9]+$", TIME, err="Usage: [Idle time to run] must be a number")
 #----------------------------#
 
 #---Downloading/Directory Ops---#
 misc_check(os.path.exists(DIR), "Error: Prime95 is already downloaded")
 print("Making directory to house contents of Prime95")
 os.mkdir(DIR)
-misc_check(not os.path.exists(DIR), "Error: Failed to create directory: " + DIR)
+misc_check(not os.path.exists(DIR), f"Error: Failed to create directory: {DIR}")
 
 os.chdir(DIR)
 os.environ["DIR"] = os.getcwd()
 
 print("\nDownloading Prime95\n")
-wget.download('https://www.mersenne.org/download/software/v30/30.8/' + FILE)
-misc_check(sha256sum(FILE).lower() == SUM, "Error: sha256sum does not match. Please run \"rm -r " + repr(DIR) + "\" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
+wget.download(f"https://www.mersenne.org/download/software/v30/30.8/{FILE}")
+misc_check(sha256sum(FILE).lower() == SUM, f'Error: sha256sum does not match. Please run "rm -r {DIR!r}" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues')
 
 print("\nDecompressing the files")
-subprocess.run(['tar', '-xzvf', FILE])
+subprocess.run(["tar", "-xzvf", FILE])
 #---------------------------------------#
 
 #---Configuration---#
 args = [USERID, COMPUTER, TYPE]
 
 print("Setting up Prime95.")
-p = subprocess.Popen([sys.executable, "../exp.py"] + args,
+p = subprocess.Popen([sys.executable, "../exp.py", *args],
                      stdout=subprocess.PIPE,
                      universal_newlines=True,
                      bufsize=0)
