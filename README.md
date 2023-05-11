@@ -49,21 +49,22 @@ wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl.
 
 ### PrimeNet
 
-Automatically gets assignments, reports assignment results and optionally progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. Supports both Python 2 and 3 and Windows, macOS and Linux. Requires the [Requests library](https://requests.readthedocs.io/en/master/), which is included with many Python 3 installations. The script will automatically install Requests on first run if it is not already installed. GIMPS [discontinued first time LL assignments](https://mersenneforum.org/showthread.php?t=26682) in April 2021, although the script [still supports them](https://mersenneforum.org/showthread.php?p=575260#post575260) for users of CUDALucas or with limited disk space. Our [GpuOwl](#gpuowl), [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by [Loïc Le Loarer](https://github.com/llloic11/primenet) and Ernst W. Mayer, which itself was adapted from primetools by [Mark Rose](https://github.com/MarkRose/primetools) and [teknohog](https://github.com/teknohog/primetools).
+Automatically gets assignments, reports assignment results, upload proof files and optionally registers assignments and reports assignment progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. Supports both Python 2 and 3 and Windows, macOS and Linux. Requires the [Requests library](https://requests.readthedocs.io/en/master/), which is included with most Python 3 installations. The script will automatically install Requests on first run if it is not already installed. GIMPS [discontinued first time LL assignments](https://mersenneforum.org/showthread.php?t=26682) in April 2021, although the script [still supports them](https://mersenneforum.org/showthread.php?p=575260#post575260) for users of CUDALucas or with limited disk space. Our [GpuOwl](#gpuowl), [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by [Loïc Le Loarer](https://github.com/llloic11/primenet) and Ernst W. Mayer, which itself was adapted from primetools by [Mark Rose](https://github.com/MarkRose/primetools) and [teknohog](https://github.com/teknohog/primetools).
 
 #### Usage
 
 ```
 Usage: primenet.py [options]
 
-This program will automatically get assignments, report assignment results and
-optionally progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS
-programs. It also saves its configuration to a “local.ini” file, so it is only
-necessary to give most of the arguments the first time it is run. The first
-time it is run, if a password is NOT provided, it will register the current
-GpuOwl/CUDALucas/Mlucas instance with PrimeNet (see below). Then, it will get
-assignments, report the results, upload any proofs and report the progress, if
-registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
+This program will automatically get assignments, report assignment results,
+upload proof files and optionally register assignments and report assignment
+progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. It
+also saves its configuration to a “local.ini” file by default, so it is only
+necessary to give most of the arguments once. The first time it is run, if a
+password is NOT provided, it will register the current GpuOwl/CUDALucas/Mlucas
+instance with PrimeNet (see below). Then, it will get assignments, report the
+results, upload any proof files and report the progress, if registered, to
+PrimeNet on a “timeout” interval, or only once if timeout is 0.
 
 Options:
   --version             show program's version number and exit
@@ -153,11 +154,20 @@ Options:
                         dates for all assignments and exit.
   --upload-proofs       Report assignment results, upload all PRP proofs and
                         exit. Requires PrimeNet User ID.
+  --recover-all         Recover all assignments and exit. This will overwrite
+                        any existing work files. Requires that the instance is
+                        registered with PrimeNet.
+  --unreserve=EXPONENT  Unreserve the exponent and exit. Use this only if you
+                        are sure you will not be finishing this exponent.
+                        Requires that the instance is registered with
+                        PrimeNet.
   --unreserve-all       Unreserve all assignments and exit. Quit GIMPS
                         immediately. Requires that the instance is registered
                         with PrimeNet.
   --no-more-work        Prevent the script from getting new assignments and
                         exit. Quit GIMPS after current work completes.
+  --ping                Ping the PrimeNet server, show version information and
+                        exit.
 
   Registering Options: Sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).:
     -H COMPUTERID, --hostname=COMPUTERID
@@ -241,12 +251,10 @@ Pull requests welcome! Ideas for contributions:
 
 PrimeNet script:
 * Support more GIMPS programs.
-* Support reserving a specific exponent.
 * Support setting more of the program options.
 * Support setting per thread options.
 	* Get different work types on different CPU cores or GPUs.
 * Improve the error handling of PrimeNet API calls.
-* Support the recovery of assignments if there is an error or the worktodo file was deleted.
 * Check for new results to submit when the results file is updated.
 * Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
 	* Currently this requires using the Bash install scripts for Linux.
@@ -259,11 +267,16 @@ PrimeNet script:
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 
 General:
+* Create install script for the [CUDAPm1](https://sourceforge.net/projects/cudapm1/) GIMPS program
 * Update install scripts to support CLI options
 * Add options for setting the maximum CPU time
 * Update CUDALucas to support PRP tests and the Jacobi error check for LL tests
 * Update Mlucas to support the Jacobi error check for LL and P-1 tests
 * Finish and improve the performance of [TensorPrime](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime), the [Tensor Processing Unit](https://en.wikipedia.org/wiki/Tensor_Processing_Unit) (TPU) GIMPS program (see [here](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime/wiki#results-and-next-steps))
+
+## License
+
+The scripts are all MIT licensed, except the PrimeNet script which is GPLv2.
 
 Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimeNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimeNet API, for porting the Prime95 script to Python and for helping create and test the Google Colab Jupyter Notebooks!
 
