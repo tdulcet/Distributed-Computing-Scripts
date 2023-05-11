@@ -78,17 +78,17 @@ Options:
                         GIMPS program. Provide once for each worker thread. It
                         automatically sets the --cpu-num option for each
                         directory.
-  -i WORKFILE, --workfile=WORKFILE
+  -i WORKTODO_FILE, --workfile=WORKTODO_FILE
                         Work file filename, Default: “worktodo.ini”
-  -r RESULTSFILE, --resultsfile=RESULTSFILE
+  -r RESULTS_FILE, --resultsfile=RESULTS_FILE
                         Results file filename, Default: “results.txt”
   -l LOCALFILE, --localfile=LOCALFILE
                         Local configuration file filename, Default:
                         “local.ini”
-  --archive-proofs=PROOFARCHIVEDIR
+  --archive-proofs=ARCHIVE_DIR
                         Directory to archive PRP proof files after upload,
                         Default: none
-  -u USERNAME, --username=USERNAME
+  -u USER_ID, --username=USER_ID
                         GIMPS/PrimeNet User ID. Create a GIMPS/PrimeNet
                         account: https://www.mersenne.org/update/. If you do
                         not want a PrimeNet account, you can use ANONYMOUS.
@@ -97,7 +97,7 @@ Options:
                         want to do manual testing and not report the progress.
                         This was the default behavior for old versions of this
                         script.
-  -T WORKPREFERENCE, --worktype=WORKPREFERENCE
+  -T WORK_PREFERENCE, --worktype=WORK_PREFERENCE
                         Type of work, Default: 100, 4 (P-1 factoring), 100
                         (smallest available first-time LL), 101 (double-check
                         LL), 102 (world-record-sized first-time LL), 104 (100M
@@ -108,11 +108,9 @@ Options:
                         factoring), 155 (double-check using PRP with proof),
                         160 (first time Mersenne cofactors PRP), 161 (double-
                         check Mersenne cofactors PRP)
-  --min-exp=GETMINEXPONENT
-                        Minimum exponent to get from PrimeNet (2 -
+  --min-exp=MIN_EXP     Minimum exponent to get from PrimeNet (2 -
                         999,999,999)
-  --max-exp=GETMAXEXPONENT
-                        Maximum exponent to get from PrimeNet (2 -
+  --max-exp=MAX_EXP     Maximum exponent to get from PrimeNet (2 -
                         999,999,999)
   -g, --gpuowl          Get assignments for a GPU (GpuOwl) instead of the CPU
                         (Mlucas).
@@ -120,7 +118,7 @@ Options:
                         Get assignments for a GPU (CUDALucas) instead of the
                         CPU (Mlucas). Provide the CUDALucas output filename as
                         the argument.
-  --num-workers=WORKERTHREADS
+  --num-workers=NUM_WORKER_THREADS
                         Number of worker threads (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu-num=CPU
                         CPU core or GPU number to get assignments for,
@@ -129,7 +127,7 @@ Options:
                         Number of assignments to cache, Default: 0
                         (automatically incremented by 1 when doing manual
                         testing)
-  -W DAYSOFWORK, --days-work=DAYSOFWORK
+  -W DAYS_OF_WORK, --days-work=DAYS_OF_WORK
                         Days of work to queue (1-180 days), Default: 3.0 days.
                         Adds one to num_cache when the time left for all
                         assignments is less then this number of days.
@@ -170,29 +168,32 @@ Options:
                         exit.
 
   Registering Options: Sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).:
-    -H COMPUTERID, --hostname=COMPUTERID
+    -H COMPUTER_ID, --hostname=COMPUTER_ID
                         Optional computer name, Default: example
-    --cpu-model=CPUBRAND
+    --cpu-model=CPU_BRAND
                         Processor (CPU) model, Default: cpu.unknown
     --features=CPU_FEATURES
                         CPU features, Default: ''
-    --frequency=CPUSPEED
+    --frequency=CPU_SPEED
                         CPU frequency/speed (MHz), Default: 1000 MHz
     -m MEMORY, --memory=MEMORY
                         Total physical memory (RAM) (MiB), Default: 1024 MiB
-    --max-memory=MEMORY
+    --max-memory=DAY_NIGHT_MEMORY
                         Configured day/night P-1 stage 2 memory (MiB),
                         Default: 921 MiB (90% of physical memory). Required
                         for P-1 assignments.
-    --L1=L1             L1 Cache size (KiB), Default: 8 KiB
-    --L2=L2             L2 Cache size (KiB), Default: 512 KiB
-    --L3=L3             L3 Cache size (KiB), Default: 0 KiB
-    --np=NUMCORES       Number of physical CPU cores, Default: 1
-    --hp=CPUNUMHYPERTHREADS
+    --L1=CPU_L1_CACHE_SIZE
+                        L1 Cache size (KiB), Default: 8 KiB
+    --L2=CPU_L2_CACHE_SIZE
+                        L2 Cache size (KiB), Default: 512 KiB
+    --L3=CPU_L3_CACHE_SIZE
+                        L3 Cache size (KiB), Default: 0 KiB
+    --np=NUM_CORES      Number of physical CPU cores, Default: 1
+    --hp=CPU_HYPERTHREADS
                         Number of CPU threads per core (0 is unknown),
                         Default: 0. Choose 1 for non-hyperthreaded and 2 or
                         more for hyperthreaded.
-    --hours=CPUHOURS    Hours per day you expect to run the GIMPS program (1 -
+    --hours=CPU_HOURS   Hours per day you expect to run the GIMPS program (1 -
                         24), Default: 24 hours. Used to give better estimated
                         completion dates.
 ```
