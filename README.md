@@ -140,6 +140,12 @@ Options:
                         bounds (as listed on mersenne.ca) times this
                         threshold/multiplier. Requires the --force-pminus1
                         option.
+  --convert-ll-to-prp   Convert all LL assignments to PRP. This is for use
+                        when registering assignments.
+  --convert-prp-to-ll   Convert all PRP assignments to LL. This is
+                        automatically enabled for first time PRP assignments
+                        when the --worktype option is for a first time LL
+                        worktype.
   --no-report-100m      Do not report any prime results for exponents greater
                         than 100 million digits. You must setup another method
                         to notify yourself.

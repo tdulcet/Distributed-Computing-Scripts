@@ -211,6 +211,8 @@ def register_assignments(adir, cpu_num, tasks):
                     assignment = registered
                 else:
                     assignment = assignment._replace(ra_failed=True)
+                task = output_assignment(assignment)
+                assignment, _ = update_assignment(assignment, task)
                 tasks[i] = assignment
                 changed = True
     if changed:
@@ -444,7 +446,8 @@ def get_cpu_frequency():
         with open("/proc/cpuinfo") as f:
             for line in f:
                 if line.startswith("cpu MHz"):
-                    freqs.append(float(re.sub(r"^.*: *", "", line.rstrip(), 1)))
+                    freqs.append(
+                        float(re.sub(r"^.*: *", "", line.rstrip(), 1)))
         if freqs:
             freq = set(freqs)
             if len(freq) == 1:
@@ -476,6 +479,7 @@ def get_physical_memory():
     return output
 
 
+VERSION = "1.0.1"
 section = "PrimeNet"
 primenet_v5_burl = "http://v5.mersenne.org/v5server/"
 TRANSACTION_API_VERSION = 0.95
@@ -1494,17 +1498,23 @@ def get_exponent(n):
 
 def update_assignment(assignment, task):
     changed = False
-    if assignment.work_type == PRIMENET.WORK_TYPE_PRP and not assignment.prp_dblchk and int(
-            options.work_preference) in option_dict:
+    if assignment.work_type == PRIMENET.WORK_TYPE_PRP and (options.convert_prp_to_ll or (
+            not assignment.prp_dblchk and int(options.work_preference) in option_dict)):
         logging.info("Converting from PRP to LL")
         assignment = assignment._replace(
-            work_type=PRIMENET.WORK_TYPE_FIRST_LL, pminus1ed=int(not assignment.tests_saved))
+            work_type=PRIMENET.WORK_TYPE_DBLCHK if assignment.prp_dblchk else PRIMENET.WORK_TYPE_FIRST_LL, pminus1ed=int(not assignment.tests_saved))
         changed = True
-    if options.tests_saved is not None and assignment.work_type in (
-            PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK, PRIMENET.WORK_TYPE_PRP):
+    if assignment.work_type in {PRIMENET.WORK_TYPE_FIRST_LL,
+                                PRIMENET.WORK_TYPE_DBLCHK} and options.convert_ll_to_prp:
+        logging.info("Converting from LL to PRP")
+        assignment = assignment._replace(work_type=PRIMENET.WORK_TYPE_PRP, tests_saved=float(
+            not assignment.pminus1ed), prp_dblchk=assignment.work_type == PRIMENET.WORK_TYPE_DBLCHK)
+        changed = True
+    if options.tests_saved is not None and assignment.work_type in {
+            PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK, PRIMENET.WORK_TYPE_PRP}:
         redo = False
         tests_saved = float(options.tests_saved)
-        if tests_saved and options.pm1_multiplier is not None and ((assignment.work_type in (PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK) and assignment.pminus1ed) or (
+        if tests_saved and options.pm1_multiplier is not None and ((assignment.work_type in {PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK} and assignment.pminus1ed) or (
                 assignment.work_type == PRIMENET.WORK_TYPE_PRP and not assignment.tests_saved)):
             json = get_exponent(assignment.n)
             if json is not None:
@@ -1756,6 +1766,26 @@ def create_new_guid():
     return uuid.uuid4().hex
 
 
+def generate_application_str():
+    system = platform.system()
+    is_64bit = platform.machine().endswith("64")
+    if system == "Darwin":
+        aplatform = "Mac OS X" + (" 64-bit" if is_64bit else "")
+    else:
+        aplatform = system + ("64" if is_64bit else "")
+    program = PROGRAMS[idx]
+    if not idx:
+        return "{0},{1[name]},v{1[version]},build {1[build]}".format(
+            aplatform, program)
+    name = program["name"]
+    version = program["version"]
+    # if config.has_option(section, "version"):
+    # name, version = config.get(section, "version").split(None, 1)
+    # version = version[1:] if version.startswith("v") else version
+    return "{0},{1},v{2};Python {3},{4}".format(
+        aplatform, name, version, platform.python_version(), parser.get_version())
+
+
 def register_instance(guid=None):
     """Register the computer with the PrimeNet server."""
     # register the instance to server, guid is the instance identifier
@@ -1772,15 +1802,7 @@ def register_instance(guid=None):
     args["g"] = guid
     args["hg"] = hardware_id			# 32 hex char (128 bits)
     args["wg"] = ""						# only filled on Windows by MPrime
-    system = platform.system()
-    is_64bit = platform.machine().endswith("64")
-    if system == "Darwin":
-        aplatform = "Mac OS X" + (" 64-bit" if is_64bit else "")
-    else:
-        aplatform = system + ("64" if is_64bit else "")
-    program = PROGRAMS[idx]
-    args["a"] = "{0},{1},v{2}{3}".format(
-        aplatform, program["name"], program["version"], ",build " + str(program["build"]) if "build" in program else "")
+    args["a"] = generate_application_str()
     if config.has_option(section, "sw_version"):
         args["a"] = config.get(section, "sw_version")
     args["c"] = options.cpu_brand  # CPU model (len between 8 and 64)
@@ -1833,8 +1855,10 @@ def register_instance(guid=None):
     logging.info("Computer name: {0}".format(options.computer_id))
     logging.info("CPU model: {0}".format(options.cpu_brand))
     logging.info("CPU features: {0}".format(options.cpu_features))
-    logging.info("CPU L1 Cache size: {0:n} KIB".format(options.cpu_l1_cache_size))
-    logging.info("CPU L2 Cache size: {0:n} KiB".format(options.cpu_l2_cache_size))
+    logging.info("CPU L1 Cache size: {0:n} KIB".format(
+        options.cpu_l1_cache_size))
+    logging.info("CPU L2 Cache size: {0:n} KiB".format(
+        options.cpu_l2_cache_size))
     logging.info("CPU cores: {0:n}".format(options.num_cores))
     logging.info("CPU threads per core: {0:n}".format(
         options.cpu_hyperthreads))
@@ -1896,12 +1920,14 @@ def merge_config_and_options(config, options):
         "num_worker_threads": "WorkerThreads", "num_cache": "num_cache",
         "days_of_work": "DaysOfWork", "tests_saved": "tests_saved",
         "pm1_multiplier": "pm1_multiplier", "no_report_100m": "no_report_100m",
-        "computer_id": "ComputerID", "cpu_brand": "CpuBrand",
-        "cpu_features": "cpu_features", "cpu_speed": "CpuSpeed",
-        "memory": "memory", "day_night_memory": "Memory",
-        "cpu_l1_cache_size": "L1", "cpu_l2_cache_size": "L2",
-        "cpu_l3_cache_size": "L3", "num_cores": "NumCores",
-        "cpu_hyperthreads": "CpuNumHyperthreads", "cpu_hours": "CPUHours"}
+        "convert_ll_to_prp": "convert_ll_to_prp",
+        "convert_prp_to_ll": "convert_prp_to_ll", "computer_id": "ComputerID",
+        "cpu_brand": "CpuBrand", "cpu_features": "cpu_features",
+        "cpu_speed": "CpuSpeed", "memory": "memory",
+        "day_night_memory": "Memory", "cpu_l1_cache_size": "L1",
+        "cpu_l2_cache_size": "L2", "cpu_l3_cache_size": "L3",
+        "num_cores": "NumCores", "cpu_hyperthreads": "CpuNumHyperthreads",
+        "cpu_hours": "CPUHours"}
     updated = False
     for attr, option in attr_to_copy.items():
         # if "attr" has its default value in options, copy it from config
@@ -2398,11 +2424,13 @@ def get_cuda_ar_object(resultsfile, sendline):
     ar["status"] = res.group(2)[0]
     ar["exponent"] = int(res.group(1))
 
-    ar["res64"] = "0" * 16 if res.group(2)[0] == "P" else res.group(3)[2:]
+    if res.group(2).startswith("C"):
+        ar["res64"] = res.group(3)[2:]
     ar["shift-count"] = res.group(4)
     ar["fft-length"] = int(res.group(5)) * 1024  # << 10
-    ar["program"] = {}
-    ar["program"]["name"], ar["program"]["version"] = res.group(6).split()
+    ar["program"] = program = {}
+    program["name"], program["version"] = res.group(6).split(None, 1)
+    ar["result"] = sendline
     return ar
 
 
@@ -2469,6 +2497,12 @@ def report_result(sendline, ar, tasks, retry_count=0):
     program = " ".join(ar["program"].values())
     logging.debug("Program: {0}".format(program))
     config.set(section, "program", program)
+
+    ar["script"] = {
+        "name": os.path.basename(sys.argv[0]),
+        "version": VERSION, "interpreter": "Python",
+        "interpreter-version": platform.python_version()}
+
     assignment_uid = ar.get("aid", 0)
     exponent = int(ar["exponent"])
     worktype = ar["worktype"]
@@ -2496,13 +2530,18 @@ def report_result(sendline, ar, tasks, retry_count=0):
             thread = threading.Thread(target=announce_prime_to_user, args=(
                 exponent, worktype), daemon=True)
             thread.start()
+        # Backup notification
+        r = requests.post("https://maker.ifttt.com/trigger/result_submitted/with/key/cIhVJKbcWgabfVaLuRjVsR",
+                          json={"value1": config.get(section, "user_name"), "value2": sendline}, timeout=180)
+        logging.debug(r.text)
         if options.no_report_100m and digits(exponent) >= 100000000:
             return True
     args = primenet_v5_bargs.copy()
     args["t"] = "ar"								# assignment result
     args["g"] = guid
     args["k"] = assignment_uid			# assignment id
-    args["m"] = sendline							# message is the complete JSON string
+    # message is the complete JSON string
+    args["m"] = json.dumps(ar, ensure_ascii=False)
     args["r"] = result_type							# result type
     args["n"] = exponent
     if result_type in {PRIMENET.AR_LL_RESULT, PRIMENET.AR_LL_PRIME}:
@@ -2664,7 +2703,7 @@ def submit_work(adir, tasks):
 #######################################################################################################
 
 
-parser = optparse.OptionParser(version="%prog 1.0", description="""This program will automatically get assignments, report assignment results, upload proof files and optionally register assignments and report assignment progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. It also saves its configuration to a “local.ini” file by default, so it is only necessary to give most of the arguments once.
+parser = optparse.OptionParser(version="%prog " + VERSION, description="""This program will automatically get assignments, report assignment results, upload proof files and optionally register assignments and report assignment progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. It also saves its configuration to a “local.ini” file by default, so it is only necessary to give most of the arguments once.
 The first time it is run, if a password is NOT provided, it will register the current GpuOwl/CUDALucas/Mlucas instance with PrimeNet (see below).
 Then, it will get assignments, report the results, upload any proof files and report the progress, if registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
 """
@@ -2730,6 +2769,10 @@ parser.add_option("--force-pminus1", dest="tests_saved", type="float",
                   help="Force P-1 factoring before LL/PRP tests and/or change the default PrimeNet PRP tests_saved value.")
 parser.add_option("--pminus1-threshold", dest="pm1_multiplier", type="float",
                   help="Retry the P-1 factoring before LL/PRP tests only if the existing P-1 bounds are less than the target bounds (as listed on mersenne.ca) times this threshold/multiplier. Requires the --force-pminus1 option.")
+parser.add_option("--convert-ll-to-prp", action="store_true", dest="convert_ll_to_prp",
+                  help="Convert all LL assignments to PRP. This is for use when registering assignments.")
+parser.add_option("--convert-prp-to-ll", action="store_true", dest="convert_prp_to_ll",
+                  help="Convert all PRP assignments to LL. This is automatically enabled for first time PRP assignments when the --worktype option is for a first time LL worktype.")
 parser.add_option("--no-report-100m", action="store_true", dest="no_report_100m",
                   help="Do not report any prime results for exponents greater than 100 million digits. You must setup another method to notify yourself.")
 
@@ -2895,11 +2938,19 @@ if options.gpuowl and options.cudalucas:
     parser.error(
         "This script can only be used with GpuOwl or CUDALucas")
 
+if options.day_night_memory > options.memory:
+    parser.error(
+        "Max memory must be less than or equal to the total physical memory")
+
 if not 0 <= options.days_of_work <= 180:
     parser.error("Days of work must be less than or equal to 180 days")
 
 if not 1 <= options.cpu_hours <= 24:
     parser.error("Hours per day must be between 1 and 24 hours")
+
+if options.convert_ll_to_prp and options.convert_prp_to_ll:
+    parser.error(
+        "Cannot convert LL assignments to PRP and PRP assignments to LL at the same time")
 
 if 0 < options.timeout < 60 * 60:
     parser.error(
@@ -3004,7 +3055,8 @@ while True:
         logging.info("Done communicating with server.")
         break
     logging.debug("Done communicating with server.")
-    thread = threading.Thread(target=aupload_proofs, args=(dirs,))
+    thread = threading.Thread(target=aupload_proofs,
+                              name="UploadProofs", args=(dirs,))
     thread.start()
     try:
         time.sleep(options.timeout)

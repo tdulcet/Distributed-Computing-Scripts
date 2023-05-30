@@ -57,7 +57,7 @@ if ! ldconfig -p | grep -iq 'libgmp\.' || ! [[ -f "${files[0]}" ]]; then
 	echo -e "Installing the GNU Multiple Precision (GMP) library"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install libgmp3-dev -y
+	sudo apt-get install libgmp-dev -y
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
@@ -578,7 +578,8 @@ for j in "${!threads[@]}"; do
 	ln -s "mlucas.${CORES:+${CORES[MAX]}c.}${threads[j]}t.$j.cfg" "mlucas.$j.cfg"
 done
 echo -e "\nRegistering computer with PrimeNet\n"
-python3 ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m "$((TOTAL_PHYSICAL_MEM / 1024))" --np="$CPU_CORES" --hp="$HP"
+total=$((TOTAL_PHYSICAL_MEM / 1024))
+python3 ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --np="$CPU_CORES" --hp="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 args=()
 for i in "${!RUNS[@]}"; do

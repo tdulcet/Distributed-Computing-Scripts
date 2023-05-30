@@ -86,7 +86,7 @@ if ! ldconfig -p | grep -iq 'libgmp\.' || ! ldconfig -p | grep -iq 'libgmpxx\.' 
 	echo -e "Installing the GNU Multiple Precision (GMP) library"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install libgmp3-dev -y
+	sudo apt-get install libgmp-dev -y
 fi
 if ! ldconfig -p | grep -iq 'libOpenCL\.'; then
 	echo -e "Installing the OpenCL library"
@@ -211,7 +211,8 @@ if command -v clinfo >/dev/null; then
 	ARGS+=( --frequency="${GPU_FREQ[DEVICE]}" )
 	
 	mapfile -t TOTAL_GPU_MEM < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_GLOBAL_MEM_SIZE *//p')
-	ARGS+=( -m $(( TOTAL_GPU_MEM[DEVICE] / 1024 / 1024 )) )
+	maxAlloc=$(( TOTAL_GPU_MEM[DEVICE] / 1024 / 1024 ))
+	ARGS+=( -m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')" )
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
 	ARGS+=( --cpu-model="${GPU[DEVICE]}" )
@@ -223,7 +224,8 @@ elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
 	if [[ -n "$TOTAL_GPU_MEM" ]]; then
-		ARGS+=( -m "${TOTAL_GPU_MEM[DEVICE]}" )
+		maxAlloc=${TOTAL_GPU_MEM[DEVICE]}
+		ARGS+=( -m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')" )
 	fi
 fi
 python3 primenet.py -t 0 -T "$TYPE" -u "$USERID" -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"

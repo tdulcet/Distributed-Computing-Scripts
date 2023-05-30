@@ -157,7 +157,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install ruff
     - name: Script
-      run: ruff --format=github --target-version py37 --select F,E,W,I,D,UP,YTT,S,BLE,B,A,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SIM,TID,TCH,ARG,PGH,PL,RUF --ignore E101,E501,W191,D211,D213,D401,UP009,UP010,UP024,UP030,UP032,PLR09,PLR2004,S324,S603,RUF003,RUF005 .
+      run: ruff --format=github --target-version py37 --select F,E,W,I,D,UP,YTT,S,BLE,B,A,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SIM,TID,TCH,ARG,PGH,PL,TRY,RUF --ignore E101,E501,W191,D211,D213,D401,UP009,UP010,UP024,UP030,UP032,PLR09,PLR2004,S324,S603,RUF003,RUF005 .
       continue-on-error: true
 
   Linux:
@@ -178,6 +178,7 @@ jobs:
       run: |
         set -x
         wget https://raw.github.com/tdulcet/Linux-System-Information/master/info.sh -qO - | bash -s --
+        python3 -X dev -c 'import platform; print(platform.freedesktop_os_release())' || true
         python3 -X dev primenet.py --help
 
   macOS:
@@ -198,6 +199,8 @@ jobs:
         sysctl -n hw.physicalcpu_max hw.logicalcpu_max
         sysctl -n hw.cpufrequency_max
         sysctl -n hw.memsize
+        python -c 'import platform; print(platform.mac_ver())'
+        python3 -X dev -c 'import platform; print(platform.mac_ver())'
         python primenet.py --help
         python3 -X dev primenet.py --help
 
@@ -217,4 +220,5 @@ jobs:
         wmic cpu get NumberOfCores,NumberOfLogicalProcessors
         wmic cpu get MaxClockSpeed
         wmic memphysical get MaxCapacity
+        python -X dev -c "import platform; print(platform.win32_ver())"
         python -X dev primenet.py --help
