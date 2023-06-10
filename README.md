@@ -93,10 +93,10 @@ Options:
                         account: https://www.mersenne.org/update/. If you do
                         not want a PrimeNet account, you can use ANONYMOUS.
   -p PASSWORD, --password=PASSWORD
-                        Optional GIMPS/PrimeNet Password. Only provide if you
-                        want to do manual testing and not report the progress.
-                        This was the default behavior for old versions of this
-                        script.
+                        Optional GIMPS/PrimeNet Password. Deprecated and not
+                        recommended. Only provide if you want to do manual
+                        testing and not report the progress. This was the
+                        default behavior for old versions of this script.
   -T WORK_PREFERENCE, --worktype=WORK_PREFERENCE
                         Type of work, Default: 100, 4 (P-1 factoring), 100
                         (smallest available first-time LL), 101 (double-check
@@ -122,11 +122,12 @@ Options:
                         Number of worker threads (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu-num=CPU
                         CPU core or GPU number to get assignments for,
-                        Default: 0
+                        Default: 0. Deprecated in favor of the --dir option.
   -n NUM_CACHE, --num-cache=NUM_CACHE
                         Number of assignments to cache, Default: 0
                         (automatically incremented by 1 when doing manual
-                        testing)
+                        testing). Deprecated in favor of the --days-work
+                        option.
   -W DAYS_OF_WORK, --days-work=DAYS_OF_WORK
                         Days of work to queue (1-180 days), Default: 3.0 days.
                         Adds one to num_cache when the time left for all
@@ -266,11 +267,12 @@ PrimeNet script:
 * Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
 	* Currently this requires using the Bash install scripts for Linux.
 * Improve the performance.
-* Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has not made any progress in a while or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
+* Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has stalled or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
 * Support reporting interim residues.
 * Calculate the rolling average.
 * Support downloading certification assignments.
 * Localize the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
+* Remove the dependency on the Requests library
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 
 General:

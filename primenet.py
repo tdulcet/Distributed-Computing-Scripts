@@ -1779,11 +1779,12 @@ def generate_application_str():
             aplatform, program)
     name = program["name"]
     version = program["version"]
-    # if config.has_option(section, "version"):
-    # name, version = config.get(section, "version").split(None, 1)
-    # version = version[1:] if version.startswith("v") else version
-    return "{0},{1},v{2};Python {3},{4}".format(
-        aplatform, name, version, platform.python_version(), parser.get_version())
+    if config.has_option(section, "version"):
+        name, version = config.get(section, "version").split(None, 1)
+        version = version[1:] if version.startswith("v") else version
+    # return "{0},{1},v{2};Python {3},{4}".format(
+        # aplatform, name, version, platform.python_version(), parser.get_version())
+    return "{0},{1},v{2}".format(aplatform, name, version)
 
 
 def register_instance(guid=None):
@@ -2729,7 +2730,7 @@ parser.add_option("--archive-proofs", dest="archive_dir",
 parser.add_option("-u", "--username", dest="user_id", default="ANONYMOUS",
                   help="GIMPS/PrimeNet User ID. Create a GIMPS/PrimeNet account: https://www.mersenne.org/update/. If you do not want a PrimeNet account, you can use ANONYMOUS.")
 parser.add_option("-p", "--password", dest="password",
-                  help="Optional GIMPS/PrimeNet Password. Only provide if you want to do manual testing and not report the progress. This was the default behavior for old versions of this script.")
+                  help="Optional GIMPS/PrimeNet Password. Deprecated and not recommended. Only provide if you want to do manual testing and not report the progress. This was the default behavior for old versions of this script.")
 
 # -t is reserved for timeout, instead use -T for assignment-type preference:
 parser.add_option("-T", "--worktype", dest="work_preference", default=str(PRIMENET.WP_LL_FIRST), help="""Type of work, Default: %default,
@@ -2760,9 +2761,9 @@ parser.add_option("--cudalucas", dest="cudalucas",
 parser.add_option("--num-workers", dest="num_worker_threads", type="int", default=1,
                   help="Number of worker threads (CPU Cores/GPUs), Default: %default")
 parser.add_option("-c", "--cpu-num", dest="cpu", type="int", default=0,
-                  help="CPU core or GPU number to get assignments for, Default: %default")
+                  help="CPU core or GPU number to get assignments for, Default: %default. Deprecated in favor of the --dir option.")
 parser.add_option("-n", "--num-cache", dest="num_cache", type="int", default=0,
-                  help="Number of assignments to cache, Default: %default (automatically incremented by 1 when doing manual testing)")
+                  help="Number of assignments to cache, Default: %default (automatically incremented by 1 when doing manual testing). Deprecated in favor of the --days-work option.")
 parser.add_option("-W", "--days-work", dest="days_of_work", type="float", default=3.0,
                   help="Days of work to queue (1-180 days), Default: %default days. Adds one to num_cache when the time left for all assignments is less then this number of days.")
 parser.add_option("--force-pminus1", dest="tests_saved", type="float",
