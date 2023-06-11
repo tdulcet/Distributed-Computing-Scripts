@@ -7,8 +7,10 @@
 # ./mprime.sh ANONYMOUS
 
 DIR="mprime"
-FILE="p95v308b17.linux64.tar.gz"
-SUM="5180c3843d2b5a7c7de4aa5393c13171b0e0709e377c01ca44154608f498bec7"
+FILE32="p95v308b15.linux32.tar.gz"
+SUM32="183e62f1072782cd39c45fb31f3ff22d3c7b724ba7cc3d0cbd32ad0d1caf1653"
+FILE64="p95v308b17.linux64.tar.gz"
+SUM64="5180c3843d2b5a7c7de4aa5393c13171b0e0709e377c01ca44154608f498bec7"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -48,10 +50,20 @@ if ! command -v expect >/dev/null; then
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
+ARCHITECTURE=$(getconf LONG_BIT)
+echo -e "\nArchitecture:\t\t\t$HOSTTYPE (${ARCHITECTURE}-bit)"
+
 MEMINFO=$(</proc/meminfo)
 TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ { print $2 }')
-echo -e "\nTotal memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM / 1024))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM * 1024) / 1000) / 1000))) MB)\n"
+echo -e "Total memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM / 1024))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM * 1024) / 1000) / 1000))) MB)\n"
 
+if [[ $ARCHITECTURE -eq 32 ]]; then
+	FILE=$FILE32
+	SUM=$SUM32
+else
+	FILE=$FILE64
+	SUM=$SUM64
+fi
 if ! mkdir "$DIR"; then
 	echo "Error: Failed to create directory $DIR" >&2
 	exit 1
