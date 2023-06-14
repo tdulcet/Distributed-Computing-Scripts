@@ -1,0 +1,59 @@
+name: CD
+
+on:
+  push:
+  schedule:
+    - cron:  '0 0 1 * *'
+  workflow_dispatch:
+
+jobs:
+  PyInstaller:
+    name: PrimeNet Windows PyInstaller
+
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        architecture: ["x86", "x64"]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.x"
+        architecture: ${{ matrix.architecture }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install requests pyinstaller
+    - name: Script
+      run: |
+        python -X dev primenet.py --help
+        curl -sSO https://www.mersenne.org/favicon.ico
+        pyinstaller -F -i favicon.ico primenet.py
+        ./dist/primenet --help
+    - uses: actions/upload-artifact@v3
+      with:
+        name: PrimeNet_Windows_${{ matrix.architecture }}
+        path: |
+          README.md
+          dist/*
+
+  deploy:
+    name: PrimeNet Windows Deploy
+    needs: PyInstaller
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v3
+    - name: Install
+      run: |
+        sudo apt-get -yqq update
+        sudo apt-get -yqq install lftp
+    - name: Script
+      run: |
+        set -x
+        ls -alR PrimeNet_Windows_*
+        for DIR in PrimeNet_Windows_*/; do (cd "$DIR"; zip -j "../${DIR%/}" -- README.md dist/*); done
+        ls -alR PrimeNet_Windows_*
+        lftp -u "${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }}" -e "set ssl:verify-certificate false; mput PrimeNet_Windows_*.zip; exit" download.mersenne.ca
