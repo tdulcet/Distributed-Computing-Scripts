@@ -94,7 +94,7 @@ echo -e "\nSetting up Prime95\n"
 if [[ -e ../mprime2.exp ]]; then
 	cp ../mprime2.exp .
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime2.exp -q
+	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime2.exp
 fi
 sed -i '/^expect {/a \\t"stage 2 memory in GB (*):" { sleep 1; send -- "'"$(echo "$TOTAL_PHYSICAL_MEM" | awk '{ printf "%g", ($1 * 0.8) / 1024 / 1024 }')"'\\r"; exp_continue }' mprime2.exp
 expect mprime2.exp -- "$USERID" "$COMPUTER" "$TYPE" "$N"

@@ -162,12 +162,12 @@ echo -e "\nDownloading the PrimeNet script\n"
 if [[ -e ../primenet.py ]]; then
 	cp -v ../primenet.py .
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
+	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
 fi
 chmod +x primenet.py
+echo -e "\nInstalling the Requests library\n"
 # python3 -m ensurepip --default-pip || true
 python3 -m pip install --upgrade pip || true
-echo -e "\nInstalling the Requests library\n"
 if ! python3 -m pip install requests; then
 	if command -v pip3 >/dev/null; then
 		pip3 install requests
@@ -236,7 +236,7 @@ echo -e "\nDownloading GpuOwl benchmarking script\n"
 if [[ -e ../gpuowl-bench.sh ]]; then
 	cp -v ../gpuowl-bench.sh .
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-bench.sh -nv
+	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-bench.sh
 fi
 sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl-bench.sh
 chmod +x gpuowl-bench.sh
@@ -248,7 +248,7 @@ echo -e "\nDownloading GpuOwl wrapper script\n"
 if [[ -e ../gpuowl-wrapper.sh ]]; then
 	cp -v ../gpuowl-wrapper.sh .
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-wrapper.sh -nv
+	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-wrapper.sh
 fi
 mv -v gpuowl{-wrapper.sh,}
 sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl

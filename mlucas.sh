@@ -206,13 +206,13 @@ else
 	if [[ -e ../primenet.py ]]; then
 		cp -v ../primenet.py .
 	else
-		wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
+		wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
 	fi
 	chmod +x primenet.py
 fi
+echo -e "\nInstalling the Requests library\n"
 # python3 -m ensurepip --default-pip || true
 python3 -m pip install --upgrade pip || true
-echo -e "\nInstalling the Requests library\n"
 if ! python3 -m pip install requests; then
 	if command -v pip3 >/dev/null; then
 		pip3 install requests
@@ -579,7 +579,7 @@ for j in "${!threads[@]}"; do
 done
 echo -e "\nRegistering computer with PrimeNet\n"
 total=$((TOTAL_PHYSICAL_MEM / 1024))
-python3 ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --np="$CPU_CORES" --hp="$HP"
+python3 ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --np="$CPU_CORES" --hp="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 args=()
 for i in "${!RUNS[@]}"; do
@@ -592,7 +592,7 @@ for i in "${!RUNS[@]}"; do
 	popd >/dev/null
 done
 echo -e "\nStarting PrimeNet\n"
-nohup python3 ../primenet.py -t 21600 "${args[@]}" >> "primenet.out" &
+nohup python3 ../primenet.py "${args[@]}" >> "primenet.out" &
 sleep ${#RUNS[*]}
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" $((i+1)) "${RUNS[i]}"
@@ -621,7 +621,7 @@ $(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -cpu
 pgrep -f '^python3 \.\./primenet\.py' >/dev/null || {
 echo -e "\nStarting PrimeNet\n"
 set -x
-exec nohup python3 ../primenet.py -t 21600 ${args[@]} >> 'primenet.out' &
+exec nohup python3 ../primenet.py ${args[@]} >> 'primenet.out' &
 }
 EOF
 chmod +x jobs.sh

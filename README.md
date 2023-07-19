@@ -62,9 +62,11 @@ progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. It
 also saves its configuration to a “local.ini” file by default, so it is only
 necessary to give most of the arguments once. The first time it is run, if a
 password is NOT provided, it will register the current GpuOwl/CUDALucas/Mlucas
-instance with PrimeNet (see below). Then, it will get assignments, report the
-results, upload any proof files and report the progress, if registered, to
-PrimeNet on a “timeout” interval, or only once if timeout is 0.
+instance with PrimeNet (see the Registering Options below). Then, it will
+report assignment results, get assignments and upload any proof files to
+PrimeNet on the --timeout interval, or only once if --timeout is 0. If
+registered, it will additionally report the progress on the --checkin
+interval.
 
 Options:
   --version             show program's version number and exit
@@ -82,6 +84,8 @@ Options:
                         Work file filename, Default: “worktodo.ini”
   -r RESULTS_FILE, --resultsfile=RESULTS_FILE
                         Results file filename, Default: “results.txt”
+  -L LOGFILE, --logfile=LOGFILE
+                        Log file filename, Default: “primenet.log”
   -l LOCALFILE, --localfile=LOCALFILE
                         Local configuration file filename, Default:
                         “local.ini”
@@ -131,7 +135,7 @@ Options:
   -W DAYS_OF_WORK, --days-work=DAYS_OF_WORK
                         Days of work to queue (1-180 days), Default: 3.0 days.
                         Adds one to num_cache when the time left for all
-                        assignments is less then this number of days.
+                        assignments is less than this number of days.
   --force-pminus1=TESTS_SAVED
                         Force P-1 factoring before LL/PRP tests and/or change
                         the default PrimeNet PRP tests_saved value.
@@ -150,11 +154,16 @@ Options:
   --no-report-100m      Do not report any prime results for exponents greater
                         than 100 million digits. You must setup another method
                         to notify yourself.
+  --checkin=HOURS_BETWEEN_CHECKINS
+                        Hours to wait between sending assignment progress and
+                        expected completion dates (1-168 hours), Default: 6
+                        hours. Requires that the instance is registered with
+                        PrimeNet.
   -t TIMEOUT, --timeout=TIMEOUT
-                        Seconds to wait between network updates, Default: 3600
-                        seconds (1 hour). Users with slower internet may want
-                        to set a larger value to give time for any PRP proof
-                        files to upload. Use 0 to update once and exit.
+                        Seconds to wait between updates, Default: 3600 seconds
+                        (1 hour). Users with slower internet may want to set a
+                        larger value to give time for any PRP proof files to
+                        upload. Use 0 to update once and exit.
   -s, --status          Output a status report and any expected completion
                         dates for all assignments and exit.
   --upload-proofs       Report assignment results, upload all PRP proofs and
@@ -174,7 +183,14 @@ Options:
   --ping                Ping the PrimeNet server, show version information and
                         exit.
 
-  Registering Options: Sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).:
+  Registering Options:
+    Sent to PrimeNet/GIMPS when registering. It will automatically send
+    the progress, which allows the program to then be monitored on the
+    GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like
+    with Prime95/MPrime. This also allows the program to get much smaller
+    Category 0 and 1 exponents, if it meets the other requirements
+    (https://www.mersenne.org/thresholds/).
+
     -H COMPUTER_ID, --hostname=COMPUTER_ID
                         Optional computer name, Default: example
     --cpu-model=CPU_BRAND

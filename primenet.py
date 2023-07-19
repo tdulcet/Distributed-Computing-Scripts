@@ -45,7 +45,6 @@
 from __future__ import division, print_function, unicode_literals
 
 import csv
-import io
 import json
 import locale
 import logging
@@ -60,61 +59,72 @@ import subprocess
 import sys
 import threading
 import time
+import timeit
 import uuid
-from collections import namedtuple
 from datetime import datetime, timedelta
 from decimal import Decimal
 from hashlib import md5
 
 try:
-    # Python 3
+    # Python 3+
     from urllib.parse import urlencode
 except ImportError:
-    # Python 2
     from urllib import urlencode
 
 try:
+    # Python 3+
     from configparser import ConfigParser
     from configparser import Error as ConfigParserError
 except ImportError:
-    from ConfigParser import ConfigParser  # ver. < 3.0
+    from ConfigParser import ConfigParser
     from ConfigParser import Error as ConfigParserError
 
 if sys.version_info[:2] >= (3, 7):
+    # Python 3.7+
     # If is OK to use dict in 3.7+ because insertion order is guaranteed to be preserved
     # Since it is also faster, it is better to use raw dict()
     OrderedDict = dict
 else:
     try:
+        # Python 2.7 and 3.1+
         from collections import OrderedDict
     except ImportError:
-        # For Python 2.6 and before which don't have OrderedDict
-        try:
-            from ordereddict import OrderedDict
-        except ImportError:
-            # Tests will not work correctly but it doesn't affect the
-            # functionality
-            OrderedDict = dict
+        # Tests will not work correctly but it doesn't affect the
+        # functionality
+        OrderedDict = dict
 
 try:
+    # Python 3.4+
     from statistics import median_low
 except ImportError:
-    def median_low(mylist):
-        sorts = sorted(mylist)
+    def median_low(data):
+        sorts = sorted(data)
         length = len(sorts)
         return sorts[(length - 1) // 2]
 
 try:
+    # Python 3.3+
     from math import log2
 except ImportError:
     def log2(x):
         return math.log(x, 2)
 
 try:
+    # Python 3.2+
     from math import expm1
 except ImportError:
     def expm1(x):
         return math.exp(x) - 1
+
+try:
+    # Windows
+    import winsound
+except ImportError:
+    def beep():
+        print("\a")
+else:
+    def beep():
+        winsound.MessageBeep(type=-1)
 
 try:
     import requests
@@ -126,10 +136,8 @@ except ImportError:
     sys.exit(0)
 
 locale.setlocale(locale.LC_ALL, "")
-s = requests.Session()  # session that maintains our cookies
 
 
-# register assignment
 def register_assignment(cpu_num, assignment, retry_count=0):
     """Register an assignment with the PrimeNet server."""
     if retry_count >= 5:
@@ -179,29 +187,29 @@ def register_assignment(cpu_num, assignment, retry_count=0):
     else:
         rc = int(result["pnErrorResult"])
         if rc == PRIMENET.ERROR_OK:
-            assignment = assignment._replace(uid=result["k"])
+            assignment.uid = result["k"]
             logging.info(
                 "Assignment registered as: {0}".format(assignment.uid))
             return assignment
-        else:
-            if rc == PRIMENET.ERROR_NO_ASSIGNMENT:
-                pass
-            elif rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_TYPE:
-                pass
-            elif rc == PRIMENET.ERROR_INVALID_PARAMETER:
-                pass
-            elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
-                register_instance()
-                retry = True
-            elif rc == PRIMENET.ERROR_STALE_CPU_INFO:
-                register_instance(guid)
-                retry = True
+        elif rc == PRIMENET.ERROR_NO_ASSIGNMENT:
+            pass
+        elif rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_TYPE:
+            pass
+        elif rc == PRIMENET.ERROR_INVALID_PARAMETER:
+            pass
+        elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
+            register_instance()
+            retry = True
+        elif rc == PRIMENET.ERROR_STALE_CPU_INFO:
+            register_instance(guid)
+            retry = True
     if retry:
         return register_assignment(cpu_num, assignment, retry_count + 1)
     return None
 
 
 def register_assignments(adir, cpu_num, tasks):
+    registered_assignment = False
     changed = False
     for i, assignment in enumerate(tasks):
         if isinstance(assignment, Assignment):
@@ -209,14 +217,16 @@ def register_assignments(adir, cpu_num, tasks):
                 registered = register_assignment(cpu_num, assignment)
                 if registered:
                     assignment = registered
+                    registered_assignment = True
                 else:
-                    assignment = assignment._replace(ra_failed=True)
+                    assignment.ra_failed = True
                 task = output_assignment(assignment)
                 assignment, _ = update_assignment(assignment, task)
                 tasks[i] = assignment
                 changed = True
     if changed:
         write_workfile(adir, tasks)
+    return registered_assignment
 
 
 # TODO -- have people set their own program options for commented out portions
@@ -264,10 +274,11 @@ def program_options(first_time=False, retry_count=0):
         return program_options(first_time, retry_count + 1)
     if "w" in result:
         w = int(result["w"])
-        config.set(section, "WorkPreference", result["w"])
         if w not in supported:
-            parser.error("Unsupported worktype = {0} for {1}".format(
-                w, PROGRAMS[idx]["name"]))
+            logging.error("Unsupported worktype = {0} for {1}".format(
+                w, PROGRAM["name"]))
+            sys.exit(1)
+        config.set(section, "WorkPreference", result["w"])
     if "nw" in result:
         config.set(section, "WorkerThreads", result["nw"])
     if "Priority" in result:
@@ -313,12 +324,11 @@ def assignment_unreserve(assignment, retry_count=0):
         rc = int(result["pnErrorResult"])
         if rc == PRIMENET.ERROR_OK:
             return True
-        else:
-            if rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_KEY:
-                return True
-            elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
-                register_instance()
-                retry = True
+        elif rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_KEY:
+            return True
+        elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
+            register_instance()
+            retry = True
     if retry:
         return assignment_unreserve(assignment, retry_count + 1)
     return False
@@ -372,14 +382,14 @@ def check_output(args):
     stdout, stderr = process.communicate()
     retcode = process.poll()
     if retcode or stderr:
-        print(retcode, args, stdout, stderr)
+        print("Exit code:", retcode, "\nArgs:", args,
+              "\nstdout:\n", stdout, "\nstderr:\n", stderr)
     return stdout
 
 
 def get_cpu_model():
     """Returns the CPU model name as a string."""
     output = ""
-    system = platform.system()
     if system == "Windows":
         output = check_output("wmic cpu get name").splitlines()[2].rstrip()
     elif system == "Darwin":
@@ -399,7 +409,6 @@ def get_cpu_cores_threads():
     """Returns the number of CPU cores and threads on the system."""
     # threads = os.cpu_count()
     cores = threads = 0
-    system = platform.system()
     if system == "Windows":
         # os.environ['NUMBER_OF_PROCESSORS']
         cores, threads = check_output(
@@ -430,7 +439,6 @@ def get_cpu_cores_threads():
 def get_cpu_frequency():
     """Returns the CPU frequency in MHz."""
     output = ""
-    system = platform.system()
     if system == "Windows":
         output = check_output("wmic cpu get MaxClockSpeed").splitlines()[
             2].rstrip()
@@ -458,7 +466,6 @@ def get_cpu_frequency():
 def get_physical_memory():
     """Returns the total amount of physical memory in the system, in mebibytes."""
     output = ""
-    system = platform.system()
     if system == "Windows":
         output = check_output("wmic memphysical get MaxCapacity").splitlines()[
             2].rstrip()
@@ -479,16 +486,17 @@ def get_physical_memory():
     return output
 
 
-VERSION = "1.0.1"
+VERSION = "1.1"
 section = "PrimeNet"
-primenet_v5_burl = "http://v5.mersenne.org/v5server/"
-TRANSACTION_API_VERSION = 0.95
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
     {"name": "Prime95", "version": "30.8", "build": 17},
     {"name": "Mlucas", "version": "20.1.1"},
     {"name": "GpuOwl", "version": "7.2.1"},
     {"name": "CUDALucas", "version": "2.06"}]
+
+primenet_v5_burl = "http://v5.mersenne.org/v5server/"
+TRANSACTION_API_VERSION = 0.95
 ERROR_RATE = 0.018  # Estimated LL error rate on clean run
 # Estimated PRP error rate (assumes Gerbicz error-checking)
 PRP_ERROR_RATE = 0.0001
@@ -497,6 +505,17 @@ primenet_v5_bargs = OrderedDict(
     (("px", "GIMPS"), ("v", TRANSACTION_API_VERSION)))
 primenet_baseurl = "https://www.mersenne.org/"
 primenet_login = False
+
+is_64bit = platform.machine().endswith("64")
+system = platform.system()
+PORT = None
+if system == "Windows":
+    PORT = 4 if is_64bit else 1
+elif system == "Darwin":
+    PORT = 10 if is_64bit else 9
+elif system == "Linux":
+    PORT = 8 if is_64bit else 2
+session = requests.Session()  # session that maintains our cookies
 
 
 class PRIMENET:
@@ -596,12 +615,40 @@ errors = {
     PRIMENET.ERROR_INVALID_ASSIGNMENT_TYPE: "Invalid assignment type",
     PRIMENET.ERROR_INVALID_RESULT_TYPE: "Invalid result type"}
 
-# "cert_squarings"
-Assignment = namedtuple(
-    "Assignment",
-    ["work_type", "uid", "k", "b", "n", "c", "sieve_depth", "pminus1ed", "B1",
-     "B2", "B2_start", "tests_saved", "prp_base", "prp_residue_type",
-     "prp_dblchk", "known_factors", "ra_failed"])
+
+class Assignment(object):
+
+    """Assignment(work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, B2_start, tests_saved, prp_base, prp_residue_type, prp_dblchk, known_factors, ra_failed)."""
+
+    __slots__ = (
+        "work_type", "uid", "k", "b", "n", "c", "sieve_depth", "pminus1ed",
+        "B1", "B2", "B2_start", "tests_saved", "prp_base", "prp_residue_type",
+        "prp_dblchk", "known_factors", "ra_failed")
+
+    def __init__(self, work_type=None):
+        """Create new instance of Assignment(work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, B2_start, tests_saved, prp_base, prp_residue_type, prp_dblchk, known_factors, ra_failed)."""
+        self.work_type = work_type
+        self.uid = None
+        # k*b^n+c
+        self.k = 1.0
+        self.b = 2
+        self.n = 0
+        self.c = -1
+        self.sieve_depth = 99.0
+        self.pminus1ed = 1
+        self.B1 = 0
+        self.B2 = 0
+        self.B2_start = 0
+        self.tests_saved = 0.0
+        self.prp_base = 0
+        self.prp_residue_type = 0
+        self.prp_dblchk = False
+        self.known_factors = None
+        self.ra_failed = False
+        # self.cert_squarings = 0
+
+
+suffix_power_char = ["", "K", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q"]
 
 
 def readonly_list_file(filename, mode="r"):
@@ -677,10 +724,34 @@ def is_prime(n):
     return True
 
 
-def header_lines(filename):
-    """Read the first five lines of a file and return them as a list of strings."""
-    with open(filename, "rb") as f:
-        return [f.readline().decode().rstrip() for _ in range(5)]
+def outputunit(number, scale=False):
+    scale_base = 1000 if scale else 1024
+
+    power = 0
+    while abs(number) >= scale_base:
+        power += 1
+        number /= scale_base
+
+    anumber = abs(number)
+    anumber += 0.0005 if anumber < 10 else 0.005 if anumber < 100 else 0.05 if anumber < 1000 else 0.5
+
+    if number and anumber < 1000 and power > 0:
+        strm = "{0:.{prec}g}".format(number, prec=sys.float_info.dig)
+
+        length = 5 + (number < 0)
+        if len(strm) > length:
+            prec = 3 if anumber < 10 else 2 if anumber < 100 else 1
+            strm = "{0:.{prec}f}".format(number, prec=prec)
+    else:
+        strm = "{0:.0f}".format(number)
+
+    strm += suffix_power_char[power] if power < len(
+        suffix_power_char) else "(error)"
+
+    if not scale and power > 0:
+        strm += "i"
+
+    return strm
 
 
 def checksum_md5(filename):
@@ -694,23 +765,50 @@ def checksum_md5(filename):
 
 def upload_proof(filename):
     """Upload a file to the PrimeNet server."""
-    header = header_lines(filename)
-    if header[0] != "PRP PROOF":
+    try:
+        with open(filename, "rb") as f:
+            header = f.readline().rstrip()
+            if header != b"PRP PROOF":
+                return False
+            header, _, version = f.readline().rstrip().partition(b"=")
+            if header != b"VERSION" or int(version) not in {1, 2}:
+                logging.error("Error getting version number from proof header")
+                return False
+            header, _, hashlen = f.readline().rstrip().partition(b"=")
+            if header != b"HASHSIZE" or not 32 <= int(hashlen) <= 64:
+                logging.error("Error getting hash size from proof header")
+                return False
+            header, _, power = f.readline().rstrip().partition(b"=")
+            if header != b"POWER" or not 0 < int(power) < 16:
+                logging.error("Error getting power from proof header")
+                return False
+            header = f.readline().rstrip()
+            if header.startswith(b"x"):
+                header = f.readline().rstrip()
+            if header.startswith(b"BASE="):
+                header = f.readline().rstrip()
+            header, _, number = header.partition(b"=")
+            if header != b"NUMBER" or not number.startswith(b"M"):
+                logging.error("Error getting number from proof header")
+                return False
+    except (IOError, OSError):
+        logging.error("Cannot open proof file {0!r}".format(filename))
         return False
-    exponent = header[4].partition("=")[2]
+    exponent = int(number[1:])
     logging.info("Proof file exponent is {0}".format(exponent))
+    fileSize = os.path.getsize(filename)
+    logging.info("Filesize of {0!r} is {1}B ({2}B)".format(
+        filename, outputunit(fileSize, False), outputunit(fileSize, True)))
     fileHash = checksum_md5(filename)
     logging.info("MD5 of {0!r} is {1}".format(filename, fileHash))
-    fileSize = os.path.getsize(filename)
-    logging.info("Filesize of {0!r} is {1:n}".format(filename, fileSize))
 
     while True:
         args = {"UserID": options.user_id,
-                "Exponent": exponent[1:],
+                "Exponent": exponent,
                 "FileSize": fileSize,
                 "FileMD5": fileHash}
-        r = s.get(primenet_baseurl + "proof_upload/",
-                  params=args, timeout=180)
+        r = session.get(primenet_baseurl + "proof_upload/",
+                        params=args, timeout=180)
         json = r.json()
         if "error_status" in json:
             if json["error_status"] == 409:
@@ -756,8 +854,8 @@ def upload_proof(filename):
                     "DataOffset": pos,
                     "DataSize": len(chunk),
                     "DataMD5": md5(chunk).hexdigest()}
-                response = s.post(baseUrl, params=args, files={
-                                  "Data": (None, chunk)}, timeout=180)
+                response = session.post(baseUrl, params=args, files={
+                                        "Data": (None, chunk)}, timeout=180)
                 json = response.json()
                 if "error_status" in json:
                     logging.error(
@@ -807,8 +905,12 @@ def upload_proofs(adir):
             os.makedirs(archive)
     for entry in entries:
         if entry.endswith(".proof"):
+            start_time = timeit.default_timer()
             filename = os.path.join(proof, entry)
             if upload_proof(filename):
+                end_time = timeit.default_timer()
+                logging.debug("Uploaded in {0}".format(
+                    timedelta(seconds=end_time - start_time)))
                 if options.archive_dir:
                     shutil.move(filename, os.path.join(archive, entry))
                 else:
@@ -865,7 +967,7 @@ def output_status(dirs):
         mersennes = True
         now = datetime.now()
         for assignment in assignments:
-            iteration, _, _, bits, s2 = get_progress_assignment(
+            iteration, _, _, _, bits, s2 = get_progress_assignment(
                 adir, assignment, None)
             if not assignment:
                 continue
@@ -906,15 +1008,14 @@ def output_status(dirs):
                 amersennes = mersennes = False
             else:
                 amersennes = True
-            buf = assignment_to_str(assignment)
             if time_left is None:
                 logging.info("{0}, {1}, Finish cannot be estimated".format(
-                    buf, work_type_str))
+                    assignment_to_str(assignment), work_type_str))
             else:
                 cur_time_left += time_left
                 time_left = timedelta(seconds=cur_time_left)
                 logging.info("{0}, {1}, {2} ({3:%c})".format(
-                    buf, work_type_str, time_left, now + time_left))
+                    assignment_to_str(assignment), work_type_str, time_left, now + time_left))
             if all_and_prp_cnt:
                 ll_and_prp_cnt += 1
                 logging.info("The chance that the exponent ({0}) you are testing will yield a {1}prime is about 1 in {2:n} ({3:%}).".format(
@@ -990,7 +1091,7 @@ def output_assignment(assignment):
             if assignment.prp_base or assignment.prp_residue_type:
                 temp += [assignment.prp_base, assignment.prp_residue_type]
         if assignment.known_factors:
-            temp += [assignment.known_factors]
+            temp += ['"' + assignment.known_factors + '"']
     elif assignment.work_type == PRIMENET.WORK_TYPE_PFACTOR:
         test = "Pfactor"
         temp += ["{0:.0f}".format(assignment.k), assignment.b, assignment.n, assignment.c,
@@ -1004,15 +1105,12 @@ def output_assignment(assignment):
         if assignment.B2_start > assignment.B1:
             temp += [assignment.B2_start]
         if assignment.known_factors:
-            temp += [assignment.known_factors]
+            temp += ['"' + assignment.known_factors + '"']
     elif assignment.work_type == PRIMENET.WORK_TYPE_CERT:
         test = "Cert"
         temp += ["{0:.0f}".format(assignment.k), assignment.b,
                  assignment.n, assignment.c, assignment.cert_squarings]
-    output = io.StringIO() if sys.version_info[0] >= 3 else io.BytesIO()
-    writer = csv.writer(output)
-    writer.writerow(temp)
-    return test + "=" + output.getvalue().rstrip()
+    return test + "=" + ",".join(map(str, temp))
 
 
 def write_workfile(adir, assignments):
@@ -1067,95 +1165,80 @@ def get_assignment(cpu_num, assignment_num=None, retry_count=0):
         return get_assignment(cpu_num, assignment_num, retry_count + 1)
     if assignment_num == 0:
         return int(r["a"])
-    work_type = int(r["w"])
-    assignment_uid = r["k"]
-    # k*b^n+c
-    k = 1.0
-    b = 2
-    n = int(r["n"])
-    c = -1
-    sieve_depth = 99.0
-    pminus1ed = 1
-    B1 = 0
-    B2 = 0
-    B2_start = 0
-    tests_saved = 0.0
-    prp_base = 0
-    prp_residue_type = 0
-    prp_dblchk = False
-    known_factors = None
-    if n < 15000000 and work_type in {
+    assignment = Assignment(int(r["w"]))
+    assignment.uid = r["k"]
+    assignment.n = int(r["n"])
+    if assignment.n < 15000000 and assignment.work_type in {
             PRIMENET.WORK_TYPE_FACTOR, PRIMENET.WORK_TYPE_PFACTOR, PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK}:
-        logging.error("Server sent bad exponent: {0}.".format(n))
+        logging.error("Server sent bad exponent: {0}.".format(assignment.n))
         return None
-    if work_type not in supported:
+    if assignment.work_type not in supported:
         logging.error("Returned assignment from server is not a supported worktype {0} for {1}.".format(
-            work_type, PROGRAMS[idx]["name"]))
+            assignment.work_type, PROGRAM["name"]))
         # TODO: Unreserve assignment
         # assignment_unreserve()
         # return None
-    if work_type == PRIMENET.WORK_TYPE_FIRST_LL:
+    if assignment.work_type == PRIMENET.WORK_TYPE_FIRST_LL:
         work_type_str = "LL"
-        sieve_depth = float(r["sf"])
-        pminus1ed = int(r["p1"])
+        assignment.sieve_depth = float(r["sf"])
+        assignment.pminus1ed = int(r["p1"])
         if options.gpuowl:  # GpuOwl
             logging.warning(
                 "First time LL tests are not supported with the latest versions of GpuOwl")
-    elif work_type == PRIMENET.WORK_TYPE_DBLCHK:
+    elif assignment.work_type == PRIMENET.WORK_TYPE_DBLCHK:
         work_type_str = "Double check"
-        sieve_depth = float(r["sf"])
-        pminus1ed = int(r["p1"])
+        assignment.sieve_depth = float(r["sf"])
+        assignment.pminus1ed = int(r["p1"])
         if options.gpuowl:  # GpuOwl
             logging.warning(
                 "Double check LL tests are not supported with the latest versions of GpuOwl")
-    elif work_type == PRIMENET.WORK_TYPE_PRP:
-        prp_dblchk = "dc" in r
-        work_type_str = "PRPDC" if prp_dblchk else "PRP"
-        k = float(r["A"])
-        b = int(r["b"])
-        c = int(r["c"])
+    elif assignment.work_type == PRIMENET.WORK_TYPE_PRP:
+        assignment.prp_dblchk = "dc" in r
+        work_type_str = "PRPDC" if assignment.prp_dblchk else "PRP"
+        assignment.k = float(r["A"])
+        assignment.b = int(r["b"])
+        assignment.c = int(r["c"])
         if "sf" in r and "saved" in r:
-            sieve_depth = float(r["sf"])
-            tests_saved = float(r["saved"])
+            assignment.sieve_depth = float(r["sf"])
+            assignment.tests_saved = float(r["saved"])
             if "base" in r and "rt" in r:
-                prp_base = int(r["base"])
-                prp_residue_type = int(r["rt"])
+                assignment.prp_base = int(r["base"])
+                assignment.prp_residue_type = int(r["rt"])
                 # Mlucas
                 if not (options.cudalucas or options.gpuowl) and (
-                        prp_base != 3 or prp_residue_type not in (1, 5)):
+                        assignment.prp_base != 3 or assignment.prp_residue_type not in (1, 5)):
                     logging.error(
                         "PRP base is not 3 or residue type is not 1 or 5")
                     # TODO: Unreserve assignment
                     # assignment_unreserve()
         if "kf" in r:
-            known_factors = r["kf"]
-    elif work_type == PRIMENET.WORK_TYPE_PFACTOR:
+            assignment.known_factors = r["kf"]
+    elif assignment.work_type == PRIMENET.WORK_TYPE_PFACTOR:
         work_type_str = "P-1"
-        k = float(r["A"])
-        b = int(r["b"])
-        c = int(r["c"])
-        sieve_depth = float(r["sf"])
-        tests_saved = float(r["saved"])
-    elif work_type == PRIMENET.WORK_TYPE_PMINUS1:
+        assignment.k = float(r["A"])
+        assignment.b = int(r["b"])
+        assignment.c = int(r["c"])
+        assignment.sieve_depth = float(r["sf"])
+        assignment.tests_saved = float(r["saved"])
+    elif assignment.work_type == PRIMENET.WORK_TYPE_PMINUS1:
         work_type_str = "P-1"
-        k = float(r["A"])
-        b = int(r["b"])
-        c = int(r["c"])
-        B1 = int(r["B1"])
-        B2 = int(r["B2"])
-    elif work_type == PRIMENET.WORK_TYPE_CERT:
+        assignment.k = float(r["A"])
+        assignment.b = int(r["b"])
+        assignment.c = int(r["c"])
+        assignment.B1 = int(r["B1"])
+        assignment.B2 = int(r["B2"])
+    elif assignment.work_type == PRIMENET.WORK_TYPE_CERT:
         work_type_str = "CERT"
-        k = float(r["A"])
-        b = int(r["b"])
-        c = int(r["c"])
-        # cert_squarings = int(r['ns'])
+        assignment.k = float(r["A"])
+        assignment.b = int(r["b"])
+        assignment.c = int(r["c"])
+        # assignment.cert_squarings = int(r['ns'])
     else:
-        logging.error("Received unknown worktype: {0}.".format(work_type))
-        return None
-    assignment = Assignment(work_type, assignment_uid, k, b, n, c, sieve_depth, pminus1ed, B1,
-                            B2, B2_start, tests_saved, prp_base, prp_residue_type, prp_dblchk, known_factors, False)
+        logging.error("Received unknown worktype: {0}.".format(
+            assignment.work_type))
+        sys.exit(1)
     logging.info("Got assignment {0}: {1} {2}".format(
-        assignment_uid, work_type_str, assignment_to_str(assignment)))
+        assignment.uid, work_type_str, assignment_to_str(assignment)))
     return assignment
 
 
@@ -1226,8 +1309,8 @@ def primenet_fetch(cpu_num, num_to_get):
                 ("B1", "Get Assignments")
             ))
             logging.debug("Fetching using manual assignments")
-            r = s.post(primenet_baseurl +
-                       "manual_assignment/", data=assignment)
+            r = session.post(primenet_baseurl +
+                             "manual_assignment/", data=assignment)
             r.raise_for_status()
             res = r.text
             BEGIN_MARK = "<!--BEGIN_ASSIGNMENTS_BLOCK-->"
@@ -1319,7 +1402,7 @@ def integral(a, b, f, STEPS=20):
     """Computes the integral of f(x) from a to b."""
     w = b - a
     # assert(w >= 0)
-    if w == 0:
+    if not w:
         return 0
     step = w / STEPS
     return step * sum(f(a + step * (0.5 + i)) for i in range(STEPS))
@@ -1476,12 +1559,10 @@ def walk(exponent, factoredTo):
 
 def get_exponent(n):
     try:
-        # args = {"exp_lo": n, "fac": 1}
         args = {"exp_lo": n, "faclim": 1, "json": 1}
-        r = s.get(primenet_baseurl + "report_exponent_simple/",
-                  params=args, timeout=180)
+        r = session.get(primenet_baseurl +
+                        "report_exponent_simple/", params=args, timeout=180)
         r.raise_for_status()
-        # reader = csv.DictReader(r.iter_lines(decode_unicode=True))
         json = r.json()
 
     except Timeout:
@@ -1501,14 +1582,15 @@ def update_assignment(assignment, task):
     if assignment.work_type == PRIMENET.WORK_TYPE_PRP and (options.convert_prp_to_ll or (
             not assignment.prp_dblchk and int(options.work_preference) in option_dict)):
         logging.info("Converting from PRP to LL")
-        assignment = assignment._replace(
-            work_type=PRIMENET.WORK_TYPE_DBLCHK if assignment.prp_dblchk else PRIMENET.WORK_TYPE_FIRST_LL, pminus1ed=int(not assignment.tests_saved))
+        assignment.work_type = PRIMENET.WORK_TYPE_DBLCHK if assignment.prp_dblchk else PRIMENET.WORK_TYPE_FIRST_LL
+        assignment.pminus1ed = int(not assignment.tests_saved)
         changed = True
     if assignment.work_type in {PRIMENET.WORK_TYPE_FIRST_LL,
                                 PRIMENET.WORK_TYPE_DBLCHK} and options.convert_ll_to_prp:
         logging.info("Converting from LL to PRP")
-        assignment = assignment._replace(work_type=PRIMENET.WORK_TYPE_PRP, tests_saved=float(
-            not assignment.pminus1ed), prp_dblchk=assignment.work_type == PRIMENET.WORK_TYPE_DBLCHK)
+        assignment.tests_saved = float(not assignment.pminus1ed)
+        assignment.prp_dblchk = assignment.work_type == PRIMENET.WORK_TYPE_DBLCHK
+        assignment.work_type = PRIMENET.WORK_TYPE_PRP
         changed = True
     if options.tests_saved is not None and assignment.work_type in {
             PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK, PRIMENET.WORK_TYPE_PRP}:
@@ -1546,10 +1628,9 @@ def update_assignment(assignment, task):
         if redo:
             if assignment.work_type in {
                     PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK}:
-                assignment = assignment._replace(
-                    pminus1ed=int(not tests_saved))
+                assignment.pminus1ed = int(not tests_saved)
             elif assignment.work_type == PRIMENET.WORK_TYPE_PRP:
-                assignment = assignment._replace(tests_saved=tests_saved)
+                assignment.tests_saved = tests_saved
             changed = True
     if changed:
         logging.debug("Original assignment: {0!r}".format(task))
@@ -1572,24 +1653,25 @@ def get_assignments(adir, cpu_num, progress, tasks):
     num_cache = options.num_cache + 1
     if options.password:
         num_cache += 1
+    num_existing = len(assignments)
+    num_cache = max(num_existing, num_cache)
     if time_left is not None:
         time_left = timedelta(seconds=time_left)
         days_work = timedelta(days=options.days_of_work)
         if time_left <= days_work:
             num_cache += 1
-            logging.debug("Time left is {0} and smaller than DaysOfWork ({1}), so num_cache is increased by one to {2:n}".format(
+            logging.debug("Time left is {0} and smaller than days_of_work ({1}), so num_cache is increased by one to {2:n}".format(
                 time_left, days_work, num_cache))
     amax = config.getint(section, "MaxExponents") if config.has_option(
         section, "MaxExponents") else 15
     num_cache = min(num_cache, amax)
-    num_existing = len(assignments)
     num_to_get = num_cache - num_existing
 
     if num_to_get <= 0:
-        logging.debug("{0:n} ≥ {1:n} entries already in {2!r}, not getting new work".format(
+        logging.debug("{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(
             num_existing, num_cache, workfile))
         return []
-    logging.debug("Found {0:n} < {1:n} entries in {2!r}, getting {3:n} new assignment{4}".format(
+    logging.debug("Found {0:n} < {1:n} assignments in {2!r}, getting {3:n} new assignment{4}".format(
         num_existing, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""))
 
     assignments = primenet_fetch(cpu_num, num_to_get)
@@ -1625,15 +1707,17 @@ def mersenne_find(line, complete=True):
 def parse_stat_file(adir, p, last_time):
     """Parse the stat file for the progress of the assignment."""
     # Mlucas
+    modified = True
     statfile = os.path.join(adir, "p{0}.stat".format(p))
     if not os.path.exists(statfile):
         logging.debug("stat file {0!r} does not exist".format(statfile))
-        return 0, None, None, 0, 0
+        return 0, None, None, modified, 0, 0
     if last_time is not None:
         mtime = os.path.getmtime(statfile)
         if last_time >= mtime:
-            logging.debug("stat file {0!r} has not been modified since the last progress update ({1:%c})".format(
+            logging.info("stat file {0!r} has not been modified since the last progress update ({1:%c})".format(
                 statfile, datetime.fromtimestamp(mtime)))
+            modified = False
 
     w = readonly_list_file(statfile)  # appended line by line, no lock needed
     found = 0
@@ -1675,10 +1759,10 @@ def parse_stat_file(adir, p, last_time):
             break
     if not found:
         # iteration is 0, but don't know the estimated speed yet
-        return 0, None, fftlen, bits, s2
+        return 0, None, fftlen, modified, bits, s2
     # take the median of the last grepped lines
     msec_per_iter = median_low(list_msec_per_iter)
-    return iteration, msec_per_iter, fftlen, bits, s2
+    return iteration, msec_per_iter, fftlen, modified, bits, s2
 
 
 def parse_v5_resp(r):
@@ -1722,13 +1806,13 @@ def send_request(guid, args):
     """Send a request to the PrimeNet server."""
     try:
         if guid is not None:
-            if idx:
+            if not options.prime95:
                 args["ss"] = 19191919
                 args["sh"] = "ABCDABCDABCDABCDABCDABCDABCDABCD"
             else:
                 secure_v5_url(guid, args)
         # logging.debug("Args: {0}".format(args))
-        r = s.get(primenet_v5_burl, params=args, timeout=180)
+        r = session.get(primenet_v5_burl, params=args, timeout=180)
         # logging.debug("URL: " + r.url)
         r.raise_for_status()
         result = parse_v5_resp(r.text)
@@ -1767,14 +1851,12 @@ def create_new_guid():
 
 
 def generate_application_str():
-    system = platform.system()
-    is_64bit = platform.machine().endswith("64")
     if system == "Darwin":
         aplatform = "Mac OS X" + (" 64-bit" if is_64bit else "")
     else:
         aplatform = system + ("64" if is_64bit else "")
-    program = PROGRAMS[idx]
-    if not idx:
+    program = PROGRAMS[0 if options.prime95 else 3 if options.cudalucas else 2 if options.gpuowl else 1]
+    if options.prime95:
         return "{0},{1[name]},v{1[version]},build {1[build]}".format(
             aplatform, program)
     name = program["name"]
@@ -1914,21 +1996,23 @@ def merge_config_and_options(config, options):
     # local.ini config.
     attr_to_copy = {
         "worktodo_file": "workfile", "results_file": "resultsfile",
-        "archive_dir": "ProofArchiveDir", "user_id": "username",
-        "password": "password", "work_preference": "WorkPreference",
-        "min_exp": "GetMinExponent", "max_exp": "GetMaxExponent",
-        "gpuowl": "gpuowl", "cudalucas": "cudalucas",
-        "num_worker_threads": "WorkerThreads", "num_cache": "num_cache",
-        "days_of_work": "DaysOfWork", "tests_saved": "tests_saved",
-        "pm1_multiplier": "pm1_multiplier", "no_report_100m": "no_report_100m",
+        "logfile": "logfile", "archive_dir": "ProofArchiveDir",
+        "user_id": "username", "password": "password",
+        "work_preference": "WorkPreference", "min_exp": "GetMinExponent",
+        "max_exp": "GetMaxExponent", "gpuowl": "gpuowl",
+        "cudalucas": "cudalucas", "num_worker_threads": "WorkerThreads",
+        "num_cache": "num_cache", "days_of_work": "DaysOfWork",
+        "tests_saved": "tests_saved", "pm1_multiplier": "pm1_multiplier",
+        "no_report_100m": "no_report_100m",
         "convert_ll_to_prp": "convert_ll_to_prp",
-        "convert_prp_to_ll": "convert_prp_to_ll", "computer_id": "ComputerID",
-        "cpu_brand": "CpuBrand", "cpu_features": "cpu_features",
-        "cpu_speed": "CpuSpeed", "memory": "memory",
-        "day_night_memory": "Memory", "cpu_l1_cache_size": "L1",
-        "cpu_l2_cache_size": "L2", "cpu_l3_cache_size": "L3",
-        "num_cores": "NumCores", "cpu_hyperthreads": "CpuNumHyperthreads",
-        "cpu_hours": "CPUHours"}
+        "convert_prp_to_ll": "convert_prp_to_ll",
+        "hours_between_checkins": "HoursBetweenCheckins",
+        "computer_id": "ComputerID", "cpu_brand": "CpuBrand",
+        "cpu_features": "cpu_features", "cpu_speed": "CpuSpeed",
+        "memory": "memory", "day_night_memory": "Memory",
+        "cpu_l1_cache_size": "L1", "cpu_l2_cache_size": "L2",
+        "cpu_l3_cache_size": "L3", "num_cores": "NumCores",
+        "cpu_hyperthreads": "CpuNumHyperthreads", "cpu_hours": "CPUHours"}
     updated = False
     for attr, option in attr_to_copy.items():
         # if "attr" has its default value in options, copy it from config
@@ -1958,11 +2042,12 @@ def merge_config_and_options(config, options):
     return updated
 
 
-def update_progress(cpu_num, assignment, iteration, msec_per_iter,
-                    p, fftlen, bits, s2, now, cur_time_left):
+def update_progress(cpu_num, assignment, progress,
+                    msec_per_iter, p, now, cur_time_left, checkin):
     """Update the progress of a given assignment."""
     if not assignment:
         return None
+    iteration, _, fftlen, _, bits, s2 = progress
     percent, time_left, msec_per_iter = compute_progress(
         assignment, iteration, msec_per_iter, p, bits, s2)
     logging.debug("{0} is {1:.4%} done ({2:n} / {3:n})".format(assignment.n, percent, iteration,
@@ -1987,12 +2072,14 @@ def update_progress(cpu_num, assignment, iteration, msec_per_iter,
         delta = timedelta(seconds=cur_time_left)
         logging.debug(
             "Finish estimated in {0} (used {1:.4n} msec/iter estimation)".format(delta, msec_per_iter))
-    send_progress(cpu_num, assignment, percent,
-                  stage, cur_time_left, now, fftlen)
+    if checkin:
+        send_progress(cpu_num, assignment, percent,
+                      stage, cur_time_left, now, fftlen)
     return percent, cur_time_left
 
 
-def update_progress_all(adir, cpu_num, last_time, tasks, progress=None):
+def update_progress_all(adir, cpu_num, last_time,
+                        tasks, progress, checkin=True):
     """Update the progress of all the assignments in the workfile."""
     if not tasks:
         return None  # don't update if no worktodo
@@ -2012,8 +2099,9 @@ def update_progress_all(adir, cpu_num, last_time, tasks, progress=None):
         assignment = next(assignments, None)
         if assignment is None:
             return None
-        iteration, msec_per_iter, fftlen, bits, s2 = get_progress_assignment(
-            adir, assignment, last_time)
+        result = get_progress_assignment(adir, assignment, last_time)
+        _, msec_per_iter, _, modified, _, _ = result
+        checkin = checkin and modified
         p = assignment.n
         if msec_per_iter is not None:
             config.set(section, "msec_per_iter",
@@ -2026,16 +2114,15 @@ def update_progress_all(adir, cpu_num, last_time, tasks, progress=None):
         # Do the other assignment accumulating the time_lefts
         cur_time_left = 0
         percent, cur_time_left = update_progress(
-            cpu_num, assignment, iteration, msec_per_iter, p, fftlen, bits, s2, now, cur_time_left)
+            cpu_num, assignment, result, msec_per_iter, p, now, cur_time_left, checkin)
     else:
         assignments = tasks
         percent, cur_time_left, msec_per_iter, p = progress
 
     for assignment in assignments:
-        iteration, _, fftlen, bits, s2 = get_progress_assignment(
-            adir, assignment, None)
+        result = get_progress_assignment(adir, assignment, None)
         percent, cur_time_left = update_progress(
-            cpu_num, assignment, iteration, msec_per_iter, p, fftlen, bits, s2, now, cur_time_left)
+            cpu_num, assignment, result, msec_per_iter, p, now, cur_time_left, checkin)
     return percent, cur_time_left, msec_per_iter, p
 
 
@@ -2048,9 +2135,9 @@ def get_progress_assignment(adir, assignment, last_time):
     # P-1 Stage 2 location/buffers/blocks
     s2 = 0
     if options.gpuowl:  # GpuOwl
-        result = parse_stat_file_gpu(adir, assignment.n, last_time)
+        result = parse_gpu_log_file(adir, assignment.n, last_time)
     elif options.cudalucas:  # CUDALucas
-        result = parse_stat_file_cuda(
+        result = parse_cuda_output_file(
             adir, assignment.n, last_time) + (bits, s2)
     else:  # Mlucas
         result = parse_stat_file(adir, assignment.n, last_time)
@@ -2066,105 +2153,98 @@ def parse_assignment(task):
     # logging.debug(task)
     work_type = found.group(1)  # e.g., "Test"
     value = found.group(2)
-    assignment_uid = found.group(3)  # e.g., "197ED240A7A41EC575CB408F32DDA661"
-    ra_failed = bool(value) and not assignment_uid
-    # k*b^n+c
-    k = 1.0
-    b = 2
-    c = -1
-    sieve_depth = 99.0
-    pminus1ed = 1
-    B1 = 0
-    B2 = 0
-    B2_start = 0
-    tests_saved = 0.0
-    prp_base = 0
-    prp_residue_type = 0
-    prp_dblchk = False
-    known_factors = None
+    assignment = Assignment()
+    assignment.uid = found.group(3)  # e.g., "197ED240A7A41EC575CB408F32DDA661"
+    assignment.ra_failed = bool(value) and not assignment.uid
     # e.g., "57600769", "197ED240A7A41EC575CB408F32DDA661"
-    # logging.debug("type = {0}, assignment_id = {1}".format(work_type, assignment_uid))
-    found = list(csv.reader([task.split("=", 1)[1]]))[0]
-    if not value:
-        found.insert(0, "")
+    # logging.debug("type = {0}, assignment_id = {1}".format(work_type, assignment.uid))
+    temp = task.split("=", 1)[1]
+    found = next(csv.reader([temp]))
+    afound = temp.split(",", len(found) - 1)
+    if value:
+        found.pop(0)
+        afound.pop(0)
     length = len(found)
-    idx = 1 if work_type in {"Test", "DoubleCheck"} else 3
+    idx = 0 if work_type in {"Test", "DoubleCheck"} else 2
     if length <= idx:
         return None
     # Extract the subfield containing the exponent, whose position depends on
     # the assignment type:
     if work_type in {"Test", "DoubleCheck"}:
-        work_type = PRIMENET.WORK_TYPE_FIRST_LL if work_type == "Test" else PRIMENET.WORK_TYPE_DBLCHK
-        n = int(found[1])
-        if length >= 4:
-            sieve_depth = float(found[2])
-            pminus1ed = int(found[3])
+        assignment.work_type = PRIMENET.WORK_TYPE_FIRST_LL if work_type == "Test" else PRIMENET.WORK_TYPE_DBLCHK
+        assignment.n = int(found[0])
+        if length > 2:
+            assignment.sieve_depth = float(found[1])
+            assignment.pminus1ed = int(found[2])
     elif work_type in {"PRP", "PRPDC"}:
-        prp_dblchk = work_type == "PRPDC"
-        work_type = PRIMENET.WORK_TYPE_PRP
-        k = float(found[1])
-        b = int(found[2])
-        n = int(found[3])
-        c = int(found[4])
-        idx = 5
-        if length >= 7:
-            sieve_depth = float(found[5])
-            tests_saved = float(found[6])
-            idx = 7
-            if length >= 9:
-                prp_base = int(found[7])
-                prp_residue_type = int(found[8])
-                idx = 9
-        if length > idx:
-            known_factors = found[idx]
+        assignment.prp_dblchk = work_type == "PRPDC"
+        assignment.work_type = PRIMENET.WORK_TYPE_PRP
+        assignment.k = float(found[0])
+        assignment.b = int(found[1])
+        assignment.n = int(found[2])
+        assignment.c = int(found[3])
+        idx = 4
+        if length > 5 and not afound[4].startswith('"'):
+            assignment.sieve_depth = float(found[4])
+            assignment.tests_saved = float(found[5])
+            idx += 2
+            if length > 7 and not afound[6].startswith('"'):
+                assignment.prp_base = int(found[6])
+                assignment.prp_residue_type = int(found[7])
+                idx += 2
+        if length > idx and afound[idx].startswith('"'):
+            assignment.known_factors = found[idx]
     elif work_type in {"PFactor", "Pfactor"}:
-        work_type = PRIMENET.WORK_TYPE_PFACTOR
-        k = float(found[1])
-        b = int(found[2])
-        n = int(found[3])
-        c = int(found[4])
-        sieve_depth = float(found[5])
-        tests_saved = float(found[6])
+        assignment.work_type = PRIMENET.WORK_TYPE_PFACTOR
+        assignment.k = float(found[0])
+        assignment.b = int(found[1])
+        assignment.n = int(found[2])
+        assignment.c = int(found[3])
+        assignment.sieve_depth = float(found[4])
+        assignment.tests_saved = float(found[5])
     elif work_type in {"PMinus1", "Pminus1"}:
-        work_type = PRIMENET.WORK_TYPE_PMINUS1
-        k = float(found[1])
-        b = int(found[2])
-        n = int(found[3])
-        c = int(found[4])
-        B1 = int(found[5])
-        B2 = int(found[6])
-        sieve_depth = 0.0
-        if length >= 8:
-            sieve_depth = float(found[7])
-            if length >= 9:
-                B2_start = int(found[8])
-        if length >= 10:
-            known_factors = found[9]
+        assignment.work_type = PRIMENET.WORK_TYPE_PMINUS1
+        assignment.k = float(found[0])
+        assignment.b = int(found[1])
+        assignment.n = int(found[2])
+        assignment.c = int(found[3])
+        assignment.B1 = int(found[4])
+        assignment.B2 = int(found[5])
+        idx = 6
+        assignment.sieve_depth = 0.0
+        if length > idx and not afound[idx].startswith('"'):
+            assignment.sieve_depth = float(found[idx])
+            idx += 1
+            if length > idx and not afound[idx].startswith('"'):
+                assignment.B2_start = int(found[idx])
+                idx += 1
+        if length > idx and afound[idx].startswith('"'):
+            assignment.known_factors = found[idx]
     elif work_type == "Cert":
-        work_type = PRIMENET.WORK_TYPE_CERT
-        k = float(found[1])
-        b = int(found[2])
-        n = int(found[3])
-        c = int(found[4])
-        # cert_squarings = int(found[5])
-    # cert_squarings
-    return Assignment(work_type, assignment_uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2,
-                      B2_start, tests_saved, prp_base, prp_residue_type, prp_dblchk, known_factors, ra_failed)
+        assignment.work_type = PRIMENET.WORK_TYPE_CERT
+        assignment.k = float(found[0])
+        assignment.b = int(found[1])
+        assignment.n = int(found[2])
+        assignment.c = int(found[3])
+        # assignment.cert_squarings = int(found[4])
+    return assignment
 
 
-def parse_stat_file_cuda(adir, p, last_time):
+def parse_cuda_output_file(adir, p, last_time):
     """Parse the CUDALucas output file for the progress of the assignment."""
     # CUDALucas
+    modified = True
     # appended line by line, no lock needed
     gpu = os.path.join(adir, options.cudalucas)
     if not os.path.exists(gpu):
         logging.debug("CUDALucas file {0!r} does not exist".format(gpu))
-        return 0, None, None
+        return 0, None, None, modified
     if last_time is not None:
         mtime = os.path.getmtime(gpu)
         if last_time >= mtime:
-            logging.debug("CUDALucas file {0!r} has not been modified since the last progress update ({1:%c})".format(
+            logging.info("CUDALucas file {0!r} has not been modified since the last progress update ({1:%c})".format(
                 gpu, datetime.fromtimestamp(mtime)))
+            modified = False
 
     w = readonly_list_file(gpu)
     found = 0
@@ -2207,27 +2287,30 @@ def parse_stat_file_cuda(adir, p, last_time):
             if found == 5:
                 break
     if not found:
-        return 0, None, fftlen  # iteration is 0, but don't know the estimated speed yet
+        # iteration is 0, but don't know the estimated speed yet
+        return 0, None, fftlen, modified
     # take the median of the last grepped lines
     msec_per_iter = median_low(list_msec_per_iter)
     logging.debug("Current {0:.6n} msec/iter estimation, Average {1:.6n} msec/iter".format(
         msec_per_iter, avg_msec_per_iter))
-    return iteration, avg_msec_per_iter, fftlen
+    return iteration, avg_msec_per_iter, fftlen, modified
 
 
-def parse_stat_file_gpu(adir, p, last_time):
+def parse_gpu_log_file(adir, p, last_time):
     """Parse the gpuowl log file for the progress of the assignment."""
     # GpuOwl
+    modified = True
     # appended line by line, no lock needed
     gpuowl = os.path.join(adir, "gpuowl.log")
     if not os.path.exists(gpuowl):
         logging.debug("Log file {0!r} does not exist".format(gpuowl))
-        return 0, None, None, 0, 0
+        return 0, None, None, modified, 0, 0
     if last_time is not None:
         mtime = os.path.getmtime(gpuowl)
         if last_time >= mtime:
-            logging.debug("Log file {0!r} has not been modified since the last progress update ({1:%c})".format(
+            logging.info("Log file {0!r} has not been modified since the last progress update ({1:%c})".format(
                 gpuowl, datetime.fromtimestamp(mtime)))
+            modified = False
 
     w = readonly_list_file(gpuowl)
     found = 0
@@ -2298,11 +2381,11 @@ def parse_stat_file_gpu(adir, p, last_time):
             break
     if not found:
         # iteration is 0, but don't know the estimated speed yet
-        return 0, None, fftlen, bits, buffs
+        return 0, None, fftlen, modified, bits, buffs
     # take the median of the last grepped lines
     msec_per_iter = median_low(list_usec_per_iter) / \
         1000 if list_usec_per_iter else None
-    return iteration, msec_per_iter, fftlen, bits, buffs
+    return iteration, msec_per_iter, fftlen, modified, bits, buffs
 
 
 def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
@@ -2352,7 +2435,6 @@ def send_progress(cpu_num, assignment, percent, stage,
         return None
     # Assignment Progress fields:
     # g= the machine's GUID (32 chars, assigned by Primenet on 1st-contact from a given machine, stored in 'guid=' entry of local.ini file of rundir)
-    #
     args = primenet_v5_bargs.copy()
     args["t"] = "ap"  # update compute command
     args["g"] = guid
@@ -2361,7 +2443,7 @@ def send_progress(cpu_num, assignment, percent, stage,
     # p= progress in %-done, 4-char format = xy.z
     args["p"] = "{0:.4f}".format(percent * 100)
     # d= when the client is expected to check in again (in seconds ... )
-    args["d"] = options.timeout if options.timeout else 24 * 60 * 60
+    args["d"] = options.hours_between_checkins * 60 * 60
     # e= the ETA of completion in seconds, if unknown, just put 1 week
     args["e"] = int(time_left) if time_left is not None else 7 * 24 * 60 * 60
     # c= the worker thread of the machine
@@ -2384,28 +2466,27 @@ def send_progress(cpu_num, assignment, percent, stage,
         rc = int(result["pnErrorResult"])
         if rc == PRIMENET.ERROR_OK:
             logging.debug("Update correctly sent to server")
-        else:
-            if rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_KEY:
-                # TODO: Delete assignment from workfile
-                pass
-            elif rc == PRIMENET.ERROR_WORK_NO_LONGER_NEEDED:
-                # TODO: Delete assignment from workfile
-                pass
-            elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
-                register_instance()
-                retry = True
-            elif rc == PRIMENET.ERROR_STALE_CPU_INFO:
-                register_instance(guid)
-                retry = True
-            elif rc == PRIMENET.ERROR_SERVER_BUSY:
-                retry = True
+        elif rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_KEY:
+            # TODO: Delete assignment from workfile
+            pass
+        elif rc == PRIMENET.ERROR_WORK_NO_LONGER_NEEDED:
+            # TODO: Delete assignment from workfile
+            pass
+        elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
+            register_instance()
+            retry = True
+        elif rc == PRIMENET.ERROR_STALE_CPU_INFO:
+            register_instance(guid)
+            retry = True
+        elif rc == PRIMENET.ERROR_SERVER_BUSY:
+            retry = True
     if retry:
         return send_progress(cpu_num, assignment, percent,
                              stage, time_left, now, fftlen, retry_count + 1)
     return None
 
 
-def get_cuda_ar_object(resultsfile, sendline):
+def cuda_result_to_json(resultsfile, sendline):
     # CUDALucas
 
     # sendline example: 'M( 108928711 )C, 0x810d83b6917d846c, offset = 106008371, n = 6272K, CUDALucas v2.06, AID: 02E4F2B14BB23E2E4B95FC138FC715A8'
@@ -2452,7 +2533,7 @@ def submit_one_line(resultsfile, sendline, assignments):
                 logging.info("Please upgrade to GpuOwl v0.7 or greater.")
             is_json = False
     else:  # CUDALucas
-        ar = get_cuda_ar_object(resultsfile, sendline)
+        ar = cuda_result_to_json(resultsfile, sendline)
 
     guid = get_guid(config)
     if guid is not None and (options.cudalucas or is_json) and ar is not None:
@@ -2476,12 +2557,7 @@ def announce_prime_to_user(exponent, worktype):
             print(
                 "New Probable Prime!!!! {0} is a probable prime!".format(exponent))
         print("Please send e-mail to woltman@alum.mit.edu and ewmayer@aol.com.")
-        try:
-            import winsound
-        except ImportError:
-            print("\a")
-        else:
-            winsound.MessageBeep(type=-1)
+        beep()
         time.sleep(1)
 
 
@@ -2495,9 +2571,11 @@ def report_result(sendline, ar, tasks, retry_count=0):
     # JSON is required because assignment_id is necessary in that case
     # and it is not present in old output format.
     logging.debug("Submitting using v5 API")
-    program = " ".join(ar["program"].values())
-    logging.debug("Program: {0}".format(program))
-    config.set(section, "program", program)
+    logging.debug("Sending result: {0!r}".format(sendline))
+    program = ar["program"]
+    aprogram = " ".join(program.values())
+    logging.debug("Program: {0}".format(aprogram))
+    config.set(section, "program", aprogram)
 
     ar["script"] = {
         "name": os.path.basename(sys.argv[0]),
@@ -2537,6 +2615,11 @@ def report_result(sendline, ar, tasks, retry_count=0):
         logging.debug(r.text)
         if options.no_report_100m and digits(exponent) >= 100000000:
             return True
+    user = ar.get("user", options.user_id)
+    computer = ar.get("computer", options.computer_id)
+    buf = "" if not user else "UID: {0}, ".format(
+        user) if not computer else "UID: {0}/{1}, ".format(user, computer)
+    port = program.get("port", PORT)
     args = primenet_v5_bargs.copy()
     args["t"] = "ar"								# assignment result
     args["g"] = guid
@@ -2547,21 +2630,36 @@ def report_result(sendline, ar, tasks, retry_count=0):
     args["n"] = exponent
     if result_type in {PRIMENET.AR_LL_RESULT, PRIMENET.AR_LL_PRIME}:
         args["d"] = 1
+        error_count = ar["error-code"] if "error-code" in ar else "0" * 8
         if result_type == PRIMENET.AR_LL_RESULT:
+            buf += "M{0} is not prime. Res64: {1}. Wh{2}: -,{3},{4}".format(
+                exponent, ar["res64"], port, ar["shift-count"], error_count)
             args["rd"] = ar["res64"].strip().zfill(16)
+        else:
+            buf += "M{0} is prime! Wh{1}: -,{2}".format(
+                exponent, port, error_count)
         args["sc"] = ar["shift-count"]
-        args["ec"] = ar["error-code"] if "error-code" in ar else "00000000"
+        args["ec"] = error_count
     elif result_type in {PRIMENET.AR_PRP_RESULT, PRIMENET.AR_PRP_PRIME}:
         args["d"] = 1
         args.update((("A", 1), ("b", 2), ("c", -1)))
+        prp_base = int(worktype[4:])
         if result_type == PRIMENET.AR_PRP_RESULT:
+            residue_type = ar["residue-type"]
+            buf += "M{0} is not prime.  {1}{2}RES64: {3}.".format(exponent, "Base-{0} ".format(
+                prp_base) if prp_base != 3 else "", "Type-{0} ".format(residue_type) if residue_type != 1 else "", ar["res64"])
             args["rd"] = ar["res64"].strip().zfill(16)
-            if "residue-type" in ar:
-                args["rt"] = ar["residue-type"]
-        args["ec"] = ar["error-code"] if "error-code" in ar else "00000000"
+            args["rt"] = residue_type
+        else:
+            buf += "M{0} is a probable prime{1}!".format(
+                exponent, " ({0}-PRP)".format(prp_base) if prp_base != 3 else "")
+        error_count = ar["error-code"] if "error-code" in ar else "0" * 8
+        buf += " Wh{0}: -,{1}{2}".format(port, "{0},".format(
+            ar["shift-count"]) if "known-factors" in ar else "", error_count)
+        args["ec"] = error_count
         if "known-factors" in ar:
             args["nkf"] = len(ar["known-factors"])
-        args["base"] = worktype[4:]  # worktype == PRP-base
+        args["base"] = prp_base  # worktype == PRP-base
         if "shift-count" in ar:
             args["sc"] = ar["shift-count"]
         # 1 if Gerbicz error checking used in PRP test
@@ -2577,16 +2675,24 @@ def report_result(sendline, ar, tasks, retry_count=0):
         if "B2" in ar:
             args["B2"] = ar["B2"]
         if result_type == PRIMENET.AR_P1_FACTOR:
-            args["f"] = ar["factors"][0]
+            factor = int(ar["factors"][0])
+            buf += "M{0} has a factor: {1} (P-1, B1={2}{3})".format(
+                exponent, factor, ar["B1"], ", B2={0}".format(ar["B2"]) if "B2" in ar else "")
+            args["f"] = factor
             n = (1 << exponent) - 1
             for factor in ar["factors"]:
                 if n % int(factor):
                     logging.warning(
-                        "Factor {0} does not divide exponent {1}".format(factor, exponent))
+                        "Bad factor for {0} found: {1}".format(exponent, factor))
+        else:
+            buf += "M{0} completed P-1, B1={1}{2}, Wh{3}: -".format(
+                exponent, ar["B1"], ", B2={0}".format(ar["B2"]) if "B2" in ar else "", port)
     # elif result_type == PRIMENET.AR_CERT:
     if "fft-length" in ar:
         args["fftlen"] = ar["fft-length"]
-    logging.info("Sending result to server: {0!r}".format(sendline))
+    if assignment_uid:
+        buf += ", AID: {0}".format(assignment_uid)
+    logging.info("Sending result to server: {0}".format(buf))
     result = send_request(guid, args)
     if result is None:
         pass
@@ -2596,31 +2702,30 @@ def report_result(sendline, ar, tasks, retry_count=0):
     else:
         rc = int(result["pnErrorResult"])
         if rc == PRIMENET.ERROR_OK:
-            logging.info("Result correctly send to server")
+            logging.debug("Result correctly send to server")
             return True
-        else:  # non zero ERROR code
-            if rc == PRIMENET.ERROR_UNREGISTERED_CPU:
-                # should register again and retry
-                register_instance()
-                # return False
-            elif rc == PRIMENET.ERROR_STALE_CPU_INFO:
-                register_instance(guid)
-            # In all other error case, the submission must not be retried
-            elif rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_KEY:
-                # TODO: Delete assignment from workfile if it is not done
-                return True
-            elif rc == PRIMENET.ERROR_WORK_NO_LONGER_NEEDED:
-                # TODO: Delete assignment from workfile if it is not done
-                return True
-            elif rc == PRIMENET.ERROR_NO_ASSIGNMENT:
-                # TODO: Delete assignment from workfile if it is not done
-                return True
-            elif rc == PRIMENET.ERROR_INVALID_RESULT_TYPE:
-                return True
-            elif rc == PRIMENET.ERROR_INVALID_PARAMETER:
-                logging.error(
-                    "INVALID PARAMETER: This may be a bug in the script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
-                return False
+        elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
+            # should register again and retry
+            register_instance()
+            # return False
+        elif rc == PRIMENET.ERROR_STALE_CPU_INFO:
+            register_instance(guid)
+        # In all other error case, the submission must not be retried
+        elif rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_KEY:
+            # TODO: Delete assignment from workfile if it is not done
+            return True
+        elif rc == PRIMENET.ERROR_WORK_NO_LONGER_NEEDED:
+            # TODO: Delete assignment from workfile if it is not done
+            return True
+        elif rc == PRIMENET.ERROR_NO_ASSIGNMENT:
+            # TODO: Delete assignment from workfile if it is not done
+            return True
+        elif rc == PRIMENET.ERROR_INVALID_RESULT_TYPE:
+            return True
+        elif rc == PRIMENET.ERROR_INVALID_PARAMETER:
+            logging.error(
+                "INVALID PARAMETER: This may be a bug in the script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
+            return False
 
     return report_result(sendline, ar, tasks, retry_count + 1)
 
@@ -2630,8 +2735,8 @@ def submit_one_line_manually(sendline):
     logging.debug("Submitting using manual results")
     logging.info("Sending result: {0!r}".format(sendline))
     try:
-        r = s.post(primenet_baseurl + "manual_result/default.php",
-                   data={"data": sendline})
+        r = session.post(primenet_baseurl +
+                         "manual_result/default.php", data={"data": sendline})
         r.raise_for_status()
         res_str = r.text
         if "Error code" in res_str:
@@ -2705,8 +2810,8 @@ def submit_work(adir, tasks):
 
 
 parser = optparse.OptionParser(version="%prog " + VERSION, description="""This program will automatically get assignments, report assignment results, upload proof files and optionally register assignments and report assignment progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. It also saves its configuration to a “local.ini” file by default, so it is only necessary to give most of the arguments once.
-The first time it is run, if a password is NOT provided, it will register the current GpuOwl/CUDALucas/Mlucas instance with PrimeNet (see below).
-Then, it will get assignments, report the results, upload any proof files and report the progress, if registered, to PrimeNet on a “timeout” interval, or only once if timeout is 0.
+The first time it is run, if a password is NOT provided, it will register the current GpuOwl/CUDALucas/Mlucas instance with PrimeNet (see the Registering Options below).
+Then, it will report assignment results, get assignments and upload any proof files to PrimeNet on the --timeout interval, or only once if --timeout is 0. If registered, it will additionally report the progress on the --checkin interval.
 """
                                )
 
@@ -2717,17 +2822,19 @@ parser.add_option("-w", "--workdir", dest="workdir", default=".",
                   help="Working directory with the local file from this program, Default: %default (current directory)")
 parser.add_option("-D", "--dir", action="append", dest="dirs",
                   help="Directories with the work and results files from the GIMPS program. Provide once for each worker thread. It automatically sets the --cpu-num option for each directory.")
+
+# all other options are saved to local.ini
 parser.add_option("-i", "--workfile", dest="worktodo_file",
                   default="worktodo.ini", help="Work file filename, Default: “%default”")
 parser.add_option("-r", "--resultsfile", dest="results_file",
                   default="results.txt", help="Results file filename, Default: “%default”")
+parser.add_option("-L", "--logfile", dest="logfile",
+                  default="primenet.log", help="Log file filename, Default: “%default”")
 parser.add_option("-l", "--localfile", dest="localfile", default="local.ini",
                   help="Local configuration file filename, Default: “%default”")
 parser.add_option("--archive-proofs", dest="archive_dir",
                   help="Directory to archive PRP proof files after upload, Default: %default")
-
-# all other options are saved to local.ini
-parser.add_option("-u", "--username", dest="user_id", default="ANONYMOUS",
+parser.add_option("-u", "--username", dest="user_id",
                   help="GIMPS/PrimeNet User ID. Create a GIMPS/PrimeNet account: https://www.mersenne.org/update/. If you do not want a PrimeNet account, you can use ANONYMOUS.")
 parser.add_option("-p", "--password", dest="password",
                   help="Optional GIMPS/PrimeNet Password. Deprecated and not recommended. Only provide if you want to do manual testing and not report the progress. This was the default behavior for old versions of this script.")
@@ -2758,6 +2865,8 @@ parser.add_option("-g", "--gpuowl", action="store_true", dest="gpuowl",
                   help="Get assignments for a GPU (GpuOwl) instead of the CPU (Mlucas).")
 parser.add_option("--cudalucas", dest="cudalucas",
                   help="Get assignments for a GPU (CUDALucas) instead of the CPU (Mlucas). Provide the CUDALucas output filename as the argument.")
+parser.add_option("--prime95", action="store_true",
+                  dest="prime95", help=optparse.SUPPRESS_HELP)
 parser.add_option("--num-workers", dest="num_worker_threads", type="int", default=1,
                   help="Number of worker threads (CPU Cores/GPUs), Default: %default")
 parser.add_option("-c", "--cpu-num", dest="cpu", type="int", default=0,
@@ -2765,7 +2874,7 @@ parser.add_option("-c", "--cpu-num", dest="cpu", type="int", default=0,
 parser.add_option("-n", "--num-cache", dest="num_cache", type="int", default=0,
                   help="Number of assignments to cache, Default: %default (automatically incremented by 1 when doing manual testing). Deprecated in favor of the --days-work option.")
 parser.add_option("-W", "--days-work", dest="days_of_work", type="float", default=3.0,
-                  help="Days of work to queue (1-180 days), Default: %default days. Adds one to num_cache when the time left for all assignments is less then this number of days.")
+                  help="Days of work to queue (1-180 days), Default: %default days. Adds one to num_cache when the time left for all assignments is less than this number of days.")
 parser.add_option("--force-pminus1", dest="tests_saved", type="float",
                   help="Force P-1 factoring before LL/PRP tests and/or change the default PrimeNet PRP tests_saved value.")
 parser.add_option("--pminus1-threshold", dest="pm1_multiplier", type="float",
@@ -2777,8 +2886,10 @@ parser.add_option("--convert-prp-to-ll", action="store_true", dest="convert_prp_
 parser.add_option("--no-report-100m", action="store_true", dest="no_report_100m",
                   help="Do not report any prime results for exponents greater than 100 million digits. You must setup another method to notify yourself.")
 
+parser.add_option("--checkin", dest="hours_between_checkins", type="int", default=6,
+                  help="Hours to wait between sending assignment progress and expected completion dates (1-168 hours), Default: %default hours. Requires that the instance is registered with PrimeNet.")
 parser.add_option("-t", "--timeout", dest="timeout", type="int", default=60 * 60,
-                  help="Seconds to wait between network updates, Default: %default seconds (1 hour). Users with slower internet may want to set a larger value to give time for any PRP proof files to upload. Use 0 to update once and exit.")
+                  help="Seconds to wait between updates, Default: %default seconds (1 hour). Users with slower internet may want to set a larger value to give time for any PRP proof files to upload. Use 0 to update once and exit.")
 parser.add_option("-s", "--status", action="store_true", dest="status", default=False,
                   help="Output a status report and any expected completion dates for all assignments and exit.")
 parser.add_option("--upload-proofs", action="store_true", dest="proofs", default=False,
@@ -2798,7 +2909,7 @@ parser.add_option("--ping", action="store_true", dest="ping", default=False,
 memory = get_physical_memory() or 1024
 cores, threads = get_cpu_cores_threads()
 
-group = optparse.OptionGroup(parser, "Registering Options: Sent to PrimeNet/GIMPS when registering. The progress will automatically be sent and the program can then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows for the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
+group = optparse.OptionGroup(parser, "Registering Options", "Sent to PrimeNet/GIMPS when registering. It will automatically send the progress, which allows the program to then be monitored on the GIMPS website CPUs page (https://www.mersenne.org/cpus/), just like with Prime95/MPrime. This also allows the program to get much smaller Category 0 and 1 exponents, if it meets the other requirements (https://www.mersenne.org/thresholds/).")
 group.add_option("-H", "--hostname", dest="computer_id", default=platform.node()[:20],
                  help="Optional computer name, Default: %default")
 group.add_option("--cpu-model", dest="cpu_brand", default=get_cpu_model() or "cpu.unknown",
@@ -2832,28 +2943,29 @@ if args:
 options = optparse.Values(parser.get_default_values().__dict__)
 options._update_careful(opts_no_defaults.__dict__)
 
-logging.basicConfig(level=max(logging.INFO - options.debug * 10, 0), format="%(filename)s: " + (
-    "%(funcName)s:\t" if options.debug > 1 else "") + "[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s")
-
 workdir = os.path.expanduser(options.workdir)
 dirs = [os.path.join(workdir, adir)
         for adir in options.dirs] if options.dirs else [workdir]
 
+logging.basicConfig(level=max(logging.INFO - options.debug * 10, 0), format="%(filename)s: " + (
+    "%(funcName)s:\t" if options.debug > 1 else "") + "[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s")
+handler = logging.FileHandler(os.path.join(workdir, options.logfile))
+handler.setFormatter(logging.Formatter(
+    "[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s"))
+logging.getLogger().addHandler(handler)
+
 # r'^(?:(Test|DoubleCheck)=([0-9A-F]{32})(,[0-9]+(?:\.[0-9]+)?){1,3}|(PRP(?:DC)?)=([0-9A-F]{32})(,-?[0-9]+(?:\.[0-9]+)?){4,8}(,"[0-9]+(?:,[0-9]+)*")?|(P[Ff]actor)=([0-9A-F]{32})(,-?[0-9]+(?:\.[0-9]+)?){6}|(P[Mm]inus1)=([0-9A-F]{32})(,-?[0-9]+(?:\.[0-9]+)?){6,8}(,"[0-9]+(?:,[0-9]+)*")?|(Cert)=([0-9A-F]{32})(,-?[0-9]+(?:\.[0-9]+)?){5})$'
 workpattern = re.compile(
     r'^(Test|DoubleCheck|PRP(?:DC)?|P[Ff]actor|P[Mm]inus1|Cert)\s*=\s*(?:(([0-9A-F]{32})|[Nn]/[Aa]|0),)?(?:(-?[0-9]+(?:\.[0-9]+)?|"[0-9]+(?:,[0-9]+)*")(?:,|$)){1,9}$')
-
-# mersenne.org limit is about 4 KB; stay on the safe side
-# sendlimit = 3000  # TODO: enforce this limit
 
 # If debug is requested
 
 # https://stackoverflow.com/questions/10588644/how-can-i-see-the-entire-http-request-thats-being-sent-by-my-python-application
 if options.debug > 1:
     try:
+        # Python 3+
         from http.client import HTTPConnection
     except ImportError:
-        # Python 2
         from httplib import HTTPConnection
     HTTPConnection.debuglevel = 1
 
@@ -2876,8 +2988,7 @@ if options.computer_id is not None and len(options.computer_id) > 20:
 if options.cpu_features is not None and len(options.cpu_features) > 64:
     parser.error("CPU features must be less than or equal to 64 characters")
 
-# Index into programs array
-idx = 3 if options.cudalucas else 2 if options.gpuowl else 1
+PROGRAM = PROGRAMS[3 if options.cudalucas else 2 if options.gpuowl else 1]
 
 # Convert mnemonic-form worktypes to corresponding numeric value, check
 # worktype value vs supported ones:
@@ -2906,7 +3017,7 @@ supported = frozenset([PRIMENET.WP_LL_FIRST,
 if not options.work_preference.isdigit() or int(
         options.work_preference) not in supported:
     parser.error("Unsupported/unrecognized worktype = {0} for {1}".format(
-        options.work_preference, PROGRAMS[idx]["name"]))
+        options.work_preference, PROGRAM["name"]))
 work_preference = int(options.work_preference)
 # Convert first time LL worktypes to PRP
 option_dict = {
@@ -2916,22 +3027,17 @@ option_dict = {
 if work_preference in option_dict:
     work_preference = option_dict[work_preference]
 
-# write back local.ini if necessary
-if config_updated:
-    logging.debug("write {0!r}".format(options.localfile))
-    config_write(config)
-
 # if guid already exist, recover it, this way, one can (re)register to change
 # the CPU model (changing instance name can only be done in the website)
 guid = get_guid(config)
-if options.password and options.user_id is None:
+if options.user_id is None:
     parser.error("Username must be given")
 
 if options.dirs and len(options.dirs) != options.num_worker_threads:
     parser.error(
         "The number of directories must be equal to the number of worker threads")
 
-if options.cpu >= options.num_worker_threads:
+if not options.dirs and options.cpu >= options.num_worker_threads:
     parser.error(
         "CPU core or GPU number must be less than the number of worker threads")
 
@@ -2953,9 +3059,18 @@ if options.convert_ll_to_prp and options.convert_prp_to_ll:
     parser.error(
         "Cannot convert LL assignments to PRP and PRP assignments to LL at the same time")
 
-if 0 < options.timeout < 60 * 60:
+if not 1 <= options.hours_between_checkins <= 7 * 24:
     parser.error(
-        "Timeout must be greater than or equal to {0:n} seconds (1 hour)".format(60 * 60))
+        "Hours between checkins must be between 1 and 168 hours (7 days)")
+
+# write back local.ini if necessary
+if config_updated:
+    logging.debug("write {0!r}".format(options.localfile))
+    config_write(config)
+
+if 0 < options.timeout < 30 * 60:
+    parser.error(
+        "Timeout must be greater than or equal to {0:n} seconds (30 minutes)".format(30 * 60))
 
 if options.status:
     output_status(dirs)
@@ -3007,17 +3122,21 @@ if options.password is None:
         register_instance(guid)
 
 while True:
+    start = timeit.default_timer()
     config = config_read()
     current_time = time.time()
     last_time = config.getint(section, "LastEndDatesSent") if config.has_option(
         section, "LastEndDatesSent") else 0
+    checkin = options.timeout <= 0 or current_time >= last_time + \
+        options.hours_between_checkins * 60 * 60
+    last_time = last_time if checkin else None
 
     # Carry on with Loarer's style of primenet
     if options.password:
         try:
             login_data = {"user_login": options.user_id,
                           "user_password": options.password}
-            r = s.post(primenet_baseurl + "default.php", data=login_data)
+            r = session.post(primenet_baseurl + "default.php", data=login_data)
             r.raise_for_status()
 
             if options.user_id + "<br>logged in" not in r.text:
@@ -3034,23 +3153,22 @@ while True:
         if options.dirs:
             logging.info("[Worker #{0:n}]".format(i + 1))
         cpu_num = i if options.dirs else options.cpu
-        # branch 1 or branch 2 above was taken
         if not options.password or primenet_login:
             tasks = read_workfile(adir)
             submit_work(adir, tasks)
-            register_assignments(adir, cpu_num, tasks)
-            progress = update_progress_all(adir, cpu_num, last_time, tasks)
+            registered = register_assignments(adir, cpu_num, tasks)
+            progress = update_progress_all(
+                adir, cpu_num, last_time, tasks, None, checkin or registered)
             got = get_assignments(adir, cpu_num, progress, tasks)
-            # logging.debug("Got: {0:n}".format(len(got)))
             if got and not options.password:
                 logging.debug("Redo progress update to acknowledge receipt of the just obtained assignment{0}".format(
                     "s" if len(got) > 1 else ""))
-                time.sleep(1)
-                update_progress_all(adir, cpu_num, last_time, got, progress)
+                update_progress_all(adir, cpu_num, None, got, progress)
         if options.timeout <= 0:
             upload_proofs(adir)
 
-    config.set(section, "LastEndDatesSent", str(int(current_time)))
+    if checkin and not options.password:
+        config.set(section, "LastEndDatesSent", str(int(current_time)))
     config_write(config)
     if options.timeout <= 0:
         logging.info("Done communicating with server.")
@@ -3059,10 +3177,12 @@ while True:
     thread = threading.Thread(target=aupload_proofs,
                               name="UploadProofs", args=(dirs,))
     thread.start()
-    try:
-        time.sleep(options.timeout)
-    except KeyboardInterrupt:
-        break
+    elapsed = timeit.default_timer() - start
+    if options.timeout > elapsed:
+        try:
+            time.sleep(options.timeout - elapsed)
+        except KeyboardInterrupt:
+            break
     thread.join()
 
 sys.exit(0)

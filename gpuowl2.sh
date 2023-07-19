@@ -195,7 +195,7 @@ else
 	if [[ -e ../primenet.py ]]; then
 		cp -v ../primenet.py .
 	else
-		wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py -nv
+		wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
 	fi
 	chmod +x primenet.py
 fi
@@ -249,7 +249,7 @@ echo -e "\nDownloading GpuOwl benchmarking script\n"
 if [[ -e ../../gpuowl-bench.sh ]]; then
 	cp -v ../../gpuowl-bench.sh .
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-bench.sh -nv
+	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-bench.sh
 fi
 sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl-bench.sh
 chmod +x gpuowl-bench.sh
@@ -261,7 +261,7 @@ echo -e "\nDownloading GpuOwl wrapper script\n"
 if [[ -e ../../gpuowl-wrapper.sh ]]; then
 	cp -v ../../gpuowl-wrapper.sh .
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-wrapper.sh -nv
+	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-wrapper.sh
 fi
 mv -v gpuowl{-wrapper.sh,}
 sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl
