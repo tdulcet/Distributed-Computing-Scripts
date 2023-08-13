@@ -279,9 +279,10 @@ PrimeNet script:
 * Support setting per thread options.
 	* Get different work types on different CPU cores or GPUs.
 * Improve the error handling of PrimeNet API calls.
-* Check for new results to submit when the results file is updated.
+* Check for new results to submit and proof files to upload when the results file is updated.
 * Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
 	* Currently this requires using the Bash install scripts for Linux.
+* Get the number of cores on Linux without the `lscpu` command.
 * Improve the performance.
 * Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has stalled or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
 * Support reporting interim residues.

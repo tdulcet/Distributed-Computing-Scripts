@@ -579,7 +579,7 @@ for j in "${!threads[@]}"; do
 done
 echo -e "\nRegistering computer with PrimeNet\n"
 total=$((TOTAL_PHYSICAL_MEM / 1024))
-python3 ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --np="$CPU_CORES" --hp="$HP"
+python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n "$CPU_FREQ" ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --np="$CPU_CORES" --hp="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 args=()
 for i in "${!RUNS[@]}"; do
@@ -592,7 +592,7 @@ for i in "${!RUNS[@]}"; do
 	popd >/dev/null
 done
 echo -e "\nStarting PrimeNet\n"
-nohup python3 ../primenet.py "${args[@]}" >> "primenet.out" &
+nohup python3 -OO ../primenet.py "${args[@]}" >> "primenet.out" &
 sleep ${#RUNS[*]}
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" $((i+1)) "${RUNS[i]}"
@@ -618,10 +618,10 @@ set -x
 $(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -cpu '${RUNS[i]}' -maxalloc $maxalloc >> 'Mlucas.out' &) "; done)
 }
 
-pgrep -f '^python3 \.\./primenet\.py' >/dev/null || {
+pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || {
 echo -e "\nStarting PrimeNet\n"
 set -x
-exec nohup python3 ../primenet.py ${args[@]} >> 'primenet.out' &
+exec nohup python3 -OO ../primenet.py ${args[@]} >> 'primenet.out' &
 }
 EOF
 chmod +x jobs.sh

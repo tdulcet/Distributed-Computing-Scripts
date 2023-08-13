@@ -228,9 +228,9 @@ elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=( -m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')" )
 	fi
 fi
-python3 primenet.py -t 0 -T "$TYPE" -u "$USERID" -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
+python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting PrimeNet\n"
-nohup python3 primenet.py >> "primenet.out" &
+nohup python3 -OO primenet.py >> "primenet.out" &
 sleep 1
 echo -e "\nDownloading GpuOwl benchmarking script\n"
 if [[ -e ../gpuowl-bench.sh ]]; then
@@ -257,6 +257,6 @@ echo -e "\nStarting GpuOwl\n"
 nohup ./gpuowl -nospin >> "gpuowl.out" &
 sleep 1
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "cd ${DIR@Q} && nohup ./gpuowl -nospin >> 'gpuowl.out' &"; } | crontab -
-#crontab -l | { cat; echo "cd ${DIR@Q} && nohup python3 primenet.py >> 'primenet.out' &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl -nospin >> 'gpuowl.out' &); pgrep -f '^python3 primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 primenet.py >> 'primenet.out' &); else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./gpuowl -nospin >> 'gpuowl.out' &"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO primenet.py >> 'primenet.out' &"; } | crontab -
+crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl -nospin >> 'gpuowl.out' &); pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO primenet.py >> 'primenet.out' &); else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi"; } | crontab -

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Daniel Connelly
+# Daniel Connelly and Teal Dulcet
 # based off of Tdulcet's 'mprime.exp'
 # Python3 exp.py <User ID> <Computer name> <Type of work> <idle time to run>
 
@@ -19,7 +19,7 @@ except ImportError:
     import pexpect
 
 # Prerequisites, gained from mprime.py
-USERID, COMPUTER, TYPE = sys.argv[1], sys.argv[2], sys.argv[3]
+USERID, COMPUTER, TYPE = sys.argv[1:4]
 
 child = pexpect.spawn("./mprime -m")  # starts shell to interact with
 child.logfile = sys.stdout.buffer  # enables output to screen (Python 3)
@@ -32,7 +32,7 @@ expectDict = {"Join Gimps?": "y",
               "Upload bandwidth limit in Mbps": "10000",
               "Skip advanced resource settings": "n",
               "Optional directory to hold": "",
-              "Your choice:": 5,
+              "Your choice:": "5",
               pexpect.TIMEOUT: "",
               # "Use the following values to select a work type:": "",
               "Done communicating with server.": "\x03",
@@ -45,6 +45,6 @@ while True:
     try:
         sleep(2)
         index = child.expect(expects, timeout=2)
-        child.sendline(str(responses[index]))
+        child.sendline(responses[index])
     except pexpect.exceptions.EOF:
         break

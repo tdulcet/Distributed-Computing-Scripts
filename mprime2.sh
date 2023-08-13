@@ -101,5 +101,5 @@ expect mprime2.exp -- "$USERID" "$COMPUTER" "$TYPE" "$N"
 echo -e "\nStarting Prime95\n"
 nohup ./mprime -A"$N" -d >> "mprime$N.out" &
 echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
-#crontab -l | { cat; echo "cd ${DIR@Q} && nohup ./mprime -A$N -d >> 'mprime$N.out' &"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./mprime -A$N -d >> 'mprime$N.out' &"; } | crontab -
 crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -A$N -d >> 'mprime$N.out' &); else pgrep -x mprime >/dev/null && killall mprime; fi"; } | crontab -
