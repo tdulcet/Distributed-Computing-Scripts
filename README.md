@@ -291,6 +291,8 @@ PrimeNet script:
 * Localize the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
 * Remove the dependency on the Requests library
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
+* Add an optional GUI using [Tk](https://en.wikipedia.org/wiki/Tk_(software)) and the [tkinter library](https://docs.python.org/3/library/tkinter.html)
+* Add docstrings to all functions
 
 General:
 * Create install script for the [CUDAPm1](https://sourceforge.net/projects/cudapm1/) GIMPS program

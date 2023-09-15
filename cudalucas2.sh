@@ -115,14 +115,13 @@ EOF
 		exit 1
 	fi
 	sed -i "s/--generate-code arch=compute_35,code=sm_35/$COMPUTE/" Makefile
-	sed -i '/nvmlInit();/d' CUDALucas.cu
-	sed -i '/nvmlDevice_t device;/d' CUDALucas.cu
-	sed -i '/nvmlDeviceGetHandleByIndex(device_number, &device);/d' CUDALucas.cu
-	sed -i '/nvmlDeviceGetUUID(device, uuid, sizeof(uuid)\/sizeof(uuid\[0\]));/d' CUDALucas.cu
-	sed -i '/nvmlShutdown();/d' CUDALucas.cu
 	# Increase buffers to prevent buffer overflow
 	sed -i 's/file\[32\]/file[268]/g' CUDALucas.cu
-	sed -i 's/file_bak\[64\]/file_bak[268]/g' CUDALucas.cu
+	sed -i 's/file_bak\[64\]/file_bak[455]/g' CUDALucas.cu
+	sed -i 's/chkpnt_sfn\[64\]/chkpnt_sfn[234]/g' CUDALucas.cu
+	sed -i 's/test\[64\]/test[203]/g' CUDALucas.cu
+	# Fix deprecation warnings
+	sed -i '/IniGet/ s/char \?\* \?name/const char* name/; s/char \?\* \?df/const char* df/' parse.{h,c}
 	make
 	make clean
 fi
@@ -137,6 +136,7 @@ else
 		wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
 	fi
 	chmod +x primenet.py
+	python3 -OO -m py_compile primenet.py
 fi
 echo -e "\nInstalling the Requests library\n"
 # python3 -m ensurepip --default-pip || true
@@ -174,6 +174,7 @@ echo -e "\nStarting PrimeNet\n"
 nohup python3 -OO primenet.py -l "local$N.ini" >> "primenet$N.out" &
 sleep 1
 echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take a while…\n"
+timeout -v 60 ./CUDALucas 2976221 || true
 ./CUDALucas -cufftbench 1024 8192 5
 ./CUDALucas -threadbench 1024 8192 5 0
 echo -e "\nRunning self tests\nThis will take a while…\n"

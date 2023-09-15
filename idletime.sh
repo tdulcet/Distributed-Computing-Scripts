@@ -16,8 +16,8 @@ getSecondsAsDigitalClock() {
 	local sec_num=$1
 	local d=$(( sec_num / 86400 ))
 	local h=$(( (sec_num % 86400) / 3600 ))
-	local m=$(( (sec_num % 86400 % 3600) / 60 ))
-	local s=$(( sec_num % 86400 % 3600 % 60 ))
+	local m=$(( (sec_num % 3600) / 60 ))
+	local s=$(( sec_num % 60 ))
 	local text=''
 	if [[ $d -ne 0 ]]; then
 		text+="$(printf "%'d" "$d") days "

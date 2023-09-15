@@ -34,9 +34,9 @@ USE=${3:-ROE1,ROE2}
 
 # GpuOwl arguments
 ARGS=(
--device $DEVICE
-# -log 10000
--use "$USE"
+	-device $DEVICE
+	# -log 10000
+	-use "$USE"
 
 )
 
@@ -97,6 +97,11 @@ mapfile -t FFTS <<< "$ffts"
 mapfile -t AFFTS < <(echo "$ffts" | numfmt --from=iec)
 mapfile -t MAX_EXPS < <(echo "$output" | awk -F'[][ ]+' '{ print $5 }' | numfmt --from=si)
 mapfile -t VARIANTS < <(echo "$output" | sed -n 's/^.*]  //p')
+
+echo -e "\nWarming up GPU...\n"
+exp=2976221
+"$DIR/$GPUOWL" -prp "$exp" -iters $((ITERS * 10)) -fft 256:3:256 "${ARGS[@]}"
+rm -rf -- "$exp" gpuowl.log
 
 for i in "${!MAX_EXPS[@]}"; do
 	if [[ -n $MIN && ${AFFTS[i]} -lt $(( MIN * 1024 )) ]]; then

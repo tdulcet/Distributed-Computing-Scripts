@@ -198,6 +198,7 @@ else
 		wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
 	fi
 	chmod +x primenet.py
+	python3 -OO -m py_compile primenet.py
 fi
 echo -e "\nInstalling the Requests library\n"
 # python3 -m ensurepip --default-pip || true

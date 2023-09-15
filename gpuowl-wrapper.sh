@@ -22,23 +22,23 @@ DIR3="gpuowl-6"
 
 # 1. Current version of GpuOwl (master branch)
 ARGS1=(
-# -mprimeDir ../mprime
--unsafeMath
-# -use ROE1,ROE2
--use ROE2
+	# -mprimeDir ../mprime
+	-unsafeMath
+	# -use ROE1,ROE2
+	-use ROE2
 
 )
 # 2. GpuOwl v7.2-112
 ARGS2=(
--unsafeMath
-# -use STATS
+	-unsafeMath
+	# -use STATS
 
 )
 # 3. GpuOwl v6.11 (v6 branch)
 ARGS3=(
--cleanup
--log 10000
-# -use STATS
+	-cleanup
+	-log 10000
+	# -use STATS
 
 )
 
@@ -72,8 +72,8 @@ DEVICE=0
 
 # GpuOwl arguments for all versions
 ARGS=(
--device $DEVICE
-# -results "$aResultsFile"
+	-device $DEVICE
+	# -results "$aResultsFile"
 
 )
 

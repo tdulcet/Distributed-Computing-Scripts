@@ -16,7 +16,7 @@ jobs:
         os: [ubuntu-20.04, ubuntu-22.04]
       fail-fast: false
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
@@ -55,7 +55,7 @@ jobs:
     env:
       CXX: ${{ matrix.cxx }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install
       run: |
         sudo apt-get -yqq update
@@ -92,7 +92,7 @@ jobs:
     env:
       CC: ${{ matrix.cc }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Before script
       run: |
         sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
@@ -137,7 +137,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
@@ -151,13 +151,13 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install ruff
     - name: Script
-      run: ruff --format=github --target-version py37 --select F,E,W,I,D,UP,YTT,S,BLE,B,A,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SLOT,SIM,TID,TCH,ARG,PGH,PL,PLC1901,TRY,PERF,RUF --ignore E101,E501,W191,D211,D213,D401,UP004,UP009,UP010,UP024,UP030,UP032,UP036,PLR09,PLR2004,S324,S603,RUF001,RUF002,RUF003,RUF005 .
+      run: ruff --format=github --target-version py37 --select F,E,W,I,D,UP,YTT,S,BLE,B,A,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SLOT,SIM,TID,TCH,ARG,PGH,PL,TRY,PERF,FURB,RUF --preview --ignore E101,E501,W191,D211,D213,D401,UP004,UP009,UP010,UP024,UP030,UP032,UP036,PYI024,PLR09,PLR2004,S324,S603,RUF001,RUF002,RUF003,RUF005 .
       continue-on-error: true
 
   Linux:
@@ -169,7 +169,7 @@ jobs:
         os: [ubuntu-20.04, ubuntu-22.04]
       fail-fast: false
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
@@ -186,11 +186,12 @@ jobs:
 
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
-        python3 -m pip install --upgrade pip
+        python -m pip install --upgrade pip
         python -m pip install requests
+        python3 -m pip install --upgrade pip
         python3 -m pip install requests
     - name: Script
       run: |
@@ -209,7 +210,7 @@ jobs:
 
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
