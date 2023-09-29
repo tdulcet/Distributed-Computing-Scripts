@@ -30,7 +30,7 @@ if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] is not a valid number" >&2
 	exit 1
 fi
-RE='^([0-9]*[.])?[0-9]+$'
+RE='^([0-9]*\.)?[0-9]+$'
 if ! [[ $TIME =~ $RE ]]; then
 	echo "Usage: [Idle time to run] must be a number" >&2
 	exit 1

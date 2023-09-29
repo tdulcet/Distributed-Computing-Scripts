@@ -65,7 +65,7 @@ except ImportError:
 #---Command Line Checks------#
 misc_check(len(sys.argv) > 5, f"Usage: {sys.argv[0]} [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]")
 misc_check(not re.match(r"^([024568]|1(0[0124]|5[0123]|6[01])?)$", TYPE), "Usage: [Type of work] is not a valid number")
-misc_check(not re.match(r"^([0-9]*[.])?[0-9]+$", TIME), "Usage: [Idle time to run] must be a number")
+misc_check(not re.match(r"^([0-9]*\.)?[0-9]+$", TIME), "Usage: [Idle time to run] must be a number")
 #----------------------------#
 
 #---Downloading/Directory Ops---#

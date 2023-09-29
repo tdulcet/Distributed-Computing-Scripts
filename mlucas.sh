@@ -24,7 +24,7 @@ if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
 	exit 1
 fi
-RE='^([0-9]*[.])?[0-9]+$'
+RE='^([0-9]*\.)?[0-9]+$'
 if ! [[ $TIME =~ $RE ]]; then
 	echo "Usage: [Idle time to run] must be a number" >&2
 	exit 1
@@ -146,50 +146,21 @@ else
 	echo -e "\nDecompressing the files\n"
 	tar -xvf $FILE
 	cd "$DIR"
-	mkdir obj
-	cd obj
-	ARGS=()
+	if [[ ! -f "makemake.sh.bak" ]]; then
+		mv -v makemake.sh{,.bak}
+	fi
+	echo -e "\nDownloading the updated makemake.sh script from Mlucas v21\n"
+	if [[ -e ../makemake.sh ]]; then
+		cp -v ../makemake.sh .
+	else
+		wget -nv https://gist.githubusercontent.com/tdulcet/d03dd3be0314fca72a2250133d24f3fd/raw/8d0a41241fcf38149e4fae6f9a61083c43e40ece/makemake.sh
+	fi
+	chmod +x makemake.sh
 	echo -e "\nBuilding Mlucas\n"
-	# for mode in avx512 avx2 avx sse2; do
-		# if grep -iq "$mode" /proc/cpuinfo; then
-			# echo -e "The CPU supports the ${mode^^} SIMD build mode.\n"
-			# ARGS+=( "-DUSE_${mode^^}" )
-			# break
-		# fi
-	# done
-	if grep -iq 'avx512' /proc/cpuinfo; then
-		echo -e "The CPU supports the AVX512 SIMD build mode.\n"
-		ARGS+=( "-DUSE_AVX512" -march=native )
-	elif grep -iq 'avx2' /proc/cpuinfo; then
-		echo -e "The CPU supports the AVX2 SIMD build mode.\n"
-		ARGS+=( "-DUSE_AVX2" -march=native -mavx2 )
-	elif grep -iq 'avx' /proc/cpuinfo; then
-		echo -e "The CPU supports the AVX SIMD build mode.\n"
-		ARGS+=( "-DUSE_AVX" -march=native -mavx )
-	elif grep -iq 'sse2' /proc/cpuinfo; then
-		echo -e "The CPU supports the SSE2 SIMD build mode.\n"
-		ARGS+=( "-DUSE_SSE2" -march=native )
-	fi
-	if grep -iq 'asimd' /proc/cpuinfo; then
-		echo -e "The CPU supports the ASIMD build mode.\n"
-		ARGS+=( "-DUSE_ARM_V8_SIMD" -march=native )
-	fi
-	cat << EOF > Makefile
-CC?=gcc
-CFLAGS=-fdiagnostics-color -Wall -g -O3 # -flto
-OBJS=\$(patsubst ../src/%.c, %.o, \$(wildcard ../src/*.c))
-
-Mlucas: \$(OBJS)
-	\$(CC) \$(CFLAGS) -o \$@ \$^ -lm -lpthread -lrt -lgmp
-%.o: ../src/%.c
-	\$(CC) \$(CFLAGS) \$(CPPFLAGS) -c ${ARGS[@]} -DUSE_THREADS \$<
-clean:
-	rm -f *.o
-EOF
-	if ! make -j "$CPU_THREADS" >& build.log; then
-		cat build.log
+	if ! bash makemake.sh; then
 		exit 1
 	fi
+	cd obj
 	if [[ -n "$CI" ]]; then
 		cat build.log
 	fi
@@ -200,9 +171,9 @@ if [[ ! -f "primenet.py.bak" ]]; then
 	mv -v primenet.py{,.bak}
 fi
 if [[ -f "primenet.py" ]]; then
-	echo -e "\nThe PrimeNet script is already downloaded\n"
+	echo -e "\nThe updated PrimeNet script is already downloaded\n"
 else
-	echo -e "\nDownloading the PrimeNet script\n"
+	echo -e "\nDownloading the latest updated PrimeNet script\n"
 	if [[ -e ../primenet.py ]]; then
 		cp -v ../primenet.py .
 	else

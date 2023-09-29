@@ -76,10 +76,10 @@ Options:
   -w WORKDIR, --workdir=WORKDIR
                         Working directory with the local file from this
                         program, Default: . (current directory)
-  -D DIRS, --dir=DIRS   Directories with the work and results files from the
-                        GIMPS program. Provide once for each worker thread. It
-                        automatically sets the --cpu-num option for each
-                        directory.
+  -D DIRS, --dir=DIRS   Directories relative to --workdir with the work and
+                        results files from the GIMPS program. Provide once for
+                        each worker thread. It automatically sets the --cpu-
+                        num option for each directory.
   -i WORKTODO_FILE, --workfile=WORKTODO_FILE
                         Work file filename, Default: “worktodo.ini”
   -r RESULTS_FILE, --resultsfile=RESULTS_FILE
@@ -102,7 +102,7 @@ Options:
                         testing and not report the progress. This was the
                         default behavior for old versions of this script.
   -T WORK_PREFERENCE, --worktype=WORK_PREFERENCE
-                        Type of work, Default: 100, 4 (P-1 factoring), 100
+                        Type of work, Default: 150, 4 (P-1 factoring), 100
                         (smallest available first-time LL), 101 (double-check
                         LL), 102 (world-record-sized first-time LL), 104 (100M
                         digit number LL), 150 (smallest available first-time
@@ -205,6 +205,11 @@ Options:
                         Configured day/night P-1 stage 2 memory (MiB),
                         Default: 921 MiB (90% of physical memory). Required
                         for P-1 assignments.
+    --max-disk-space=WORKER_DISK_SPACE
+                        Configured disk space limit per worker to store the
+                        proof interim residues files for PRP tests
+                        (GiB/worker), Default: 0.0 GiB/worker. Use 0 to not
+                        send.
     --L1=CPU_L1_CACHE_SIZE
                         L1 Cache size (KiB), Default: 8 KiB
     --L2=CPU_L2_CACHE_SIZE
@@ -278,6 +283,8 @@ PrimeNet script:
 * Support setting more of the program options.
 * Support setting per thread options.
 	* Get different work types on different CPU cores or GPUs.
+* Support using the save/checkpoint files to determine assignment progress.
+	* See my [gimps_status.py](https://gist.github.com/tdulcet/19b89559f6b4f2cc2434547cc7528379) script for example.
 * Improve the error handling of PrimeNet API calls.
 * Check for new results to submit and proof files to upload when the results file is updated.
 * Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
