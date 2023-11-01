@@ -1370,7 +1370,7 @@ def parse_gpu_log_file(adir, p):
                 p1_res = p1_regex.search(line)
                 p1 = res.group(2) == "OK" and bool(p1_res)
             if len(list_usec_per_iter) < 5:
-                list_usec_per_iter.append(int(us_res.grpup(1)))
+                list_usec_per_iter.append(int(us_res.group(1)))
         elif p2 and blocks_res:
             if not buffs:
                 buffs = int(blocks_res.group(1))
@@ -1382,8 +1382,8 @@ def parse_gpu_log_file(adir, p):
         elif fft_res and not fftlen:
             fft = fft_res.group(1)
             unit = fft[-1:]
-            fftlen = int(float(
-                fft[: -1]) << (10 if unit == "K" else 20 if unit == "M" else 0))
+            scale = 1 << (10 if unit == "K" else 20 if unit == "M" else 0)
+            fftlen = int(float(fft[: -1]) * scale)
         if (buffs or (found == 20 and not p2 and (not p1 or bits))) and fftlen:
             break
     if not found:
