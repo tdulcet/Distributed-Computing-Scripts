@@ -6,6 +6,9 @@ GIMPS can be run on some Nvidia, AMD and Intel GPUs using the [GpuOwl](https://g
 This repository contains two Jupyter Notebooks, a “CPU” only notebook (`GoogleColabCPU.ipynb`) and a “GPU and CPU” notebook (`GoogleColabGPU.ipynb`). The “CPU” only notebook runs Prime95, while the “GPU and CPU” notebook runs both GpuOwl and Prime95 since they can run simultaneously to “crunch” more prime numbers. Previous versions of the GPU notebook ran CUDALucas.
 Each notebook makes use of Google Drive storage, which is provided to all Google accounts. See [here](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime/wiki/Usage-and-Arguments) for a “TPU” only notebook which runs TensorPrime.
 
+[!IMPORTANT]
+The “GPU and CPU” notebook does not currently work, as [OpenCL is broken on Colab](https://github.com/googlecolab/colabtools/issues/3592) and GpuOwl uses OpenCL. Users can temporarily switch back to the [previous version of the notebook](https://github.com/tdulcet/Distributed-Computing-Scripts/blob/933d9916a8bc841c3313d77a010d73e95e9dee65/google-colab/GoogleColabGPU.ipynb), which ran CUDALucas. CUDALucas is slower than GpuOwl, but it uses CUDA, which still works on Colab.
+
 ## How to Use
 **Please Note:** you must keep each notebook **OPEN** in your browser to prevent it from disconnecting due to being perceived as idle. [Pin the tab(s)](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) or move them to a dedicated window for easy access to your notebook(s).
 

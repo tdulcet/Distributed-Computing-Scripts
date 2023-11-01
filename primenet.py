@@ -44,6 +44,7 @@
 ################################################################################
 from __future__ import division, print_function, unicode_literals
 
+import atexit
 import csv
 import glob
 import json
@@ -66,6 +67,7 @@ import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 from hashlib import md5
+from itertools import starmap
 
 try:
     # Python 3+
@@ -146,7 +148,7 @@ locale.setlocale(locale.LC_ALL, "")
 if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(0)
 
-VERSION = "1.2"
+VERSION = "1.2.1"
 section = "PrimeNet"
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
@@ -187,6 +189,7 @@ elif system == "Darwin":
 elif system == "Linux":
     PORT = 8 if is_64bit else 2
 session = requests.Session()  # session that maintains our cookies
+atexit.register(session.close)
 
 
 class PRIMENET:
@@ -721,8 +724,7 @@ def mersenne_find(line, complete=True):
 
 def announce_prime_to_user(exponent, worktype):
     """Announce a newly found prime to the user."""
-    emails = ", ".join("{0} <{1}>".format(name, address)
-                       for name, address in CCEMAILS)
+    emails = ", ".join(starmap("{0} <{1}>".format, CCEMAILS))
     while True:
         if worktype == "LL":
             print("New Mersenne Prime!!!! M{0} is prime!".format(exponent))
@@ -775,8 +777,8 @@ def generate_application_str():
             aplatform, program)
     name = program["name"]
     version = program["version"]
-    if config.has_option(section, "version"):
-        name, version = config.get(section, "version").split(None, 1)
+    if config.has_option(section, "program"):
+        name, version = config.get(section, "program").split(None, 1)
         version = version[1:] if version.startswith("v") else version
     # return "{0},{1},v{2};Python {3},{4}".format(
         # aplatform, name, version, platform.python_version(), parser.get_version())
@@ -1382,8 +1384,8 @@ def parse_gpu_log_file(adir, p):
         elif fft_res and not fftlen:
             fft = fft_res.group(1)
             unit = fft[-1:]
-            scale = 1 << (10 if unit == "K" else 20 if unit == "M" else 0)
-            fftlen = int(float(fft[: -1]) * scale)
+            fftlen = int(
+                float(fft[: -1]) * (1 << (10 if unit == "K" else 20 if unit == "M" else 0)))
         if (buffs or (found == 20 and not p2 and (not p1 or bits))) and fftlen:
             break
     if not found:
@@ -1460,6 +1462,7 @@ def output_status(dirs):
             continue
         assignments = OrderedDict(((assignment.uid, assignment.n), assignment)
                                   for assignment in tasks if isinstance(assignment, Assignment)).values()
+        section = "Worker #{0}".format(cpu_num + 1)
         msec_per_iter = p = None
         if config.has_option(section, "msec_per_iter") and config.has_option(
                 section, "exponent"):
@@ -2086,7 +2089,7 @@ def get_assignment(cpu_num, assignment_num=None, retry_count=0):
                 assignment.prp_residue_type = int(r["rt"])
                 # Mlucas
                 if not (options.cudalucas or options.gpuowl) and (
-                        assignment.prp_base != 3 or assignment.prp_residue_type not in (1, 5)):
+                        assignment.prp_base != 3 or assignment.prp_residue_type not in {1, 5}):
                     logging.error(
                         "PRP base is not 3 or residue type is not 1 or 5")
                     # TODO: Unreserve assignment
@@ -2662,7 +2665,7 @@ def report_result(sendline, ar, tasks, retry_count=0):
     args["n"] = exponent
     if result_type in {PRIMENET.AR_LL_RESULT, PRIMENET.AR_LL_PRIME}:
         args["d"] = 1
-        error_count = ar["error-code"] if "error-code" in ar else "0" * 8
+        error_count = ar.get("error-code", "0" * 8)
         if result_type == PRIMENET.AR_LL_RESULT:
             buf += "M{0} is not prime. Res64: {1}. Wh{2}: -,{3},{4}".format(
                 exponent, ar["res64"], port, ar["shift-count"], error_count)
@@ -2685,7 +2688,7 @@ def report_result(sendline, ar, tasks, retry_count=0):
         else:
             buf += "M{0} is a probable prime{1}!".format(
                 exponent, " ({0}-PRP)".format(prp_base) if prp_base != 3 else "")
-        error_count = ar["error-code"] if "error-code" in ar else "0" * 8
+        error_count = ar.get("error-code", "0" * 8)
         buf += " Wh{0}: -,{1}{2}".format(port, "{0},".format(
             ar["shift-count"]) if "shift-count" in ar else "", error_count)
         args["ec"] = error_count
@@ -3051,13 +3054,6 @@ for adir in dirs:
 
 logging.basicConfig(level=max(logging.INFO - options.debug * 10, 0), format="%(filename)s: " + (
     "%(funcName)s:\t" if options.debug > 1 else "") + "[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s")
-logfile = os.path.join(workdir, options.logfile)
-# maxBytes = config.getint(section, "MaxLogFileSize") if config.has_option(section, "MaxLogFileSize") else 2 * 1024 * 1024
-handler = logging.handlers.RotatingFileHandler(
-    logfile, maxBytes=2 * 1024 * 1024, backupCount=5, encoding="utf-8")
-handler.setFormatter(logging.Formatter(
-    "[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s"))
-logging.getLogger().addHandler(handler)
 
 # r'^(?:(Test|DoubleCheck)=([0-9A-F]{32})(,(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)){1,3}|(PRP(?:DC)?)=([0-9A-F]{32})(,[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)){4,8}(,"[0-9]+(?:,[0-9]+)*")?|(P[Ff]actor)=([0-9A-F]{32})(,[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)){6}|(P[Mm]inus1)=([0-9A-F]{32})(,[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)){6,8}(,"[0-9]+(?:,[0-9]+)*")?|(Cert)=([0-9A-F]{32})(,[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)){5})$'
 workpattern = re.compile(
@@ -3082,6 +3078,15 @@ if options.debug > 1:
 # load local.ini and update options
 config = config_read()
 config_updated = merge_config_and_options(config, options)
+
+logfile = os.path.join(workdir, options.logfile)
+maxBytes = config.getint(section, "MaxLogFileSize") if config.has_option(
+    section, "MaxLogFileSize") else 2 * 1024 * 1024
+handler = logging.handlers.RotatingFileHandler(
+    logfile, maxBytes=maxBytes, backupCount=5, encoding="utf-8")
+handler.setFormatter(logging.Formatter(
+    "[%(threadName)s %(asctime)s]  %(levelname)s: %(message)s"))
+logging.getLogger().addHandler(handler)
 
 # check options after merging so that if local.ini file is changed by hand,
 # values are also checked
@@ -3198,22 +3203,18 @@ if options.proofs:
         tasks = read_workfile(adir)
         submit_work(adir, tasks)
         upload_proofs(adir)
-    session.close()
     sys.exit(0)
 
 if options.recover:
     recover_assignments(dirs)
-    session.close()
     sys.exit(0)
 
 if options.exponent:
     unreserve(dirs, options.exponent)
-    session.close()
     sys.exit(0)
 
 if options.unreserve_all:
     unreserve_all(dirs)
-    session.close()
     sys.exit(0)
 
 if options.NoMoreWork:
@@ -3228,7 +3229,6 @@ if options.ping:
         logging.error("Failure pinging server")
         sys.exit(1)
     logging.info("\n" + result)
-    session.close()
     sys.exit(0)
 
 # use the v5 API for registration and program options
@@ -3236,7 +3236,6 @@ if options.password is None:
     if guid is None:
         register_instance(guid)
         if options.timeout <= 0:
-            session.close()
             sys.exit(0)
     # worktype has changed, update worktype preference in program_options()
     elif config_updated:
@@ -3306,5 +3305,4 @@ while True:
             break
     thread.join()
 
-session.close()
 sys.exit(0)

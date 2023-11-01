@@ -37,7 +37,7 @@ jobs:
         path: |
           cudalucas/
     - name: ShellCheck
-      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh'
+      run: shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh
       continue-on-error: true
     - name: Clang-Tidy
       run: cd cudalucas && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-const-correctness,misc-redundant-expression,misc-unused-*,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-anyofallof' -header-filter='.*' *.c *.cu -- -Wall -O3 --cuda-gpu-arch=sm_35
@@ -76,7 +76,7 @@ jobs:
         path: |
           gpuowl/
     - name: ShellCheck
-      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh'
+      run: shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh
       continue-on-error: true
 
   Mlucas:
@@ -129,7 +129,7 @@ jobs:
         path: |
           mlucas_v*/
     - name: ShellCheck
-      run: bash -c 'shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh'
+      run: shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh
       continue-on-error: true
 
   Pylint:
@@ -143,7 +143,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install pylint
     - name: Script
-      run: pylint -f colorized --py-version 2.6 -d design,C0103,W0311,C0301,C0302,C0209 --load-plugins pylint.extensions.code_style,pylint.extensions.emptystring,pylint.extensions.comparetozero,pylint.extensions.comparison_placement,pylint.extensions.for_any_all,pylint.extensions.consider_refactoring_into_while_condition,pylint.extensions.consider_ternary_expression,pylint.extensions.dict_init_mutate,pylint.extensions.docstyle,pylint.extensions.check_elif,pylint.extensions.set_membership,pylint.extensions.typing -e R6104 -r y *.py mprime-python-port/*.py
+      run: pylint -f colorized --py-version 2.6 -d design,C0103,W0311,C0301,C0302,C0209 --load-plugins pylint.extensions.code_style,pylint.extensions.comparison_placement,pylint.extensions.for_any_all,pylint.extensions.consider_refactoring_into_while_condition,pylint.extensions.consider_ternary_expression,pylint.extensions.dict_init_mutate,pylint.extensions.docstyle,pylint.extensions.check_elif,pylint.extensions.set_membership,pylint.extensions.typing -e R6104,C1804,C1805 -r y *.py mprime-python-port/*.py
       continue-on-error: true
 
   Ruff:
@@ -157,7 +157,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install ruff
     - name: Script
-      run: ruff --output-format=github --target-version py37 --select F,E,W,I,D,UP,YTT,S,BLE,B,A,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SLOT,SIM,TID,TCH,ARG,PGH,PL,TRY,PERF,FURB,LOG,RUF --preview --ignore E101,E501,W191,D211,D213,D401,UP004,UP009,UP010,UP024,UP030,UP032,UP036,PYI024,PLR09,PLR2004,S324,S603,RUF001,RUF002,RUF003,RUF005 .
+      run: ruff --output-format=github --target-version py37 --select F,E4,E7,E9,W,I,D,UP,YTT,S,BLE,B,A,COM819,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SLOT,SIM,TID,TCH,ARG,PGH,PL,TRY,PERF,FURB,LOG,RUF --preview --ignore W191,D211,D213,D401,UP004,UP009,UP010,UP024,UP030,UP032,UP036,PYI024,PLR09,PLR2004,S324,S603,RUF001,RUF002,RUF003,RUF005 .
       continue-on-error: true
 
   Linux:
