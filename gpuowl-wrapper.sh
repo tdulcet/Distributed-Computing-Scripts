@@ -96,7 +96,7 @@ if ! flock -n 200; then
 	exit 1
 fi
 
-workpattern='^(Test|DoubleCheck|PRP(DC)?|P[Ff]actor|Cert)=((([[:xdigit:]]{32})|[Nn]/[Aa]|0),)?((-?[[:digit:]]+(\.[[:digit:]]+)?|"[[:digit:]]+(,[[:digit:]]+)*")(,|$)){3,9}$'
+WORKPATTERN='^(Test|DoubleCheck|PRP(DC)?|P[Ff]actor|Cert)=((([[:xdigit:]]{32})|[Nn]/[Aa]|0),)?(([-+]?([[:digit:]]+(\.[[:digit:]]*)?|\.[[:digit:]]+)|"[[:digit:]]+(,[[:digit:]]+)*")(,|$)){1,9}$'
 
 ARGS+=( "$@" )
 
@@ -176,7 +176,7 @@ while true; do
 						fi
 					fi
 					for i in "${!worktodo[@]}"; do
-						if [[ ${worktodo[i]} =~ $workpattern ]]; then
+						if [[ ${worktodo[i]} =~ $WORKPATTERN ]]; then
 							work_type=${BASH_REMATCH[1]}
 							if [[ "$work_type" == "Test" || "$work_type" == "DoubleCheck" ]]; then
 								idx=2
@@ -221,7 +221,7 @@ while true; do
 	fi
 
 	for work in "${aworktodo[@]}"; do
-		if [[ $work =~ $workpattern ]]; then
+		if [[ $work =~ $WORKPATTERN ]]; then
 			work_type=${BASH_REMATCH[1]}
 			case "$work_type" in
 			'Test' )

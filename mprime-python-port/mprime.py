@@ -8,7 +8,9 @@
 import hashlib  # sha256
 import os
 import re  # regular expression matching
+import shlex
 import socket
+import stat
 import subprocess
 import sys
 import tarfile
@@ -84,7 +86,7 @@ with requests.get(f"https://www.mersenne.org/download/software/v30/30.8/{FILE}",
         for chunk in r.iter_content(chunk_size=None):
             if chunk:
                 f.write(chunk)
-misc_check(sha256sum(FILE).lower() == SUM, f'Error: sha256sum does not match. Please run "rm -r {DIR!r}" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues')
+misc_check(sha256sum(FILE).lower() == SUM, f'Error: sha256sum does not match. Please run "rm -r {shlex.quote(DIR)}" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues')
 
 print("\nDecompressing the files")
 with tarfile.open(FILE) as tar:
@@ -102,7 +104,19 @@ subprocess.check_call([sys.executable, "../exp.py", USERID, COMPUTER, TYPE])
 print("Starting up Prime95.")
 subprocess.Popen(["./mprime"])  # daemon process
 
-print("\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n")
+with open("mprime.sh", "w", encoding="utf-8") as f:
+    f.write(fr"""#!/bin/bash
 
-subprocess.check_call(fr"""crontab -l | {{ cat; echo "* * * * * if who -s | awk '{{ print \$2 }}' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{{if ('\"\${{EPOCHSECONDS:-\$(date +\%s)}}\"'-\$2<{TIME}) {{ print \$1\"\t\"'\"\${{EPOCHSECONDS:-\$(date +\%s)}}\"'-\$2; ++count }}}} END{{if (count>0) {{ exit 1 }}}}' >/dev/null; then pgrep -x mprime >/dev/null || (cd {DIR!r} && exec nohup ./mprime -d >> 'mprime.out' &); else pgrep -x mprime >/dev/null && killall mprime; fi"; }} | crontab -""", shell=True)
+# Copyright © 2020 Teal Dulcet
+# Start MPrime if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# {shlex.quote(DIR)}/mprime.sh
+
+if who -s | awk '{{ print $2 }}' | (cd /dev && xargs -r stat -c '%U %X') | awk '{{if ('"${{EPOCHSECONDS:-$(date +%s)}}"'-$2<{TIME}) {{ print $1"\t"'"${{EPOCHSECONDS:-$(date +%s)}}"'-$2; ++count }}}} END{{if (count>0) {{ exit 1 }}}}' >/dev/null; then pgrep -x mprime >/dev/null || (cd {shlex.quote(DIR)} && exec nohup ./mprime -d >> 'mprime.out' &); else pgrep -x mprime >/dev/null && killall mprime; fi
+""")
+st = os.stat("mprime.sh")
+os.chmod("mprime.sh", st.st_mode | stat.S_IEXEC)
+
+print("\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n")
+print(f'crontab -l | {{ cat; echo "* * * * * {shlex.quote(DIR)}/mprime.sh"; }} | crontab -')
+print('\nTo edit the crontab, run "crontab -e"')
 #----------------------#

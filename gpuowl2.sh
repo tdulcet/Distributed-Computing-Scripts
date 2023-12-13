@@ -271,7 +271,18 @@ chmod +x gpuowl
 echo -e "\nStarting GpuOwl\n"
 nohup ./gpuowl -nospin >> "gpuowl.out" &
 sleep 1
-echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./gpuowl -nospin >> 'gpuowl.out' &"; } | crontab -
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO ../primenet.py >> 'primenet.out' &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl -nospin >> 'gpuowl.out' &); pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO ../primenet.py >> 'primenet.out' &); else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi"; } | crontab -
+cat << EOF > gpuowl.sh
+#!/bin/bash
+
+# Copyright © 2020 Teal Dulcet
+# Start GpuOwl and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# ${DIR@Q}/gpuowl.sh
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl -nospin >> 'gpuowl.out' &); pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO ../primenet.py >> 'primenet.out' &); else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi
+EOF
+chmod +x gpuowl.sh
+echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
+echo "crontab -l | { cat; echo \"* * * * * ${DIR@Q}/gpuowl.sh\"; } | crontab -"
+echo -e "\nTo edit the crontab, run \"crontab -e\""

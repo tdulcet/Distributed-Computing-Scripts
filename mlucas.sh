@@ -157,6 +157,7 @@ else
 	fi
 	chmod +x makemake.sh
 	echo -e "\nBuilding Mlucas\n"
+	sed -i 's/-j/-O -j/' makemake.sh
 	if ! bash makemake.sh; then
 		exit 1
 	fi
@@ -597,7 +598,7 @@ exec nohup python3 -OO ../primenet.py ${args[@]} >> 'primenet.out' &
 }
 EOF
 chmod +x jobs.sh
-#crontab -l | { cat; echo "cd ${DIR@Q} && ./jobs.sh"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && ./jobs.sh"; } | crontab -
 cat << EOF > Mlucas.sh
 #!/bin/bash
 

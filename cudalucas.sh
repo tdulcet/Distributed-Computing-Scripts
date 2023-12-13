@@ -170,7 +170,18 @@ echo -e "\nRunning self tests\nThis will take a while…\n"
 echo -e "\nStarting CUDALucas\n"
 nohup nice ./CUDALucas -d $DEVICE >> "cudalucas.out" &
 sleep 1
-echo -e "\nSetting it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer\n"
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &"; } | crontab -
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO primenet.py >> 'primenet.out' &"; } | crontab -
-crontab -l | { cat; echo "* * * * * if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '\%U \%X') | awk '{if ('\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2<$TIME) { print \$1\"\t\"'\"\${EPOCHSECONDS:-\$(date +\%s)}\"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &); pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && nohup python3 -OO primenet.py >> 'primenet.out' &); else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi"; } | crontab -
+cat << EOF > CUDALucas.sh
+#!/bin/bash
+
+# Copyright © 2020 Teal Dulcet
+# Start CUDALucas and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# ${DIR@Q}/CUDALucas.sh
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &); pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && nohup python3 -OO primenet.py >> 'primenet.out' &); else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi
+EOF
+chmod +x CUDALucas.sh
+echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
+echo "crontab -l | { cat; echo \"* * * * * ${DIR@Q}/CUDALucas.sh\"; } | crontab -"
+echo -e "\nTo edit the crontab, run \"crontab -e\""

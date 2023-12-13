@@ -12,8 +12,7 @@ matrix:
     - sed -i 's/\/$COMPUTE/\/-gencode arch=compute_35,code=sm_35 -gencode arch=compute_50,code=sm_50/' cudalucas.sh
     - sed -i '/^\.\/CUDALucas / s/^/# /' cudalucas.sh
     - sed -i '/^nohup / s/^/# /' cudalucas.sh
-    - sed -i '/^python3 / s/^/# /' cudalucas.sh
-    - sed -i '/^crontab / s/^/# /' cudalucas.sh
+    - sed -i '/^python3 -OO / s/^/# /' cudalucas.sh
     script:
     - bash -e -o pipefail -- cudalucas.sh ANONYMOUS
     - cd cudalucas && cppcheck --enable=all *.cu *.c *.h
@@ -26,8 +25,7 @@ matrix:
     - sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
     - sed -i '/^time \.\/gpuowl-bench\.sh / s/^/# /' gpuowl.sh
     - sed -i '/^nohup / s/^/# /' gpuowl.sh
-    - sed -i '/^python3 / s/^/# /' gpuowl.sh
-    - sed -i '/^crontab / s/^/# /' gpuowl.sh
+    - sed -i '/^python3 -OO / s/^/# /' gpuowl.sh
     script:
     - bash -e -o pipefail -- gpuowl.sh ANONYMOUS
   - name: "GpuOwl"
@@ -39,8 +37,7 @@ matrix:
     - sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
     - sed -i '/^time \.\/gpuowl-bench\.sh / s/^/# /' gpuowl.sh
     - sed -i '/^nohup / s/^/# /' gpuowl.sh
-    - sed -i '/^python3 / s/^/# /' gpuowl.sh
-    - sed -i '/^crontab / s/^/# /' gpuowl.sh
+    - sed -i '/^python3 -OO / s/^/# /' gpuowl.sh
     script:
     - bash -e -- gpuowl.sh ANONYMOUS
   - name: "Mlucas (Intel, gcc)"
@@ -72,7 +69,7 @@ before_script:
     - sudo apt-get -yqq install xz-utils
     - sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
     - sed -i '/^[[:blank:]]*pip3 / s/^/# /' mlucas.sh
-    - sed -i '/^python3 / s/^/# /' mlucas.sh
+    - sed -i '/^python3 -OO / s/^/# /' mlucas.sh
 script:
     - bash -e -o pipefail -- mlucas.sh ANONYMOUS
 after_script:
