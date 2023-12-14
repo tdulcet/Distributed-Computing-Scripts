@@ -68,7 +68,7 @@ if ! command -v make >/dev/null || ! command -v g++ >/dev/null; then
 	sudo apt-get update -y
 	sudo apt-get install build-essential -y
 fi
-if [[ -n "$CXX" ]] && ! command -v "$CXX" >/dev/null; then
+if [[ -n $CXX ]] && ! command -v "$CXX" >/dev/null; then
 	echo "Error: $CXX is not installed." >&2
 	exit 1
 fi
@@ -83,8 +83,8 @@ if ! command -v python3 >/dev/null; then
 	echo "Error: Python 3 is not installed." >&2
 	exit 1
 fi
-files=( /usr/include/gmp*.h )
-if ! ldconfig -p | grep -iq 'libgmp\.' || ! ldconfig -p | grep -iq 'libgmpxx\.' || ! [[ -f "${files[0]}" ]]; then
+files=(/usr/include/gmp*.h)
+if ! ldconfig -p | grep -iq 'libgmp\.' || ! ldconfig -p | grep -iq 'libgmpxx\.' || ! [[ -f ${files[0]} ]]; then
 	echo -e "Installing the GNU Multiple Precision (GMP) library"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
@@ -98,7 +98,7 @@ if ! ldconfig -p | grep -iq 'libOpenCL\.'; then
 	sudo apt-get install ocl-icd-opencl-dev clinfo -y
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
-if [[ -d "$DIR" && -x "$DIR/$DIR1/gpuowl" && -x "$DIR/$DIR2/gpuowl" && -x "$DIR/$DIR3/gpuowl" ]]; then
+if [[ -d $DIR && -x "$DIR/$DIR1/gpuowl" && -x "$DIR/$DIR2/gpuowl" && -x "$DIR/$DIR3/gpuowl" ]]; then
 	echo -e "GpuOwl is already downloaded\n"
 	cd "$DIR"
 else
@@ -213,38 +213,38 @@ fi
 mkdir "$N"
 cd "$N"
 DIR=$PWD
-echo "-user $USERID -cpu ${COMPUTER//[[:space:]]/_}" > config.txt
+echo "-user $USERID -cpu ${COMPUTER//[[:space:]]/_}" >config.txt
 echo -e "\nRegistering computer with PrimeNet\n"
 ARGS=()
 if command -v clinfo >/dev/null; then
 	clinfo=$(clinfo --raw)
 	mapfile -t GPU < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_NAME *//p')
-	ARGS+=( --cpu-model="${GPU[DEVICE]//\[*\]}" )
-	
+	ARGS+=(--cpu-model="${GPU[DEVICE]//\[*\]/}")
+
 	mapfile -t GPU_FREQ < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_MAX_CLOCK_FREQUENCY *//p')
-	ARGS+=( --frequency="${GPU_FREQ[DEVICE]}" )
-	
+	ARGS+=(--frequency="${GPU_FREQ[DEVICE]}")
+
 	mapfile -t TOTAL_GPU_MEM < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_GLOBAL_MEM_SIZE *//p')
-	maxAlloc=$(( TOTAL_GPU_MEM[DEVICE] / 1024 / 1024 ))
-	ARGS+=( -m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')" )
+	maxAlloc=$((TOTAL_GPU_MEM[DEVICE] / 1024 / 1024))
+	ARGS+=(-m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
-	ARGS+=( --cpu-model="${GPU[DEVICE]}" )
-	
+	ARGS+=(--cpu-model="${GPU[DEVICE]}")
+
 	mapfile -t GPU_FREQ < <(nvidia-smi --query-gpu=clocks.max.gr --format=csv,noheader,nounits | grep -iv 'not supported')
-	if [[ -n "$GPU_FREQ" ]]; then
-		ARGS+=( --frequency="${GPU_FREQ[DEVICE]}" )
+	if [[ -n $GPU_FREQ ]]; then
+		ARGS+=(--frequency="${GPU_FREQ[DEVICE]}")
 	fi
-	
+
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
-	if [[ -n "$TOTAL_GPU_MEM" ]]; then
+	if [[ -n $TOTAL_GPU_MEM ]]; then
 		maxAlloc=${TOTAL_GPU_MEM[DEVICE]}
-		ARGS+=( -m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')" )
+		ARGS+=(-m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 	fi
 fi
 python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting PrimeNet\n"
-nohup python3 -OO ../primenet.py >> "primenet.out" &
+nohup python3 -OO ../primenet.py >>"primenet.out" &
 sleep 1
 echo -e "\nDownloading GpuOwl benchmarking script\n"
 if [[ -e ../../gpuowl-bench.sh ]]; then
@@ -269,18 +269,21 @@ sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl
 sed -i "s/gpuowl-/..\/gpuowl-/" gpuowl
 chmod +x gpuowl
 echo -e "\nStarting GpuOwl\n"
-nohup ./gpuowl -nospin >> "gpuowl.out" &
+nohup ./gpuowl -nospin >>"gpuowl.out" &
 sleep 1
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./gpuowl -nospin >> 'gpuowl.out' &"; } | crontab -
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO ../primenet.py >> 'primenet.out' &"; } | crontab -
-cat << EOF > gpuowl.sh
+cat <<EOF >gpuowl.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
 # Start GpuOwl and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/gpuowl.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl -nospin >> 'gpuowl.out' &); pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO ../primenet.py >> 'primenet.out' &); else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
+	pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl -nospin >>'gpuowl.out' &)
+	pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO ../primenet.py >>'primenet.out' &)
+else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi
 EOF
 chmod +x gpuowl.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

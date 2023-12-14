@@ -64,7 +64,7 @@ if ! command -v nvcc >/dev/null; then
 	sudo apt-get update -y
 	sudo apt-get install nvidia-cuda-toolkit -y
 fi
-if [[ -n "$CC" ]] && ! command -v "$CC" >/dev/null; then
+if [[ -n $CC ]] && ! command -v "$CC" >/dev/null; then
 	echo "Error: $CC is not installed." >&2
 	exit 1
 fi
@@ -73,7 +73,7 @@ if ! command -v python3 >/dev/null; then
 	exit 1
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
-if [[ -d "$DIR" && -x "$DIR/CUDALucas" ]]; then
+if [[ -d $DIR && -x "$DIR/CUDALucas" ]]; then
 	echo -e "CUDALucas is already downloaded\n"
 	cd "$DIR"
 else
@@ -91,7 +91,7 @@ else
 	sed -i '/^CFLAGS / s/$/ -flto/' Makefile
 
 	# Adapted from: https://stackoverflow.com/a/37757606
-	cat << EOF > /tmp/cudaComputeVersion.cu
+	cat <<EOF >/tmp/cudaComputeVersion.cu
 #include <stdio.h>
 int main()
 {
@@ -156,22 +156,22 @@ echo -e "\nRegistering computer with PrimeNet\n"
 ARGS=()
 if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
-	ARGS+=( --cpu-model="${GPU[DEVICE]}" )
-	
+	ARGS+=(--cpu-model="${GPU[DEVICE]}")
+
 	mapfile -t GPU_FREQ < <(nvidia-smi --query-gpu=clocks.max.gr --format=csv,noheader,nounits | grep -iv 'not supported')
-	if [[ -n "$GPU_FREQ" ]]; then
-		ARGS+=( --frequency="${GPU_FREQ[DEVICE]}" )
+	if [[ -n $GPU_FREQ ]]; then
+		ARGS+=(--frequency="${GPU_FREQ[DEVICE]}")
 	fi
-	
+
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
-	if [[ -n "$TOTAL_GPU_MEM" ]]; then
+	if [[ -n $TOTAL_GPU_MEM ]]; then
 		total=${TOTAL_GPU_MEM[DEVICE]}
-		ARGS+=( -m "$total" --max-memory="$total" )
+		ARGS+=(-m "$total" --max-memory="$total")
 	fi
 fi
 python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" -i "worktodo$N.txt" -r "results$N.txt" -L "primenet$N.log" -l "local$N.ini" --cudalucas "cudalucas$N.out" -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting PrimeNet\n"
-nohup python3 -OO primenet.py -l "local$N.ini" >> "primenet$N.out" &
+nohup python3 -OO primenet.py -l "local$N.ini" >>"primenet$N.out" &
 sleep 1
 echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take a while…\n"
 timeout -v 60 ./CUDALucas 2976221 || true
@@ -181,18 +181,21 @@ echo -e "\nRunning self tests\nThis will take a while…\n"
 ./CUDALucas -r 1
 # ./CUDALucas 6972593
 echo -e "\nStarting CUDALucas\n"
-nohup nice ./CUDALucas -i "CUDALucas$N.ini" >> "cudalucas$N.out" &
+nohup nice ./CUDALucas -i "CUDALucas$N.ini" >>"cudalucas$N.out" &
 sleep 1
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup nice ./CUDALucas -i 'CUDALucas$N.ini' >> 'cudalucas$N.out' &"; } | crontab -
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO primenet.py -l 'local$N.ini' >> 'primenet$N.out' &"; } | crontab -
-cat << EOF > CUDALucas.sh
+cat <<EOF >CUDALucas.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
 # Start CUDALucas and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/CUDALucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && exec nohup nice ./CUDALucas -i 'CUDALucas$N.ini' >> 'cudalucas$N.out' &); pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO primenet.py -l 'local$N.ini' >> 'primenet$N.out' &); else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
+	pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && exec nohup nice ./CUDALucas -i 'CUDALucas$N.ini' >>'cudalucas$N.out' &)
+	pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO primenet.py -l 'local$N.ini' >>'primenet$N.out' &)
+else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi
 EOF
 chmod +x CUDALucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

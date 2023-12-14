@@ -38,7 +38,7 @@ if [[ -e idletime.sh ]]; then
 else
 	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
 fi
-if [[ -d "$DIR" ]]; then
+if [[ -d $DIR ]]; then
 	echo "Error: Prime95 is already downloaded" >&2
 	exit 1
 fi
@@ -91,16 +91,16 @@ fi
 sed -i '/^expect {/a \\t"stage 2 memory in GB (*):" { sleep 1; send -- "'"$(echo "$TOTAL_PHYSICAL_MEM" | awk '{ printf "%g", ($1 * 0.8) / 1024 / 1024 }')"'\\r"; exp_continue }' mprime.exp
 expect mprime.exp -- "$USERID" "$COMPUTER" "$TYPE"
 echo -e "\nStarting Prime95\n"
-nohup ./mprime -d >> "mprime.out" &
+nohup ./mprime -d >>"mprime.out" &
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./mprime -d >> 'mprime.out' &"; } | crontab -
-cat << EOF > mprime.sh
+cat <<EOF >mprime.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
 # Start MPrime if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/mprime.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -d >> 'mprime.out' &); else pgrep -x mprime >/dev/null && killall mprime; fi
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -d >>'mprime.out' &) else pgrep -x mprime >/dev/null && killall mprime; fi
 EOF
 chmod +x mprime.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

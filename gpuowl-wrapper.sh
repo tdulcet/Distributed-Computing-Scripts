@@ -98,14 +98,14 @@ fi
 
 WORKPATTERN='^(Test|DoubleCheck|PRP(DC)?|P[Ff]actor|Cert)=((([[:xdigit:]]{32})|[Nn]/[Aa]|0),)?(([-+]?([[:digit:]]+(\.[[:digit:]]*)?|\.[[:digit:]]+)|"[[:digit:]]+(,[[:digit:]]+)*")(,|$)){1,9}$'
 
-ARGS+=( "$@" )
+ARGS+=("$@")
 
 echo
 
 if command -v lspci >/dev/null; then
 	mapfile -t GPU < <(lspci 2>/dev/null | grep -i 'vga\|3d\|2d' | sed -n 's/^.*: //p')
 fi
-if [[ -n "$GPU" ]]; then
+if [[ -n $GPU ]]; then
 	echo -e "Graphics Processor (GPU):\t${GPU[0]}$([[ ${#GPU[*]} -gt 1 ]] && printf '\n\t\t\t\t%s' "${GPU[@]:1}")"
 	# echo -e "Graphics Processor (GPU):\t${GPU[DEVICE]}"
 fi
@@ -113,12 +113,12 @@ fi
 if command -v clinfo >/dev/null; then
 	mapfile -t TOTAL_GPU_MEM < <(clinfo --raw | sed -n 's/.*CL_DEVICE_GLOBAL_MEM_SIZE *//p')
 	for i in "${!TOTAL_GPU_MEM[@]}"; do
-		TOTAL_GPU_MEM[i]=$(( TOTAL_GPU_MEM[i] / 1024 / 1024 ))
+		TOTAL_GPU_MEM[i]=$((TOTAL_GPU_MEM[i] / 1024 / 1024))
 	done
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
 fi
-if [[ -n "$TOTAL_GPU_MEM" ]]; then
+if [[ -n $TOTAL_GPU_MEM ]]; then
 	# echo -e -n "\tGPU Memory (RAM):\t"
 	# for i in "${!TOTAL_GPU_MEM[@]}"; do
 		# echo -n "$([[ $i -gt 0 ]] && echo ", ")$(printf "%'d" "${TOTAL_GPU_MEM[i]}") MiB ($(numfmt --from=iec --to=iec-i "${TOTAL_GPU_MEM[i]}M")B)"
@@ -126,18 +126,18 @@ if [[ -n "$TOTAL_GPU_MEM" ]]; then
 	# echo
 	echo -e "\tGPU Memory (RAM):\t$(printf "%'d" "${TOTAL_GPU_MEM[DEVICE]}") MiB ($(numfmt --from=iec --to=iec-i "${TOTAL_GPU_MEM[DEVICE]}M")B)"
 fi
-if [[ -z "$maxAlloc" ]]; then
-	if [[ -n "$TOTAL_GPU_MEM" ]]; then
+if [[ -z $maxAlloc ]]; then
+	if [[ -n $TOTAL_GPU_MEM ]]; then
 		maxAlloc=${TOTAL_GPU_MEM[DEVICE]}
 	else
 		echo "Warning: Could not determine total GPU Memory (RAM), please install clinfo. Assuming 1024 MiB (1 GiB)."
 		maxAlloc=1024
 	fi
 fi
-ARGS+=( -maxAlloc "$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')M" )
+ARGS+=(-maxAlloc "$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')M")
 
 DISK_USAGE=$(df -k . | tail -n +2)
-if [[ -n "$DISK_USAGE" ]]; then
+if [[ -n $DISK_USAGE ]]; then
 	DISK_MOUNT=$(echo "$DISK_USAGE" | awk '{ print $6 }')
 	TOTAL_DISK=$(echo "$DISK_USAGE" | awk '{ print $2 }')
 	AVAILABLE_DISK=$(echo "$DISK_USAGE" | awk '{ print $4 }')
@@ -151,11 +151,11 @@ trap 'trap - INT; kill -INT "$$"' INT
 while true; do
 	date
 
-	if [[ -r "$aResultsFile" ]] && mapfile -t aresults < "$aResultsFile" && [[ ${#aresults[*]} -gt 0 ]]; then
+	if [[ -r $aResultsFile ]] && mapfile -t aresults <"$aResultsFile" && [[ ${#aresults[*]} -gt 0 ]]; then
 		printf "Found %'d new result(s) in %s. Moving to %s.\n" ${#aresults[*]} "${aResultsFile@Q}" "${ResultsFile@Q}"
 		for result in "${aresults[@]}"; do
 			if echo "$result" | grep -q 'gpuowl'; then
-				if [[ -r "$WorkFile" ]] && mapfile -t worktodo < "$WorkFile" && [[ ${#worktodo[*]} -gt 0 ]]; then
+				if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && [[ ${#worktodo[*]} -gt 0 ]]; then
 					if command -v jq >/dev/null; then
 						exponent=$(echo "$result" | jq -r '.exponent')
 						worktype=$(echo "$result" | jq -r '.worktype')
@@ -166,52 +166,52 @@ while true; do
 						status=$(echo "$result" | python3 -c 'import sys, json; print(json.load(sys.stdin)["status"])')
 					fi
 					RE='^PRP'
-					if [[ "$worktype" == 'LL' ]]; then
-						if [[ "$status" == 'P' ]]; then
+					if [[ $worktype == 'LL' ]]; then
+						if [[ $status == 'P' ]]; then
 							echo 'New Mersenne Prime!!!! M'"$exponent"' is prime!'
 						fi
 					elif [[ $worktype =~ $RE ]]; then
-						if [[ "$status" == 'P' ]]; then
+						if [[ $status == 'P' ]]; then
 							echo 'New Probable Prime!!!! '"$exponent"' is a probable prime!'
 						fi
 					fi
 					for i in "${!worktodo[@]}"; do
 						if [[ ${worktodo[i]} =~ $WORKPATTERN ]]; then
 							work_type=${BASH_REMATCH[1]}
-							if [[ "$work_type" == "Test" || "$work_type" == "DoubleCheck" ]]; then
+							if [[ $work_type == "Test" || $work_type == "DoubleCheck" ]]; then
 								idx=2
 							else
 								idx=4
 							fi
 							n=$(echo "${worktodo[i]}" | cut -d, -f $idx)
 							if [[ $exponent -eq $n ]]; then
-								if [[ "$worktype" == 'LL' ]] && [[ "$work_type" == "Test" || "$work_type" == "DoubleCheck" ]]; then
+								if [[ $worktype == 'LL' ]] && [[ $work_type == "Test" || $work_type == "DoubleCheck" ]]; then
 									unset 'worktodo[i]'
-								elif [[ $worktype =~ $RE ]] && [[ "$work_type" == "PRP" || "$work_type" == "PRPDC" ]]; then
+								elif [[ $worktype =~ $RE ]] && [[ $work_type == "PRP" || $work_type == "PRPDC" ]]; then
 									unset 'worktodo[i]'
-								elif [[ "$worktype" == 'PM1' ]] && { [[ "$work_type" == "PFactor" || "$work_type" == "Pfactor" ]] || [[ "$status" == 'F' ]]; }; then
+								elif [[ $worktype == 'PM1' ]] && { [[ $work_type == "PFactor" || $work_type == "Pfactor" ]] || [[ $status == 'F' ]]; }; then
 									unset 'worktodo[i]'
 								fi
 							fi
 						fi
 					done
-					printf '%s\n' "${worktodo[@]}" > "$WorkFile"
+					printf '%s\n' "${worktodo[@]}" >"$WorkFile"
 				fi
 			else
 				echo "Warning: Unknown result: $result"
 			fi
 		done
-		printf '%s\n' "${aresults[@]}" >> "$ResultsFile"
-		> "$aResultsFile"
+		printf '%s\n' "${aresults[@]}" >>"$ResultsFile"
+		>"$aResultsFile"
 	else
 		echo "No results found."
 	fi
 
-	if ! [[ -r "$aWorkFile" ]] || ! mapfile -t aworktodo < "$aWorkFile" || ! [[ ${#aworktodo[*]} -gt 0 ]]; then
-		if [[ -r "$WorkFile" ]] && mapfile -t worktodo < "$WorkFile" && [[ ${#worktodo[*]} -gt 0 ]]; then
+	if ! [[ -r $aWorkFile ]] || ! mapfile -t aworktodo <"$aWorkFile" || ! [[ ${#aworktodo[*]} -gt 0 ]]; then
+		if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && [[ ${#worktodo[*]} -gt 0 ]]; then
 			printf "Found %'d work to do(s) in the %s file. Copying the first one to %s.\n" ${#worktodo[*]} "${WorkFile@Q}" "${aWorkFile@Q}"
-			printf '%s\n' "${worktodo[0]}" >> "$aWorkFile"
-			mapfile -t aworktodo < "$aWorkFile"
+			printf '%s\n' "${worktodo[0]}" >>"$aWorkFile"
+			mapfile -t aworktodo <"$aWorkFile"
 		else
 			echo "Error: No work to do. Please run the PrimeNet script or manually add some work to the ${WorkFile@Q} file." >&2
 			exit 1
@@ -224,26 +224,26 @@ while true; do
 		if [[ $work =~ $WORKPATTERN ]]; then
 			work_type=${BASH_REMATCH[1]}
 			case "$work_type" in
-			'Test' )
-				work_type_str="Lucas-Lehmer test"
-			;;
-			'DoubleCheck' )
-				work_type_str="Double-check"
-			;;
-			'PRP' )
-				work_type_str="PRP"
-			;;
-			'PRPDC' )
-				work_type_str="PRPDC"
-			;;
-			'PFactor' | 'Pfactor' )
-				work_type_str="P-1"
-			;;
-			'Cert' )
-				work_type_str="Certify"
-			;;
+				'Test')
+					work_type_str="Lucas-Lehmer test"
+					;;
+				'DoubleCheck')
+					work_type_str="Double-check"
+					;;
+				'PRP')
+					work_type_str="PRP"
+					;;
+				'PRPDC')
+					work_type_str="PRPDC"
+					;;
+				'PFactor' | 'Pfactor')
+					work_type_str="P-1"
+					;;
+				'Cert')
+					work_type_str="Certify"
+					;;
 			esac
-			if [[ "$work_type" == "Test" || "$work_type" == "DoubleCheck" ]]; then
+			if [[ $work_type == "Test" || $work_type == "DoubleCheck" ]]; then
 				idx=2
 			else
 				idx=4
@@ -251,45 +251,45 @@ while true; do
 			n=$(echo "$work" | cut -d, -f $idx)
 			printf "Starting %s of the exponent %'d\n" "$work_type_str" "$n"
 			case "$work_type" in
-			'Test' | 'DoubleCheck' )
-				temp=$GPUOWL_LL
-			;;
-			'PRP' | 'PRPDC' )
-				if (( $(echo "$work" | awk -F, '{ print ($7>0) }') )); then
-					temp=$GPUOWL_PRP_PM1
-				else
-					temp=$GPUOWL_PRP
-				fi
-			;;
-			'PFactor' | 'Pfactor' )
-				temp=$GPUOWL_PM1
-			;;
-			* )
-				echo "Error: Unsupported worktype for GpuOwl: $work" >&2
-				exit 1
-			;;
+				'Test' | 'DoubleCheck')
+					temp=$GPUOWL_LL
+					;;
+				'PRP' | 'PRPDC')
+					if (($(echo "$work" | awk -F, '{ print ($7>0) }'))); then
+						temp=$GPUOWL_PRP_PM1
+					else
+						temp=$GPUOWL_PRP
+					fi
+					;;
+				'PFactor' | 'Pfactor')
+					temp=$GPUOWL_PM1
+					;;
+				*)
+					echo "Error: Unsupported worktype for GpuOwl: $work" >&2
+					exit 1
+					;;
 			esac
 			dir="DIR$temp"
 			args="ARGS${temp}[@]"
-			args=( "${!args}" "${ARGS[@]}" )
-			if [[ -n "$PROOF_POWER" ]]; then
+			args=("${!args}" "${ARGS[@]}")
+			if [[ -n $PROOF_POWER ]]; then
 				proof_power=$PROOF_POWER
 				# Best proof powers adapted from Prime95/MPrime
-				best_power=$(( n > 414200000 ? 11 : n > 106500000 ? 10 : n > 26600000 ? 9 : n > 6700000 ? 8 : n > 1700000 ? 7 : n > 420000 ? 6 : n > 105000 ? 5 : 0 ))
+				best_power=$((n > 414200000 ? 11 : n > 106500000 ? 10 : n > 26600000 ? 9 : n > 6700000 ? 8 : n > 1700000 ? 7 : n > 420000 ? 6 : n > 105000 ? 5 : 0))
 				if [[ $proof_power -gt $best_power ]]; then
 					proof_power=$best_power
 				fi
-				args+=( -proof "$proof_power" )
+				args+=(-proof "$proof_power")
 			fi
 			echo -e "with GpuOwl $(<${!dir}/version.inc).\n"
 			gpuowl=(nice "./${!dir}/gpuowl" "${args[@]}")
-			if [[ -z "$RESTART" ]]; then
+			if [[ -z $RESTART ]]; then
 				exec "${gpuowl[@]}"
 			else
 				"${gpuowl[@]}"
 				E=$?
-				if (( E )); then
-					if [[ -z "$FAILURE" ]]; then
+				if ((E)); then
+					if [[ -z $FAILURE ]]; then
 						echo "Error: GpuOwl terminated with non-zero exit code: $E" >&2
 						echo "If this is a GpuOwl bug, please create an issue: https://github.com/preda/gpuowl/issues" >&2
 						exit 1
@@ -304,4 +304,3 @@ while true; do
 		fi
 	done
 done
-
