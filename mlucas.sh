@@ -6,9 +6,7 @@
 # ./mlucas.sh "$USER" "$HOSTNAME" 150 10
 # ./mlucas.sh ANONYMOUS
 
-DIR="mlucas_v20.1.1"
-FILE="mlucas_v20.1.1.txz"
-SUM="8d8851f5e383d8a74cf067192474256a"
+DIR="Mlucas"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -19,7 +17,7 @@ TYPE=${3:-150}
 TIME=${4:-10}
 # COMBO=0
 decimal_point=$(locale decimal_point)
-RE='^(4|1(0[0124]|5[01234]))$'
+RE='^(4|1(0[0124]|5[01234]|6[01]))$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
 	exit 1
@@ -58,6 +56,12 @@ if ! ldconfig -p | grep -iq 'libgmp\.' || ! [[ -f ${files[0]} ]]; then
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
 	sudo apt-get install libgmp-dev -y
+fi
+if ! ldconfig -p | grep -iq 'libhwloc\.' || ! [[ -f /usr/include/hwloc.h ]]; then
+	echo -e "Installing the Portable Hardware Locality (hwloc) library"
+	echo -e "Please enter your password if prompted.\n"
+	sudo apt-get update -y
+	sudo apt-get install libhwloc-dev -y
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
@@ -123,11 +127,7 @@ if [[ -n $GPU ]]; then
 fi
 
 if [[ -d $DIR ]]; then
-	if [[ -e $FILE ]] && [[ "$(md5sum $FILE | head -c 32)" != "$SUM" ]]; then
-		echo "Error: Mlucas is already downloaded, but md5sum does not match" >&2
-		echo "Please run \"rm -r $FILE ${DIR@Q}\" and run this script again" >&2
-		exit 1
-	elif [[ -d "$DIR/obj" && -x "$DIR/obj/Mlucas" && ! -L "$DIR/obj/mlucas.0.cfg" ]]; then
+	if [[ -d "$DIR/obj" && -x "$DIR/obj/Mlucas" && ! -L "$DIR/obj/mlucas.0.cfg" ]]; then
 		echo -e "\nMlucas is already downloaded\n"
 		cd "$DIR"
 	else
@@ -135,30 +135,19 @@ if [[ -d $DIR ]]; then
 		exit 1
 	fi
 else
-	echo -e "\nDownloading Mlucas\n"
-	wget https://www.mersenneforum.org/mayer/src/C/$FILE
-	if [[ "$(md5sum $FILE | head -c 32)" != "$SUM" ]]; then
-		echo "Error: md5sum does not match" >&2
-		echo "Please run \"rm $FILE\" make sure you are using the latest version of this script and try running it again" >&2
-		echo "If you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues" >&2
-		exit 1
-	fi
-	echo -e "\nDecompressing the files\n"
-	tar -xvf $FILE
-	cd "$DIR"
-	if [[ ! -f "makemake.sh.bak" ]]; then
-		mv -v makemake.sh{,.bak}
-	fi
-	echo -e "\nDownloading the updated makemake.sh script from Mlucas v21\n"
-	if [[ -e ../makemake.sh ]]; then
-		cp -v ../makemake.sh .
+	echo -e "\nDownloading Mlucas v21\n"
+	if command -v git >/dev/null; then
+		git clone https://github.com/tdulcet/Mlucas.git
 	else
-		wget -nv https://gist.githubusercontent.com/tdulcet/d03dd3be0314fca72a2250133d24f3fd/raw/8d0a41241fcf38149e4fae6f9a61083c43e40ece/makemake.sh
+		wget https://github.com/tdulcet/Mlucas/archive/main.tar.gz
+		echo -e "\nDecompressing the files\n"
+		tar -xzvf main.tar.gz
+		mv -v Mlucas-main "$DIR"
 	fi
-	chmod +x makemake.sh
+	cd "$DIR"
 	echo -e "\nBuilding Mlucas\n"
 	sed -i 's/-j/-O -j/' makemake.sh
-	if ! bash makemake.sh; then
+	if ! bash makemake.sh use_hwloc; then
 		exit 1
 	fi
 	cd obj
@@ -168,13 +157,10 @@ else
 	make clean
 	cd ..
 fi
-if [[ ! -f "primenet.py.bak" ]]; then
-	mv -v primenet.py{,.bak}
-fi
 if [[ -f "primenet.py" ]]; then
-	echo -e "\nThe updated PrimeNet script is already downloaded\n"
+	echo -e "\nThe PrimeNet script is already downloaded\n"
 else
-	echo -e "\nDownloading the latest updated PrimeNet script\n"
+	echo -e "\nDownloading the latest PrimeNet script\n"
 	if [[ -e ../primenet.py ]]; then
 		cp -v ../primenet.py .
 	else
@@ -201,132 +187,53 @@ CORES=()
 THREADS=()
 ARGS=()
 echo -e "\nOptimizing Mlucas for your computer\nThis may take a while…\n"
-if echo "${CPU[0]}" | grep -iq 'intel'; then
-	echo -e "The CPU is Intel."
-	for ((k = 1; k <= HP; k *= 2)); do
-		for ((l = 1; l <= CPU_CORES; l *= 2)); do
-			rem=$((CPU_CORES % l))
-			if ((rem)); then
-				args=()
-				for ((i = 0; i < CPU_CORES; i += i == 0 ? rem : l)); do
-					arg=$i
-					if [[ $l -gt 1 ]]; then
-						arg+=":$((i + (i == 0 ? rem : l) - 1))"
-					fi
-					for ((j = i + CPU_CORES; j < k * CPU_CORES; j += CPU_CORES)); do
-						arg+=",$j"
-						if [[ $l -gt 1 ]]; then
-							arg+=":$((j + (i == 0 ? rem : l) - 1))"
-						fi
-					done
-					args+=("$arg")
-				done
-				CORES+=("$k")
-				THREADS+=("$((rem * k)) $((l * k))")
-				ARGS+=("${args[*]}")
-			fi
-			args=()
-			for ((i = 0; i < CPU_CORES; i += l)); do
-				arg=$i
-				if [[ $l -gt 1 ]]; then
-					temp=$((i + l - 1))
-					arg+=":$((temp < CPU_CORES ? temp : CPU_CORES - 1))"
-				fi
-				for ((j = i + CPU_CORES; j < k * CPU_CORES; j += CPU_CORES)); do
-					arg+=",$j"
-					if [[ $l -gt 1 ]]; then
-						temp=$((j + l - 1))
-						arg+=":$((temp < k * CPU_CORES ? temp : k * CPU_CORES - 1))"
-					fi
-				done
-				args+=("$arg")
-			done
-			CORES+=("$k")
-			if ((rem)); then
-				THREADS+=("$((l * k)) $((rem * k))")
-			else
-				THREADS+=("$((l * k))")
-			fi
-			ARGS+=("${args[*]}")
-		done
-	done
-elif echo "${CPU[0]}" | grep -iq 'amd'; then
-	echo -e "The CPU is AMD."
-	for ((k = 1; k <= HP; k *= 2)); do
-		for ((l = 1; l <= CPU_CORES; l *= 2)); do
-			rem=$((CPU_CORES % l))
-			if ((rem)); then
-				args=()
-				for ((i = 0; i < CPU_THREADS; i += (i == 0 ? rem : l) * HP)); do
-					arg=$i
-					if [[ $k -gt 1 || $l -gt 1 ]]; then
-						arg+=":$((i + ((i == 0 ? rem : l) * HP) - 1))"
-						if [[ $k -ne $HP ]]; then
-							arg+=":$((HP / k))"
-						fi
-					fi
-					args+=("$arg")
-				done
-				CORES+=("$k")
-				THREADS+=("$((rem * k)) $((l * k))")
-				ARGS+=("${args[*]}")
-			fi
-			args=()
-			for ((i = 0; i < CPU_THREADS; i += l * HP)); do
-				arg=$i
-				if [[ $k -gt 1 || $l -gt 1 ]]; then
-					temp=$((i + (l * HP) - 1))
-					arg+=":$((temp < CPU_THREADS ? temp : CPU_THREADS - 1))"
-					if [[ $k -ne $HP ]]; then
-						arg+=":$((HP / k))"
-					fi
-				fi
-				args+=("$arg")
-			done
-			CORES+=("$k")
-			if ((rem)); then
-				THREADS+=("$((l * k)) $((rem * k))")
-			else
-				THREADS+=("$((l * k))")
-			fi
-			ARGS+=("${args[*]}")
-		done
-	done
-else
+for ((k = 1; k <= HP; k *= 2)); do
 	for ((l = 1; l <= CPU_CORES; l *= 2)); do
 		rem=$((CPU_CORES % l))
 		if ((rem)); then
 			args=()
 			for ((i = 0; i < CPU_CORES; i += i == 0 ? rem : l)); do
 				arg=$i
-				if [[ $l -gt 1 ]]; then
+				if [[ $l -gt 1 || $k -gt 1 ]]; then
 					arg+=":$((i + (i == 0 ? rem : l) - 1))"
+					if [[ $k -gt 1 ]]; then
+						arg+=":$k"
+					fi
 				fi
 				args+=("$arg")
 			done
-			THREADS+=("$rem $l")
+			if [[ $HP -gt 1 ]]; then
+				CORES+=("$k")
+			fi
+			THREADS+=("$((rem * k)) $((l * k))")
 			ARGS+=("${args[*]}")
 		fi
 		args=()
 		for ((i = 0; i < CPU_CORES; i += l)); do
 			arg=$i
-			if [[ $l -gt 1 ]]; then
+			if [[ $l -gt 1 || $k -gt 1 ]]; then
 				temp=$((i + l - 1))
 				arg+=":$((temp < CPU_CORES ? temp : CPU_CORES - 1))"
+				if [[ $k -gt 1 ]]; then
+					arg+=":$k"
+				fi
 			fi
 			args+=("$arg")
 		done
+		if [[ $HP -gt 1 ]]; then
+			CORES+=("$k")
+		fi
 		if ((rem)); then
-			THREADS+=("$l $rem")
+			THREADS+=("$((l * k)) $((rem * k))")
 		else
-			THREADS+=("$l")
+			THREADS+=("$((l * k))")
 		fi
 		ARGS+=("${args[*]}")
 	done
-fi
+done
 echo "Combinations of CPU cores/threads to benchmark"
 {
-	echo -e "#\tWorkers/Runs\tThreads\t-cpu arguments"
+	echo -e "#\tWorkers/Runs\tThreads\t-core arguments"
 	for i in "${!ARGS[@]}"; do
 		args=(${ARGS[i]})
 		printf "%'d\t%'d\t%s\t%s\n" $((i + 1)) ${#args[*]} "${THREADS[i]// /, }" "${args[*]}"
@@ -348,7 +255,7 @@ for i in "${!ARGS[@]}"; do
 	radices=()
 	for j in "${!threads[@]}"; do
 		index=$((j == 0 ? 0 : -1))
-		printf "\n#%'d\tThreads: %s\t(-cpu argument: %s)\n\n" $((i + 1)) "${threads[j]}" "${args[index]}"
+		printf "\n#%'d\tThreads: %s\t(-core argument: %s)\n\n" $((i + 1)) "${threads[j]}" "${args[index]}"
 		file="mlucas.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.cfg"
 		if [[ ! -e $file ]]; then
 			# for ((k=7; k<12; ++k)); do
@@ -356,10 +263,10 @@ for i in "${!ARGS[@]}"; do
 				# for l in {8..15}; do
 					# fft=$((l * m))
 					# printf '\n\tFFT length: %sK\n\n' $fft
-					# time ./Mlucas -s $fft -cpu "${args[index]}"
+					# time ./Mlucas -s $fft -core "${args[index]}"
 				# done
 			# done
-			time ./Mlucas -s m -cpu "${args[index]}" |& tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|info'
+			time ./Mlucas -s m -core "${args[index]}" |& tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|info'
 			if [[ ! -e mlucas.cfg ]]; then
 				>mlucas.cfg
 			fi
@@ -433,14 +340,14 @@ for i in "${!ARGS[@]}"; do
 			printf '\n\tTiming FFT length: %sK (%s)\n\n' "${ffts[j]}" "$(numfmt --from=iec --to=iec "${ffts[j]}K")"
 			radices=(${aradices[j]})
 			for k in "${!args[@]}"; do
-				./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]} == 1 || (threads[0] < threads[1] && k == 0) || (threads[0] > threads[1] && k < ${#args[*]} - 1) ? 0 : 1]}" -cpu "${args[k]}" >&"${files[k]}" &
+				./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]} == 1 || (threads[0] < threads[1] && k == 0) || (threads[0] > threads[1] && k < ${#args[*]} - 1) ? 0 : 1]}" -core "${args[k]}" >&"${files[k]}" &
 			done
 			wait
 			grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
 			if grep -iq 'fatal\|halt' "${files[@]::${#args[*]}}"; then
 				echo
 				for k in "${!args[@]}"; do
-					./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]} == 1 || (threads[0] < threads[1] && k == 0) || (threads[0] > threads[1] && k < ${#args[*]} - 1) ? 0 : 1]}" -cpu "${args[k]}" -shift $RANDOM >&"${files[k]}" &
+					./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]} == 1 || (threads[0] < threads[1] && k == 0) || (threads[0] > threads[1] && k < ${#args[*]} - 1) ? 0 : 1]}" -core "${args[k]}" -shift $RANDOM >&"${files[k]}" &
 				done
 				wait
 				grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
@@ -527,13 +434,13 @@ echo -e "\nBenchmark Summary\n"
 } | tee -a bench.txt
 echo "Fastest combination"
 {
-	echo -e "#\tWorkers/Runs\tThreads\tFirst -cpu argument"
+	echo -e "#\tWorkers/Runs\tThreads\tFirst -core argument"
 	printf "%'d\t%'d\t%s\t%s\n" $((MAX + 1)) ${#RUNS[*]} "${THREADS[MAX]// /, }" "${RUNS[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${RUNS[-1]}"; fi)"
 } | column -t -s $'\t'
 echo
 if [[ ${#ARGS[*]} -gt 1 ]]; then
 	{
-		echo -e "Mean ± σ std dev faster\t#\tWorkers/Runs\tThreads\tFirst -cpu argument"
+		echo -e "Mean ± σ std dev faster\t#\tWorkers/Runs\tThreads\tFirst -core argument"
 		for i in "${!ARGS[@]}"; do
 			if [[ $i -ne $MAX ]]; then
 				args=(${ARGS[i]})
@@ -583,10 +490,10 @@ echo -e "\nStarting PrimeNet\n"
 nohup python3 -OO ../primenet.py "${args[@]}" >>"primenet.out" &
 sleep ${#RUNS[*]}
 for i in "${!RUNS[@]}"; do
-	printf "\nWorker/CPU Core %'d: (-cpu argument: %s)\n" $((i + 1)) "${RUNS[i]}"
+	printf "\nWorker/CPU Core %'d: (-core argument: %s)\n" $((i + 1)) "${RUNS[i]}"
 	pushd "run$i" >/dev/null
 	echo -e "\n\tStarting Mlucas\n"
-	nohup nice ../Mlucas -cpu "${RUNS[i]}" -maxalloc "$maxalloc" &
+	nohup nice ../Mlucas -core "${RUNS[i]}" -maxalloc "$maxalloc" &
 	sleep 1
 	popd >/dev/null
 done
@@ -603,7 +510,7 @@ set -e
 pgrep -x Mlucas >/dev/null || {
 	echo -e "\nStarting Mlucas\n"
 	set -x
-	$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -cpu '${RUNS[i]}' -maxalloc $maxalloc >> 'Mlucas.out' &) "; done)
+	$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -core '${RUNS[i]}' -maxalloc $maxalloc >> 'Mlucas.out' &) "; done)
 }
 
 pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || {

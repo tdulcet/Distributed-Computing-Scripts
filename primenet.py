@@ -148,12 +148,12 @@ locale.setlocale(locale.LC_ALL, "")
 if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(0)
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 section = "PrimeNet"
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
     {"name": "Prime95", "version": "30.8", "build": 17},
-    {"name": "Mlucas", "version": "20.1.1"},
+    {"name": "Mlucas", "version": "21.0"},
     {"name": "GpuOwl", "version": "7.2.1"},
     {"name": "CUDALucas", "version": "2.06"}]
 # People to e-mail when a new prime is found
@@ -2633,20 +2633,14 @@ def report_result(sendline, ar, tasks, retry_count=0):
     exponent = int(ar["exponent"])
     worktype = ar["worktype"]
     if worktype == "LL":
-        if ar["status"] == "P":
-            result_type = PRIMENET.AR_LL_PRIME
-        else:  # elif ar['status'] == 'C':
-            result_type = PRIMENET.AR_LL_RESULT
+        result_type = PRIMENET.AR_LL_PRIME if ar["status"] == "P" else PRIMENET.AR_LL_RESULT
+        # ar['status'] == 'C'
     elif worktype.startswith("PRP"):
-        if ar["status"] == "P":
-            result_type = PRIMENET.AR_PRP_PRIME
-        else:  # elif ar['status'] == 'C':
-            result_type = PRIMENET.AR_PRP_RESULT
+        result_type = PRIMENET.AR_PRP_PRIME if ar["status"] == "P" else PRIMENET.AR_PRP_RESULT
+        # ar['status'] == 'C'
     elif worktype == "PM1":
-        if ar["status"] == "F":
-            result_type = PRIMENET.AR_P1_FACTOR
-        else:  # elif ar['status'] == 'NF':
-            result_type = PRIMENET.AR_P1_NOFACTOR
+        result_type = PRIMENET.AR_P1_FACTOR if ar["status"] == "F" else PRIMENET.AR_P1_NOFACTOR
+        # ar['status'] == 'NF'
     else:
         logging.error("Unsupported worktype {0}".format(worktype))
         return False
@@ -2868,10 +2862,10 @@ def submit_work(adir, tasks):
     # Only for new results, to be appended to results_sent
     sent = []
 
-    length = len(results_send)
-    if not length:
+    if not results_send:
         logging.debug("No new results in {0!r}.".format(resultsfile))
         return
+    length = len(results_send)
     logging.debug("Found {0:n} new result{1} to report in {2!r}".format(
         length, "s" if length > 1 else "", resultsfile))
     # EWM: Switch to one-result-line-at-a-time submission to support
@@ -2921,7 +2915,7 @@ parser.add_option("-D", "--dir", action="append", dest="dirs",
 
 # all other options are saved to local.ini
 parser.add_option("-i", "--workfile", dest="worktodo_file",
-                  default="worktodo.ini", help="Work file filename, Default: “%default”")
+                  default="worktodo.txt", help="Work file filename, Default: “%default”")
 parser.add_option("-r", "--resultsfile", dest="results_file",
                   default="results.txt", help="Results file filename, Default: “%default”")
 parser.add_option("-L", "--logfile", dest="logfile",
@@ -3123,7 +3117,8 @@ supported = frozenset([PRIMENET.WP_PFACTOR,
                                                 PRIMENET.WP_PRP_DBLCHK,
                                                 PRIMENET.WP_PRP_WORLD_RECORD,
                                                 PRIMENET.WP_PRP_100M,
-                                                PRIMENET.WP_PRP_NO_PMINUS1] if not options.cudalucas else []) + ([PRIMENET.WP_PRP_DC_PROOF] if options.gpuowl else []))
+                                                PRIMENET.WP_PRP_NO_PMINUS1] + ([PRIMENET.WP_PRP_COFACTOR,
+                                                                                PRIMENET.WP_PRP_COFACTOR_DBLCHK] if not options.gpuowl else [PRIMENET.WP_PRP_DC_PROOF]) if not options.cudalucas else []))
 if not options.work_preference.isdigit() or int(
         options.work_preference) not in supported:
     parser.error("Unsupported/unrecognized worktype = {0} for {1}".format(

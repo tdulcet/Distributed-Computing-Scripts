@@ -156,7 +156,7 @@ if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=(-m "$total" --max-memory="$total")
 	fi
 fi
-python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" -i "worktodo.txt" --cudalucas "cudalucas.out" -H "$COMPUTER" "${ARGS[@]}"
+python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" --cudalucas "cudalucas.out" -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting PrimeNet\n"
 nohup python3 -OO primenet.py >>"primenet.out" &
 sleep 1

@@ -81,7 +81,7 @@ Options:
                         each worker thread. It automatically sets the --cpu-
                         num option for each directory.
   -i WORKTODO_FILE, --workfile=WORKTODO_FILE
-                        Work file filename, Default: “worktodo.ini”
+                        Work file filename, Default: “worktodo.txt”
   -r RESULTS_FILE, --resultsfile=RESULTS_FILE
                         Results file filename, Default: “results.txt”
   -L LOGFILE, --logfile=LOGFILE

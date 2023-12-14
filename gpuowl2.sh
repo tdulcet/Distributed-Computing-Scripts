@@ -242,7 +242,7 @@ elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=(-m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 	fi
 fi
-python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
+python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" -i 'worktodo.ini' -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting PrimeNet\n"
 nohup python3 -OO ../primenet.py >>"primenet.out" &
 sleep 1
