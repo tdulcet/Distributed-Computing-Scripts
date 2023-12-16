@@ -102,13 +102,13 @@ jobs:
         set -x
         bash -e -o pipefail -- mlucas.sh ANONYMOUS
         echo -e '## Warnings\n```' >> $GITHUB_STEP_SUMMARY
-        grep 'warning:' mlucas_v*/obj/build.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
+        grep 'warning:' Mlucas/obj/build.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
     - name: GCC analyzer
       if: ${{ matrix.os == 'ubuntu-22.04' && matrix.cc == 'gcc' }}
       run: |
         set -x
-        cd mlucas_v*/obj/ && $CC -c -fdiagnostics-color -g -O3 -march=native -DUSE_THREADS -fanalyzer ../src/*.c |& tee analyzer.log
+        cd Mlucas/obj/ && $CC -c -fdiagnostics-color -g -O3 -march=native -DUSE_THREADS -fanalyzer ../src/*.c |& tee analyzer.log
         make clean
         echo -e '## GCC analyzer\n```' >> $GITHUB_STEP_SUMMARY
         grep 'warning:' analyzer.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
@@ -117,7 +117,7 @@ jobs:
       if: ${{ matrix.cc == 'clang' }}
       run: |
         set -x
-        cd mlucas_v*/obj/ && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-const-correctness,misc-redundant-expression,misc-unused-*,modernize-*,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-anyofallof' -header-filter='.*' ../src/*.c -- -Wall -O3 -march=native -DUSE_THREADS |& tee clang-tidy.log
+        cd Mlucas/obj/ && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-const-correctness,misc-redundant-expression,misc-unused-*,modernize-*,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-anyofallof' -header-filter='.*' ../src/*.c -- -Wall -O3 -march=native -DUSE_THREADS |& tee clang-tidy.log
         echo -e '## Clang-Tidy\n```' >> $GITHUB_STEP_SUMMARY
         grep 'warning:' clang-tidy.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
@@ -126,7 +126,7 @@ jobs:
       with:
         name: ${{ matrix.os }}_${{ matrix.cc }}_mlucas
         path: |
-          mlucas_v*/
+          Mlucas/
     - name: ShellCheck
       run: shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh
       continue-on-error: true
