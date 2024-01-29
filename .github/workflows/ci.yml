@@ -30,7 +30,7 @@ jobs:
         gcc --version
     - name: Script
       run: bash -e -o pipefail -- cudalucas.sh ANONYMOUS
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: always()
       with:
         name: ${{ matrix.os }}_cudalucas
@@ -68,10 +68,10 @@ jobs:
         $CXX --version
     - name: Script
       run: bash -e -o pipefail -- gpuowl.sh ANONYMOUS
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: ${{ matrix.os }}_gpuowl
+        name: ${{ matrix.os }}_${{ matrix.cxx }}_gpuowl
         path: |
           gpuowl/
     - name: ShellCheck
@@ -121,7 +121,7 @@ jobs:
         echo -e '## Clang-Tidy\n```' >> $GITHUB_STEP_SUMMARY
         grep 'warning:' clang-tidy.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: always()
       with:
         name: ${{ matrix.os }}_${{ matrix.cc }}_mlucas

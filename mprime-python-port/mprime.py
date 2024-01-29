@@ -7,9 +7,9 @@
 
 import hashlib  # sha256
 import os
+import platform
 import re  # regular expression matching
 import shlex
-import socket
 import stat
 import subprocess
 import sys
@@ -43,7 +43,7 @@ def sha256sum(filename):
 
 # Main script
 USERID = sys.argv[1] if len(sys.argv) > 1 else os.environ["USER"]
-COMPUTER = sys.argv[2] if len(sys.argv) > 2 else socket.gethostname()
+COMPUTER = sys.argv[2] if len(sys.argv) > 2 else platform.node()
 TYPE = sys.argv[3] if len(sys.argv) > 3 else str(150)
 TIME = (int(sys.argv[4]) if len(sys.argv) > 4 else 10) * 60
 

@@ -69,8 +69,8 @@ fi
 
 output=$("$GPUOWL" -h)
 if echo "$output" | grep -q '^-unsafeMath'; then
-# elif echo "$output" | grep -q '^-safeMath'; then
 	ARGS+=(-unsafeMath)
+# elif echo "$output" | grep -q '^-safeMath'; then
 	# ARGS+=( -safeMath )
 fi
 

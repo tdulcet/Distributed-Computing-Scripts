@@ -37,7 +37,7 @@ jobs:
         curl -sSO https://www.mersenne.org/favicon.ico
         pyinstaller -F -i favicon.ico primenet.py
         ./dist/primenet --help
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: PrimeNet_Windows_${{ matrix.architecture }}
         path: |
@@ -50,7 +50,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v4
     - name: Install
       run: |
         sudo apt-get -yqq update
