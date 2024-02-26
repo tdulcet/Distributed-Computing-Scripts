@@ -164,18 +164,18 @@ else
 		fi
 	fi
 	echo -e "\nSetting up GpuOwl\n"
-	sed -i 's/power <= 10/power <= 12/' {"$DIR1"/src,"$DIR2"}/Proof.cpp
-	sed -i 's/power > 10/power > 12/' {"$DIR1"/src,"$DIR2"}/Args.cpp
+	sed -i 's/power <= 10/power <= 12/' $DIR2/Proof.cpp
+	sed -i 's/power > 10/power > 12/' $DIR2/Args.cpp
 	pushd $DIR3 >/dev/null
 	sed -i 's/"DoubleCheck"/"Test"/' Task.h
 	sed -i 's/power >= 6 && power <= 10/power > 0 and power <= 12/' ProofSet.h
 	sed -i 's/proofPow >= 6 && proofPow <= 10/proofPow > 0 and proofPow <= 12/' Args.cpp
 	sed -i 's/< 6 || power > 10/< 1 || power > 12/' Args.cpp
-	# sed -i 's/-Wall -O2/-Wall -g -O3/' Makefile
 	popd >/dev/null
 	for dir in $DIR1 $DIR2 $DIR3; do
 		echo
 		pushd "$dir" >/dev/null
+		sed -i 's/-Wall -O2/-Wall -g -O3/' Makefile
 		# sed -i 's/-O3/-O3 -flto -funsafe-math-optimizations -ffinite-math-only/' Makefile
 		sed -i 's/-O3/-O3 -flto -ffinite-math-only/' Makefile
 		make -j "$(nproc)"
@@ -183,7 +183,7 @@ else
 		rm -f -- *.o
 		popd >/dev/null
 	done
-	pushd $DIR1/build >/dev/null
+	pushd $DIR1/build-release >/dev/null
 	rm -- *.o
 	mv -v gpuowl ..
 	popd >/dev/null
@@ -225,7 +225,7 @@ if command -v clinfo >/dev/null; then
 	ARGS+=(--frequency="${GPU_FREQ[DEVICE]}")
 
 	mapfile -t TOTAL_GPU_MEM < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_GLOBAL_MEM_SIZE *//p')
-	maxAlloc=$((TOTAL_GPU_MEM[DEVICE] / 1024 / 1024))
+	maxAlloc=$((TOTAL_GPU_MEM[DEVICE] >> 20))
 	ARGS+=(-m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
@@ -256,7 +256,7 @@ sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl-bench.sh
 chmod +x gpuowl-bench.sh
 echo -e "\nRunning self tests\nThis may take a while…\n"
 time ./gpuowl-bench.sh ../$DIR3/gpuowl 10000 STATS
-time ./gpuowl-bench.sh ../$DIR1/gpuowl 20000 ROE1,ROE2
+time ./gpuowl-bench.sh ../$DIR1/gpuowl 20000 STATS
 echo "The benchmark data was written to the 'bench.txt' file"
 echo -e "\nDownloading GpuOwl wrapper script\n"
 if [[ -e ../../gpuowl-wrapper.sh ]]; then
@@ -269,9 +269,9 @@ sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl
 sed -i "s/gpuowl-/..\/gpuowl-/" gpuowl
 chmod +x gpuowl
 echo -e "\nStarting GpuOwl\n"
-nohup ./gpuowl -nospin >>"gpuowl.out" &
+nohup ./gpuowl >>"gpuowl.out" &
 sleep 1
-#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./gpuowl -nospin >> 'gpuowl.out' &"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./gpuowl >> 'gpuowl.out' &"; } | crontab -
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO ../primenet.py >> 'primenet.out' &"; } | crontab -
 cat <<EOF >gpuowl.sh
 #!/bin/bash
@@ -281,7 +281,7 @@ cat <<EOF >gpuowl.sh
 # ${DIR@Q}/gpuowl.sh
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
-	pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl -nospin >>'gpuowl.out' &)
+	pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl >>'gpuowl.out' &)
 	pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO ../primenet.py >>'primenet.out' &)
 else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi
 EOF

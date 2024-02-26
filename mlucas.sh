@@ -84,7 +84,7 @@ fi
 CPU_THREADS=$(nproc --all) # $(lscpu | grep -i '^cpu(s)' | sed -n 's/^.\+:[[:blank:]]*//p')
 if [[ $CPU_THREADS -gt 1 ]]; then
 	for ((i = 0; i < CPU_THREADS - 1; ++i)); do
-		seq 0 $((2 ** 22)) | factor >/dev/null &
+		seq 0 $((1 << 22)) | factor >/dev/null &
 	done
 fi
 
@@ -114,10 +114,10 @@ echo -e "Architecture:\t\t\t$HOSTTYPE (${ARCHITECTURE}-bit)"
 
 MEMINFO=$(</proc/meminfo)
 TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ { print $2 }')
-echo -e "Total memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM / 1024))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM * 1024) / 1000) / 1000))) MB)"
+echo -e "Total memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM >> 10))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM << 10) / 1000) / 1000))) MB)"
 
 TOTAL_SWAP=$(echo "$MEMINFO" | awk '/^SwapTotal:/ { print $2 }')
-echo -e "Total swap space:\t\t$(printf "%'d" $((TOTAL_SWAP / 1024))) MiB ($(printf "%'d" $((((TOTAL_SWAP * 1024) / 1000) / 1000))) MB)"
+echo -e "Total swap space:\t\t$(printf "%'d" $((TOTAL_SWAP >> 10))) MiB ($(printf "%'d" $((((TOTAL_SWAP << 10) / 1000) / 1000))) MB)"
 
 if command -v lspci >/dev/null; then
 	mapfile -t GPU < <(lspci 2>/dev/null | grep -i 'vga\|3d\|2d' | sed -n 's/^.*: //p')
@@ -146,7 +146,6 @@ else
 	fi
 	cd "$DIR"
 	echo -e "\nBuilding Mlucas\n"
-	sed -i 's/-j/-O -j/' makemake.sh
 	if ! bash makemake.sh use_hwloc; then
 		exit 1
 	fi
@@ -258,12 +257,12 @@ for i in "${!ARGS[@]}"; do
 		printf "\n#%'d\tThreads: %s\t(-core argument: %s)\n\n" $((i + 1)) "${threads[j]}" "${args[index]}"
 		file="mlucas.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.cfg"
 		if [[ ! -e $file ]]; then
-			# for ((k=7; k<12; ++k)); do
-				# m=$((2 ** k))
+			# for ((k = 7; k < 12; ++k)); do
+				# m=$((1 << k))
 				# for l in {8..15}; do
 					# fft=$((l * m))
-					# printf '\n\tFFT length: %sK\n\n' $fft
-					# time ./Mlucas -s $fft -core "${args[index]}"
+					# printf '\n\tFFT length: %sK (%s)\n\n' $fft "$(numfmt --from=iec --to=iec ${fft}K)"
+					# time ./Mlucas -fft $fft -core "${args[index]}"
 				# done
 			# done
 			time ./Mlucas -s m -core "${args[index]}" |& tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|info'
@@ -302,17 +301,20 @@ for i in "${!ARGS[@]}"; do
 	fi
 done
 # MIN=0
-# mapfile -t affts <<< "${FFTS[MIN]}"
-# atimes=( ${TIMES[MIN]} )
+# mapfile -t affts <<<"${FFTS[MIN]}"
+# atimes=(${TIMES[MIN]})
 # for i in "${!TIMES[@]}"; do
 	# if [[ $i -gt 0 ]]; then
-		# mapfile -t ffts <<< "${FFTS[i]}"
-		# times=( ${TIMES[i]} )
-		# mean=$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then printf '%s\t%s\n' "${atimes[k]}" "${times[j]}"; break; fi; done; done | awk '{ sum+=$1/$2 } END { printf "%.15g\n", sum / NR }')
-		# if (( $(echo "$mean" | awk '{ print ($1>1) }') )); then
+		# mapfile -t ffts <<<"${FFTS[i]}"
+		# times=(${TIMES[i]})
+		# mean=$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then
+			# printf '%s\t%s\n' "${atimes[k]}" "${times[j]}"
+			# break
+		# fi; done; done | awk '{ sum+=$1/$2 } END { printf "%.15g\n", sum / NR }')
+		# if (($(echo "$mean" | awk '{ print ($1>1) }'))); then
 			# MIN=$i
-			# affts=( "${ffts[@]}" )
-			# atimes=( "${times[@]}" )
+			# affts=("${ffts[@]}")
+			# atimes=("${times[@]}")
 		# fi
 	# fi
 # done
@@ -473,7 +475,7 @@ for j in "${!threads[@]}"; do
 	ln -s "mlucas.${CORES:+${CORES[MAX]}c.}${threads[j]}t.$j.cfg" "mlucas.$j.cfg"
 done
 echo -e "\nRegistering computer with PrimeNet\n"
-total=$((TOTAL_PHYSICAL_MEM / 1024))
+total=$((TOTAL_PHYSICAL_MEM >> 10))
 python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --np="$CPU_CORES" --hp="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 args=()

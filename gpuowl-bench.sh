@@ -2,7 +2,7 @@
 
 # Copyright © 2020 Teal Dulcet
 # Benchmark GpuOwl
-# Run: ./bench.sh <GpuOwl binary> [Iterations] [ROE option]
+# Run: ./gpuowl-bench.sh <GpuOwl binary> [Iterations] [ROE option]
 
 set -e
 
@@ -24,13 +24,13 @@ DEVICE=0
 MIN=1024
 # MIN=1
 # Max FFT length (in K)
-MAX=8192
+MAX=10240
 # MAX=32768
 
 # GpuOwl -use option to show roundoff error (ROE)
 # USE=STATS
 # USE=ROE1,ROE2
-USE=${3:-ROE1,ROE2}
+USE=${3:-STATS}
 
 # GpuOwl arguments
 ARGS=(
@@ -43,7 +43,7 @@ ARGS=(
 if command -v clinfo >/dev/null; then
 	mapfile -t TOTAL_GPU_MEM < <(clinfo --raw | sed -n 's/.*CL_DEVICE_GLOBAL_MEM_SIZE *//p')
 	for i in "${!TOTAL_GPU_MEM[@]}"; do
-		TOTAL_GPU_MEM[i]=$((TOTAL_GPU_MEM[i] / 1024 / 1024))
+		TOTAL_GPU_MEM[i]=$((TOTAL_GPU_MEM[i] >> 20))
 	done
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
@@ -73,19 +73,16 @@ if echo "$output" | grep -q '^-unsafeMath'; then
 # elif echo "$output" | grep -q '^-safeMath'; then
 	# ARGS+=( -safeMath )
 fi
+if echo "$output" | grep -q '^-nospin'; then
+	ARGS+=(-nospin)
+fi
 
 {
 	file=$(dirname "$GPUOWL")/version.inc
 	if [[ -r $file ]]; then
 		cat "$file"
 	fi
-	printf 'FFT length\tVariant\tMax exp\tus/iter\tError '
-	if [[ $USE == STATS ]]; then
-		printf 'mean / max / SD / z / N'
-	else
-		printf 'max / SD / N'
-	fi
-	printf '\n\n'
+	printf 'FFT length\tVariant\tMax exp\tus/iter\tError mean / max / SD / z / N\n\n'
 } >>bench.txt
 
 DIR=$PWD
@@ -98,15 +95,15 @@ mapfile -t AFFTS < <(echo "$ffts" | numfmt --from=iec)
 mapfile -t MAX_EXPS < <(echo "$output" | awk -F'[][ ]+' '{ print $5 }' | numfmt --from=si)
 mapfile -t VARIANTS < <(echo "$output" | sed -n 's/^.*]  //p')
 
-echo -e "\nWarming up GPU...\n"
+echo -e "\nWarming up the GPU...\n"
 exp=2976221
 "$DIR/$GPUOWL" -prp "$exp" -iters $((ITERS * 10)) -fft 256:3:256 "${ARGS[@]}"
 rm -rf -- "$exp" gpuowl.log
 
 for i in "${!MAX_EXPS[@]}"; do
-	if [[ -n $MIN && ${AFFTS[i]} -lt $((MIN * 1024)) ]]; then
+	if [[ -n $MIN && ${AFFTS[i]} -lt $((MIN << 10)) ]]; then
 		continue
-	elif [[ -n $MAX && ${AFFTS[i]} -gt $((MAX * 1024)) ]]; then
+	elif [[ -n $MAX && ${AFFTS[i]} -gt $((MAX << 10)) ]]; then
 		break
 	fi
 	if [[ ${MAX_EXPS[i]} -ge 100 ]]; then
@@ -115,7 +112,7 @@ for i in "${!MAX_EXPS[@]}"; do
 		variants=(${VARIANTS[i]})
 		for j in "${!variants[@]}"; do
 			printf "\n\t%'d Variant: %s\n\n" $((j + 1)) "${variants[j]}"
-			"$DIR/$GPUOWL" -prp "$exp" -iters "$ITERS" -fft "${variants[j]}" -nospin "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|ROE=\|error\| E :\|exception\|exiting'
+			"$DIR/$GPUOWL" -prp "$exp" -iters "$ITERS" -fft "${variants[j]}" "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|ROE\|error\| E :\|exception\|exiting'
 			time=''
 			if output=$(grep '[[:digit:]]\{7,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{5,\}' gpuowl.log | grep "$ITERS"); then
 				RE='([[:digit:]]+) us/it'
@@ -128,11 +125,15 @@ for i in "${!MAX_EXPS[@]}"; do
 			stddev=''
 			z=''
 			N=''
-			if output=$(grep -i 'roundoff' gpuowl.log); then
+			if output=$(grep -i 'roundoff\|ROE ' gpuowl.log); then
 				output=$(echo "$output" | tail -n 1)
 				RE='mean ([[:digit:]]+(\.[[:digit:]]+)?)'
 				if [[ $output =~ $RE ]]; then
 					mean=${BASH_REMATCH[1]}
+				fi
+				RE='ROE ([[:digit:]]+(\.[[:digit:]]+)?)'
+				if [[ $output =~ $RE ]]; then
+					max=${BASH_REMATCH[1]}
 				fi
 				RE='max ([[:digit:]]+(\.[[:digit:]]+)?)'
 				if [[ $output =~ $RE ]]; then
@@ -142,7 +143,7 @@ for i in "${!MAX_EXPS[@]}"; do
 				if [[ $output =~ $RE ]]; then
 					stddev=${BASH_REMATCH[1]}
 				fi
-				RE=' z ([[:digit:]]+(\.[[:digit:]]+)?)'
+				RE=' z[= ]([[:digit:]]+(\.[[:digit:]]+)?)'
 				if [[ $output =~ $RE ]]; then
 					z=${BASH_REMATCH[1]}
 				fi
@@ -159,15 +160,7 @@ for i in "${!MAX_EXPS[@]}"; do
 					N=${BASH_REMATCH[5]}
 				fi
 			fi
-			{
-				printf '%s\t%s\t%s\t%s\t' "${FFTS[i]}" "${variants[j]}" "$exp" "${time:--}"
-				if [[ $USE == STATS ]]; then
-					printf '%s / %s / %s / %s / %s' "$mean" "$max" "$stddev" "$z" "$N"
-				else
-					printf '%s / %s / %s' "$max" "$stddev" "$N"
-				fi
-				echo
-			} >>"$DIR/bench.txt"
+			printf '%s\t%s\t%s\t%s\t%s / %s / %s / %s / %s\n' "${FFTS[i]}" "${variants[j]}" "$exp" "${time:--}" "${mean:--}" "${max:--}" "${stddev:--}" "${z:--}" "${N:--}" >>"$DIR/bench.txt"
 			rm -rf -- "$exp" gpuowl.log
 			# sleep 1
 		done

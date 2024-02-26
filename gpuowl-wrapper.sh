@@ -24,13 +24,13 @@ DIR3="gpuowl-6"
 ARGS1=(
 	# -mprimeDir ../mprime
 	-unsafeMath
-	# -use ROE1,ROE2
-	-use ROE2
+	# -use STATS
 
 )
 # 2. GpuOwl v7.2-112
 ARGS2=(
 	-unsafeMath
+	-nospin
 	# -use STATS
 
 )
@@ -38,6 +38,7 @@ ARGS2=(
 ARGS3=(
 	-cleanup
 	-log 10000
+	-nospin
 	# -use STATS
 
 )
@@ -113,7 +114,7 @@ fi
 if command -v clinfo >/dev/null; then
 	mapfile -t TOTAL_GPU_MEM < <(clinfo --raw | sed -n 's/.*CL_DEVICE_GLOBAL_MEM_SIZE *//p')
 	for i in "${!TOTAL_GPU_MEM[@]}"; do
-		TOTAL_GPU_MEM[i]=$((TOTAL_GPU_MEM[i] / 1024 / 1024))
+		TOTAL_GPU_MEM[i]=$((TOTAL_GPU_MEM[i] >> 20))
 	done
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
