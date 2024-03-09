@@ -265,7 +265,9 @@ for i in "${!ARGS[@]}"; do
 					# time ./Mlucas -fft $fft -core "${args[index]}"
 				# done
 			# done
-			time ./Mlucas -s m -core "${args[index]}" |& tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|info'
+			for s in m; do # tt t s m l h
+				time ./Mlucas -s $s -core "${args[index]}" |& tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|assert\|info\|fft length\|fft radices'
+			done
 			if [[ ! -e mlucas.cfg ]]; then
 				>mlucas.cfg
 			fi
@@ -490,7 +492,7 @@ for i in "${!RUNS[@]}"; do
 done
 echo -e "\nStarting PrimeNet\n"
 nohup python3 -OO ../primenet.py "${args[@]}" >>"primenet.out" &
-sleep ${#RUNS[*]}
+sleep $((${#RUNS[*]} * 2))
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-core argument: %s)\n" $((i + 1)) "${RUNS[i]}"
 	pushd "run$i" >/dev/null
@@ -512,7 +514,7 @@ set -e
 pgrep -x Mlucas >/dev/null || {
 	echo -e "\nStarting Mlucas\n"
 	set -x
-	$(for i in "${!RUNS[@]}"; do echo "(cd 'run$i' && exec nohup nice ../Mlucas -core '${RUNS[i]}' -maxalloc $maxalloc >> 'Mlucas.out' &) "; done)
+	$(for i in "${!RUNS[@]}"; do if ((i)); then printf '\t'; fi; echo "(cd 'run$i' && exec nohup nice ../Mlucas -core '${RUNS[i]}' -maxalloc $maxalloc >>'Mlucas.out' &) "; done)
 }
 
 pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || {

@@ -16,8 +16,8 @@ import sys
 import tarfile
 
 DIR = "mprime"
-FILE = "p95v308b17.linux64.tar.gz"
-SUM = "5180c3843d2b5a7c7de4aa5393c13171b0e0709e377c01ca44154608f498bec7"
+FILE = "p95v3019b13.linux64.tar.gz"
+SUM = "2527f5961ce043b3f551c98dfe6a33dec0f921d38a8ca0367c6d86250714d7af"
 
 
 def misc_check(condition, err):
@@ -80,7 +80,7 @@ os.chdir(DIR)
 DIR = os.getcwd()
 
 print("\nDownloading Prime95\n")
-with requests.get(f"https://www.mersenne.org/download/software/v30/30.8/{FILE}", stream=True) as r:
+with requests.get(f"https://www.mersenne.org/download/software/v30/30.19/{FILE}", stream=True) as r:
     r.raise_for_status()
     with open(FILE, "wb") as f:
         for chunk in r.iter_content(chunk_size=None):
