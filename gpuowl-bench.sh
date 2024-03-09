@@ -20,10 +20,10 @@ ITERS=${2:-20000}
 # Device number
 DEVICE=0
 
-# Min FFT length (in K)
+# Minimum FFT length (in K)
 MIN=1024
 # MIN=1
-# Max FFT length (in K)
+# Maximum FFT length (in K)
 MAX=10240
 # MAX=32768
 

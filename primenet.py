@@ -23,7 +23,7 @@
 
 ################################################################################
 #                                                                              #
-#   (C) 2017-2021 by Daniel Connelly and Teal Dulcet.                          #
+#   (C) 2017-2024 by Daniel Connelly and Teal Dulcet.                          #
 #                                                                              #
 #  This program is free software; you can redistribute it and/or modify it     #
 #  under the terms of the GNU General Public License as published by the       #
@@ -67,7 +67,7 @@ import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 from hashlib import md5
-from itertools import starmap
+from itertools import chain, starmap
 
 try:
     # Python 3+
@@ -148,13 +148,13 @@ locale.setlocale(locale.LC_ALL, "")
 if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(0)
 
-VERSION = "1.2.2"
+VERSION = "1.2.3"
 section = "PrimeNet"
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
     {"name": "Prime95", "version": "30.8", "build": 17},
     {"name": "Mlucas", "version": "21.0"},
-    {"name": "GpuOwl", "version": "7.2.1"},
+    {"name": "GpuOwl", "version": "7.5"},
     {"name": "CUDALucas", "version": "2.06"}]
 # People to e-mail when a new prime is found
 # E-mail addresses munged to prevent spam
@@ -355,8 +355,9 @@ def check_output(args):
     stdout, stderr = process.communicate()
     retcode = process.poll()
     if retcode or stderr:
-        print("Exit code:", retcode, "\nArgs:", args,
-              "\nstdout:\n", stdout, "\nstderr:\n", stderr)
+        # print("Exit code:", retcode, "\nArgs:", args, "\nstdout:\n", stdout, "\nstderr:\n", stderr)
+        # raise subprocess.CalledProcessError(retcode, args, output=stdout)
+        return None
     return stdout
 
 
@@ -789,7 +790,10 @@ def get_cpu_model():
     """Returns the CPU model name as a string."""
     output = ""
     if system == "Windows":
-        output = check_output("wmic cpu get name").splitlines()[2].rstrip()
+        output = check_output(
+            'powershell -c "(Get-CimInstance Win32_Processor).Name"').rstrip()
+        if not output:
+            output = check_output("wmic cpu get name").splitlines()[2].rstrip()
     elif system == "Darwin":
         os.environ["PATH"] += os.pathsep + "/usr/sbin"
         output = check_output(
@@ -810,8 +814,13 @@ def get_cpu_cores_threads():
     cores = threads = 0
     if system == "Windows":
         # os.environ['NUMBER_OF_PROCESSORS']
-        cores, threads = check_output(
-            "wmic cpu get NumberOfCores,NumberOfLogicalProcessors").splitlines()[2].split()
+        output = check_output(
+            'powershell -c "Get-CimInstance Win32_Processor | Select NumberOfCores,NumberOfLogicalProcessors"')
+        if output:
+            cores, threads = output.splitlines()[3].split()
+        else:
+            cores, threads = check_output(
+                "wmic cpu get NumberOfCores,NumberOfLogicalProcessors").splitlines()[2].split()
     elif system == "Darwin":
         os.environ["PATH"] += os.pathsep + "/usr/sbin"
         cores, threads = check_output(
@@ -819,13 +828,18 @@ def get_cpu_cores_threads():
     elif system == "Linux":
         acores = set()
         # athreads = set()
-        output = check_output(["lscpu", "-ap"])
-        for line in output.splitlines():
-            if not line.startswith("#"):
-                # CPU,Core,Socket,Node
-                _cpu, core = map(int, line.split(",")[:2])
-                acores.add(core)
-                # athreads.add(cpu)
+        for path in glob.glob("/sys/devices/system/cpu/cpu[0-9]*/topology/core_cpus_list") or glob.glob(
+                "/sys/devices/system/cpu/cpu[0-9]*/topology/thread_siblings_list"):
+            with open(path) as f:
+                acores.add(f.read().rstrip())
+        if not acores:
+            output = check_output(["lscpu", "-ap"])
+            for line in output.splitlines():
+                if not line.startswith("#"):
+                    # CPU,Core,Socket,Node
+                    _cpu, core = map(int, line.split(",")[:2])
+                    acores.add(core)
+                    # athreads.add(cpu)
         cores = len(acores)
         threads = os.sysconf(str("SC_NPROCESSORS_CONF"))
     if cores:
@@ -837,17 +851,20 @@ def get_cpu_cores_threads():
 
 def get_cpu_frequency():
     """Returns the CPU frequency in MHz."""
-    output = ""
+    frequency = 0
     if system == "Windows":
-        output = check_output("wmic cpu get MaxClockSpeed").splitlines()[
-            2].rstrip()
+        output = check_output(
+            'powershell -c "(Get-CimInstance Win32_Processor).MaxClockSpeed"').rstrip()
+        if not output:
+            output = check_output("wmic cpu get MaxClockSpeed").splitlines()[
+                2].rstrip()
         if output:
-            output = int(output)
+            frequency = int(output)
     elif system == "Darwin":
         os.environ["PATH"] += os.pathsep + "/usr/sbin"
         output = check_output(["sysctl", "-n", "hw.cpufrequency_max"]).rstrip()
         if output:
-            output = int(output) // 1000 // 1000
+            frequency = int(output) // 1000 // 1000
     elif system == "Linux":
         freqs = []
         with open("/proc/cpuinfo") as f:
@@ -858,31 +875,34 @@ def get_cpu_frequency():
         if freqs:
             freq = set(freqs)
             if len(freq) == 1:
-                output = int(freq.pop())
-    return output
+                frequency = int(freq.pop())
+    return frequency
 
 
 def get_physical_memory():
-    """Returns the total amount of physical memory in the system, in mebibytes."""
-    output = ""
+    """Returns the total amount of physical memory in the system, in MiB."""
+    memory = 0
     if system == "Windows":
-        output = check_output("wmic memphysical get MaxCapacity").splitlines()[
-            2].rstrip()
+        output = check_output(
+            'powershell -c "(Get-CimInstance Win32_PhysicalMemoryArray).MaxCapacity"').rstrip()
+        if not output:
+            output = check_output("wmic memphysical get MaxCapacity").splitlines()[
+                2].rstrip()
         if output:
-            output = int(output) // 1024
+            memory = int(output) >> 10
     elif system == "Darwin":
         os.environ["PATH"] += os.pathsep + "/usr/sbin"
         output = check_output(["sysctl", "-n", "hw.memsize"]).rstrip()
         if output:
-            output = int(output) // 1024 // 1024
+            memory = int(output) >> 20
     elif system == "Linux":
         # os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
         with open("/proc/meminfo") as f:
             for line in f:
                 if line.startswith("MemTotal:"):
-                    output = int(line.split()[1]) // 1024
+                    memory = int(line.split()[1]) >> 10
                     break
-    return output
+    return memory
 
 
 def parse_v5_resp(r):
@@ -924,14 +944,14 @@ def secure_v5_url(guid, args):
 
 def send_request(guid, args):
     """Send a request to the PrimeNet server."""
+    if guid is not None:
+        if not options.prime95:
+            args["ss"] = 19191919
+            args["sh"] = "ABCDABCDABCDABCDABCDABCDABCDABCD"
+        else:
+            secure_v5_url(guid, args)
+    # logging.debug("Args: {0}".format(args))
     try:
-        if guid is not None:
-            if not options.prime95:
-                args["ss"] = 19191919
-                args["sh"] = "ABCDABCDABCDABCDABCDABCDABCDABCD"
-            else:
-                secure_v5_url(guid, args)
-        # logging.debug("Args: {0}".format(args))
         r = session.get(primenet_v5_burl, params=args, timeout=180)
         # logging.debug("URL: " + r.url)
         r.raise_for_status()
@@ -966,8 +986,8 @@ def send_request(guid, args):
 
 
 def get_exponent(n):
+    args = {"exp_lo": n, "faclim": 1, "json": 1}
     try:
-        args = {"exp_lo": n, "faclim": 1, "json": 1}
         r = session.get(primenet_baseurl +
                         "report_exponent_simple/", params=args, timeout=180)
         r.raise_for_status()
@@ -1070,8 +1090,8 @@ def work_for_bounds(B1, B2, factorB1=1.2, factorB2=1.35):
 
 
 # steps of approx 10%
-nice_step = [i for j in (range(10, 20), range(20, 40, 2), range(
-    40, 80, 5), range(80, 100, 10)) for i in j]
+nice_step = list(chain(range(10, 20), range(20, 40, 2),
+                 range(40, 80, 5), range(80, 100, 10)))
 
 
 def next_nice_number(value):
@@ -1320,11 +1340,15 @@ def parse_gpu_log_file(adir, p):
     w = readonly_list_file(logfile)
     found = 0
     regex = re.compile(r"([0-9]{6,}) (LL|P1|OK|EE)? +([0-9]{5,})")
+    aregex = re.compile(
+        r"([0-9]{6,})P1 +([0-9]+\.[0-9]+)% ([KE])? +[0-9a-f]{16} +([0-9]+)")
     us_per_regex = re.compile(r"\b([0-9]+) us/it;?\b")
     fft_regex = re.compile(r"\b[0-9]{6,} FFT: ([0-9]+(?:\.[0-9]+)?[KM])\b")
-    bits_regex = re.compile(
+    p1_bits_regex = re.compile(
         r"\b[0-9]{6,} P1(?: B1=[0-9]+, B2=[0-9]+;|\([0-9]+(?:\.[0-9])?M?\)) ([0-9]+) bits;?\b")
-    blocks_regex = re.compile(
+    ap1_bits_regex = re.compile(
+        r"\b[0-9]{6,}P1 +[0-9]+\.[0-9]+% @([0-9]+)/([0-9]+) B1\([0-9]+\)")
+    p2_blocks_regex = re.compile(
         r"[0-9]{6,} P2\([0-9]+(?:\.[0-9])?M?,[0-9]+(?:\.[0-9])?M?\) ([0-9]+) blocks: ([0-9]+) - ([0-9]+);")
     p1_regex = re.compile(r"\| P1\([0-9]+(?:\.[0-9])?M?\)")
     p2_regex = re.compile(
@@ -1338,13 +1362,15 @@ def parse_gpu_log_file(adir, p):
     # get the 5 most recent Iter line
     for line in reversed(w):
         res = regex.search(line)
+        ares = aregex.search(line)
         us_res = us_per_regex.search(line)
         fft_res = fft_regex.search(line)
-        bits_res = bits_regex.search(line)
-        blocks_res = blocks_regex.search(line)
+        p1_bits_res = p1_bits_regex.search(line)
+        ap1_bits_res = ap1_bits_regex.search(line)
+        blocks_res = p2_blocks_regex.search(line)
         p2_res = p2_regex.search(line)
-        if res:
-            num = int(res.group(1))
+        if res or ares:
+            num = int(res.group(1) if res else ares.group(1))
             if num != p:
                 if not found:
                     logging.debug(
@@ -1373,14 +1399,28 @@ def parse_gpu_log_file(adir, p):
                 p1 = res.group(2) == "OK" and bool(p1_res)
             if len(list_usec_per_iter) < 5:
                 list_usec_per_iter.append(int(us_res.group(1)))
+        elif ares and found < 20:
+            found += 1
+            apercent = float(ares.group(2))
+            if found == 1:
+                percent = apercent
+                p1 = True
+            elif apercent > percent:
+                break
+            if len(list_usec_per_iter) < 5:
+                list_usec_per_iter.append(int(ares.group(4)))
         elif p2 and blocks_res:
             if not buffs:
                 buffs = int(blocks_res.group(1))
                 iteration -= int(blocks_res.group(2))
-        elif p1 and bits_res:
+        elif p1 and (p1_bits_res or ap1_bits_res):
             if not bits:
-                bits = int(bits_res.group(1))
-                iteration = min(iteration, bits)
+                if p1_bits_res:
+                    bits = int(p1_bits_res.group(1))
+                    iteration = min(iteration, bits)
+                else:
+                    bits = int(ap1_bits_res.group(2))
+                    iteration = int(bits * (percent / 100))
         elif fft_res and not fftlen:
             fft = fft_res.group(1)
             unit = fft[-1:]
@@ -1813,7 +1853,7 @@ def register_instance(guid=None):
     if options.cpu_l3_cache_size:
         args["L3"] = options.cpu_l3_cache_size
     if options.user_id:
-        args["u"] = options.user_id		#
+        args["u"] = options.user_id
     if options.computer_id:
         args["cn"] = options.computer_id  # truncate to 20 char max
     logging.info("Updating computer information on the server")
@@ -1886,9 +1926,9 @@ def assignment_unreserve(assignment, retry_count=0):
         rc = int(result["pnErrorResult"])
         if rc == PRIMENET.ERROR_OK:
             return True
-        elif rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_KEY:
+        if rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_KEY:
             return True
-        elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
+        if rc == PRIMENET.ERROR_UNREGISTERED_CPU:
             register_instance()
             retry = True
     if retry:
@@ -1965,7 +2005,7 @@ def update_assignment(assignment, task):
                 bound2 = result["Pm1_bound2"]
                 if result["exponent"] == assignment.n and bound1 and bound2:
                     logging.debug(
-                        "Existing bounds are B1={0:n}, B2={1:n}".format(bound1, bound2))
+                        "Existing P-1 bounds are B1={0:n}, B2={1:n}".format(bound1, bound2))
                     prob1, prob2 = pm1(
                         assignment.n, assignment.sieve_depth, bound1, bound2)
                     logging.debug(
@@ -2194,20 +2234,27 @@ def primenet_fetch(cpu_num, num_to_get):
 
     # Get assignment (Loarer's way)
     if options.password:
+        assignment = OrderedDict((
+            ("cores", options.num_worker_threads),
+            ("num_to_get", num_to_get),
+            ("pref", work_preference),
+            ("exp_lo", options.min_exp or ""),
+            ("exp_hi", options.max_exp or ""),
+            ("B1", "Get Assignments")
+        ))
+        logging.debug("Fetching using manual assignments")
         try:
-            assignment = OrderedDict((
-                ("cores", options.num_worker_threads),
-                ("num_to_get", num_to_get),
-                ("pref", work_preference),
-                ("exp_lo", options.min_exp or ""),
-                ("exp_hi", options.max_exp or ""),
-                ("B1", "Get Assignments")
-            ))
-            logging.debug("Fetching using manual assignments")
             r = session.post(primenet_baseurl +
                              "manual_assignment/", data=assignment)
             r.raise_for_status()
             res = r.text
+        except HTTPError:
+            logging.exception("")
+            return []
+        except ConnectionError:
+            logging.exception("URL open error at primenet_fetch")
+            return []
+        else:
             BEGIN_MARK = "<!--BEGIN_ASSIGNMENTS_BLOCK-->"
             begin = res.find(BEGIN_MARK)
             if begin >= 0:
@@ -2225,12 +2272,6 @@ def primenet_fetch(cpu_num, num_to_get):
                             tests.append(test)
 
                     return tests
-            return []
-        except HTTPError:
-            logging.exception("")
-            return []
-        except ConnectionError:
-            logging.exception("URL open error at primenet_fetch")
             return []
 
     # Get assignment using v5 API
@@ -2353,7 +2394,7 @@ def register_assignment(cpu_num, assignment, retry_count=0):
             logging.info(
                 "Assignment registered as: {0}".format(assignment.uid))
             return assignment
-        elif rc == PRIMENET.ERROR_NO_ASSIGNMENT:
+        if rc == PRIMENET.ERROR_NO_ASSIGNMENT:
             pass
         elif rc == PRIMENET.ERROR_INVALID_ASSIGNMENT_TYPE:
             pass
@@ -2374,18 +2415,17 @@ def register_assignments(adir, cpu_num, tasks):
     registered_assignment = False
     changed = False
     for i, assignment in enumerate(tasks):
-        if isinstance(assignment, Assignment):
-            if not assignment.uid and not assignment.ra_failed:
-                registered = register_assignment(cpu_num, assignment)
-                if registered:
-                    assignment = registered
-                    registered_assignment = True
-                else:
-                    assignment.ra_failed = True
-                task = output_assignment(assignment)
-                assignment, _ = update_assignment(assignment, task)
-                tasks[i] = assignment
-                changed = True
+        if isinstance(assignment, Assignment) and not assignment.uid and not assignment.ra_failed:
+            registered = register_assignment(cpu_num, assignment)
+            if registered:
+                assignment = registered
+                registered_assignment = True
+            else:
+                assignment.ra_failed = True
+            task = output_assignment(assignment)
+            assignment, _ = update_assignment(cpu_num, assignment, task)
+            tasks[i] = assignment
+            changed = True
     if changed:
         write_workfile(adir, tasks)
     return registered_assignment
@@ -2396,7 +2436,7 @@ def send_progress(cpu_num, assignment, percent, stage,
     """Sends the expected completion date for a given assignment to the server."""
     guid = get_guid(config)
     if guid is None:
-        logging.error("Cannot update, the registration is not done")
+        logging.error("Cannot send progress, the registration is not done")
         return None
     if not assignment.uid:
         return None
@@ -2731,11 +2771,13 @@ def report_result(sendline, ar, tasks, retry_count=0):
             user_name = config.get(section, "user_name")
             # Backup notification
             try:
-                r = requests.post("https://maker.ifttt.com/trigger/result_submitted/with/key/cIhVJKbcWgabfVaLuRjVsR",
+                # "https://maker.ifttt.com/trigger/result_submitted/with/key/cIhVJKbcWgabfVaLuRjVsR"
+                r = requests.post("https://hook.us1.make.com/n16ouxwmfxts1o8154i9kfpqq1rwof53",
                                   json={"value1": user_name, "value2": buf, "value3": message}, timeout=30)
-                logging.debug(r.text)
             except RequestException:
                 logging.exception("Backup notification failed")
+            else:
+                logging.debug("Backup notification: {0}".format(r.text))
         if options.no_report_100m and digits(exponent) >= 100000000:
             return True
     logging.info("Sending result to server: {0}".format(buf))
@@ -2750,7 +2792,7 @@ def report_result(sendline, ar, tasks, retry_count=0):
         if rc == PRIMENET.ERROR_OK:
             logging.debug("Result correctly send to server")
             return True
-        elif rc == PRIMENET.ERROR_UNREGISTERED_CPU:
+        if rc == PRIMENET.ERROR_UNREGISTERED_CPU:
             # should register again and retry
             register_instance()
             # return False
@@ -2785,6 +2827,13 @@ def submit_one_line_manually(sendline):
                          "manual_result/default.php", data={"data": sendline})
         r.raise_for_status()
         res_str = r.text
+    except HTTPError:
+        logging.exception("")
+        return False
+    except ConnectionError:
+        logging.exception("URL open ERROR")
+        return False
+    else:
         if "Error code" in res_str:
             ibeg = res_str.find("Error code")
             iend = res_str.find("</div>", ibeg)
@@ -2800,12 +2849,6 @@ def submit_one_line_manually(sendline):
         else:
             logging.error(
                 "Submission of results line {0!r} failed for reasons unknown - please try manual resubmission.".format(sendline))
-    except HTTPError:
-        logging.exception("")
-        return False
-    except ConnectionError:
-        logging.exception("URL open ERROR")
-        return False
     return True  # EWM: Append entire results_send rather than just sent to avoid resubmitting
     # bad results (e.g. previously-submitted duplicates) every time the script
     # executes.
@@ -2814,6 +2857,7 @@ def submit_one_line_manually(sendline):
 def submit_one_line(resultsfile, sendline, assignments):
     """Submits a result to the server."""
     if not options.cudalucas:  # Mlucas or GpuOwl
+        is_json = False
         try:
             ar = json.loads(sendline)
             is_json = True
@@ -2826,7 +2870,6 @@ def submit_one_line(resultsfile, sendline, assignments):
             # GpuOwl
             if options.gpuowl and "gpuowl v" in sendline:
                 logging.info("Please upgrade to GpuOwl v0.7 or greater.")
-            is_json = False
     else:  # CUDALucas or CUDAPm1
         ar = cuda_result_to_json(resultsfile, sendline)
 
@@ -3248,9 +3291,9 @@ while True:
 
     # Carry on with Loarer's style of primenet
     if options.password:
+        login_data = {"user_login": options.user_id,
+                      "user_password": options.password}
         try:
-            login_data = {"user_login": options.user_id,
-                          "user_password": options.password}
             r = session.post(primenet_baseurl + "default.php", data=login_data)
             r.raise_for_status()
 

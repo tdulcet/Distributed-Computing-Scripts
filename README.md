@@ -289,7 +289,7 @@ PrimeNet script:
 * Check for new results to submit and proof files to upload when the results file is updated.
 * Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
 	* Currently this requires using the Bash install scripts for Linux.
-* Get the number of cores on Linux without the `lscpu` command.
+* Get the system information on Windows and macOS using the [ctypes library](https://docs.python.org/3/library/ctypes.html) instead of the `wmic` and `sysctl` commands respectively.
 * Improve the performance.
 * Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has stalled or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
 * Support reporting interim residues.
@@ -300,6 +300,7 @@ PrimeNet script:
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 * Add an optional GUI using [Tk](https://en.wikipedia.org/wiki/Tk_(software)) and the [tkinter library](https://docs.python.org/3/library/tkinter.html)
 * Add docstrings to all functions
+* Support submitting P-1 results for Fermat numbers
 
 General:
 * Create install script for the [CUDAPm1](https://sourceforge.net/projects/cudapm1/) GIMPS program

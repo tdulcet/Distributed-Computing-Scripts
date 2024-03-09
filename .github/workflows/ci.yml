@@ -104,23 +104,6 @@ jobs:
         echo -e '## Warnings\n```' >> $GITHUB_STEP_SUMMARY
         grep 'warning:' Mlucas/obj/build.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-    - name: GCC analyzer
-      if: ${{ matrix.os == 'ubuntu-22.04' && matrix.cc == 'gcc' }}
-      run: |
-        set -x
-        cd Mlucas/obj/ && $CC -c -fdiagnostics-color -g -O3 -march=native -DUSE_THREADS -fanalyzer ../src/*.c |& tee analyzer.log
-        make clean
-        echo -e '## GCC analyzer\n```' >> $GITHUB_STEP_SUMMARY
-        grep 'warning:' analyzer.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-    - name: Clang-Tidy
-      if: ${{ matrix.cc == 'clang' }}
-      run: |
-        set -x
-        cd Mlucas/obj/ && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-const-correctness,misc-redundant-expression,misc-unused-*,modernize-*,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-anyofallof' -header-filter='.*' ../src/*.c -- -Wall -O3 -march=native -DUSE_THREADS |& tee clang-tidy.log
-        echo -e '## Clang-Tidy\n```' >> $GITHUB_STEP_SUMMARY
-        grep 'warning:' clang-tidy.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
     - uses: actions/upload-artifact@v4
       if: always()
       with:
@@ -192,8 +175,6 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install requests
         python3 -m pip install --upgrade pip
         python3 -m pip install requests
     - name: Script
@@ -203,15 +184,17 @@ jobs:
         sysctl -n hw.physicalcpu_max hw.logicalcpu_max
         sysctl -n hw.cpufrequency hw.cpufrequency_max hw.tbfrequency kern.clockrate
         sysctl -n hw.memsize
-        python -c 'import platform; print(platform.mac_ver())'
         python3 -X dev -c 'import platform; print(platform.mac_ver())'
-        python primenet.py --help
         python3 -X dev primenet.py --help
 
   Windows:
     name: PrimeNet Windows
 
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2019, windows-latest]
+      fail-fast: false
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -221,8 +204,12 @@ jobs:
     - name: Script
       run: |
         wmic cpu get name
+        Get-CimInstance Win32_Processor | Select Name
         wmic cpu get NumberOfCores,NumberOfLogicalProcessors
+        Get-CimInstance Win32_Processor | Select NumberOfCores,NumberOfLogicalProcessors
         wmic cpu get MaxClockSpeed
+        Get-CimInstance Win32_Processor | Select MaxClockSpeed
         wmic memphysical get MaxCapacity
+        Get-CimInstance Win32_PhysicalMemoryArray | Select MaxCapacity
         python -X dev -c "import platform; print(platform.win32_ver())"
         python -X dev primenet.py --help
