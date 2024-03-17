@@ -78,8 +78,8 @@ Options:
                         program, Default: . (current directory)
   -D DIRS, --dir=DIRS   Directories relative to --workdir with the work and
                         results files from the GIMPS program. Provide once for
-                        each worker thread. It automatically sets the --cpu-
-                        num option for each directory.
+                        each worker. It automatically sets the --cpu-num
+                        option for each directory.
   -i WORKTODO_FILE, --workfile=WORKTODO_FILE
                         Work file filename, Default: “worktodo.txt”
   -r RESULTS_FILE, --resultsfile=RESULTS_FILE
@@ -102,28 +102,29 @@ Options:
                         testing and not report the progress. This was the
                         default behavior for old versions of this script.
   -T WORK_PREFERENCE, --worktype=WORK_PREFERENCE
-                        Type of work, Default: 150, 4 (P-1 factoring), 100
-                        (smallest available first-time LL), 101 (double-check
-                        LL), 102 (world-record-sized first-time LL), 104 (100M
-                        digit number LL), 150 (smallest available first-time
-                        PRP), 151 (double-check PRP), 152 (world-record-sized
-                        first-time PRP), 153 (100M digit number PRP), 154
-                        (smallest available first-time PRP that needs P-1
-                        factoring), 155 (double-check using PRP with proof),
-                        160 (first time Mersenne cofactors PRP), 161 (double-
-                        check Mersenne cofactors PRP)
+                        Type of work, Default: 150. Supported work
+                        preferences: 4 (P-1 factoring), 100 (First time LL
+                        tests), 101 (Double-check LL tests), 102 (World record
+                        LL tests), 104 (100M digit LL tests), 150 (First time
+                        PRP tests), 151 (Double-check PRP tests), 152 (World
+                        record PRP tests), 153 (100M digit PRP tests), 154
+                        (Smallest available first time PRP that needs P-1
+                        factoring), 155 (Double-check using PRP with proof),
+                        160 (First time PRP on Mersenne cofactors), 161
+                        (Double-check PRP on Mersenne cofactors). Provide once
+                        to use the same worktype for all workers or once for
+                        each worker to use different worktypes. Not all
+                        worktypes are supported by all the GIMPS programs.
   --min-exp=MIN_EXP     Minimum exponent to get from PrimeNet (2 -
                         999,999,999)
   --max-exp=MAX_EXP     Maximum exponent to get from PrimeNet (2 -
                         999,999,999)
-  -g, --gpuowl          Get assignments for a GPU (GpuOwl) instead of the CPU
-                        (Mlucas).
+  -g, --gpuowl          Get assignments for GpuOwl instead of Mlucas.
   --cudalucas=CUDALUCAS
-                        Get assignments for a GPU (CUDALucas) instead of the
-                        CPU (Mlucas). Provide the CUDALucas output filename as
-                        the argument.
-  --num-workers=NUM_WORKER_THREADS
-                        Number of worker threads (CPU Cores/GPUs), Default: 1
+                        Get assignments for CUDALucas instead of Mlucas.
+                        Provide the CUDALucas output filename as the argument.
+  --num-workers=NUM_WORKERS
+                        Number of workers (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu-num=CPU
                         CPU core or GPU number to get assignments for,
                         Default: 0. Deprecated in favor of the --dir option.
@@ -152,8 +153,9 @@ Options:
                         when the --worktype option is for a first time LL
                         worktype.
   --no-report-100m      Do not report any prime results for exponents greater
-                        than 100 million digits. You must setup another method
-                        to notify yourself.
+                        than or equal to 100 million digits. You must setup
+                        another method to notify yourself, such as setting the
+                        notification options below.
   --checkin=HOURS_BETWEEN_CHECKINS
                         Hours to wait between sending assignment progress and
                         expected completion dates (1-168 hours), Default: 6
@@ -182,6 +184,8 @@ Options:
                         exit. Quit GIMPS after current work completes.
   --ping                Ping the PrimeNet server, show version information and
                         exit.
+  --setup               Prompt for all the options that are needed to setup
+                        the script and exit.
 
   Registering Options:
     Sent to PrimeNet/GIMPS when registering. It will automatically send
@@ -210,20 +214,45 @@ Options:
                         proof interim residues files for PRP tests
                         (GiB/worker), Default: 0.0 GiB/worker. Use 0 to not
                         send.
-    --L1=CPU_L1_CACHE_SIZE
+    --l1=CPU_L1_CACHE_SIZE
                         L1 Cache size (KiB), Default: 8 KiB
-    --L2=CPU_L2_CACHE_SIZE
+    --l2=CPU_L2_CACHE_SIZE
                         L2 Cache size (KiB), Default: 512 KiB
-    --L3=CPU_L3_CACHE_SIZE
+    --l3=CPU_L3_CACHE_SIZE
                         L3 Cache size (KiB), Default: 0 KiB
-    --np=NUM_CORES      Number of physical CPU cores, Default: 1
-    --hp=CPU_HYPERTHREADS
+    --cores=NUM_CORES   Number of physical CPU cores, Default: 1
+    --hyperthreads=CPU_HYPERTHREADS
                         Number of CPU threads per core (0 is unknown),
                         Default: 0. Choose 1 for non-hyperthreaded and 2 or
                         more for hyperthreaded.
-    --hours=CPU_HOURS   Hours per day you expect to run the GIMPS program (1 -
-                        24), Default: 24 hours. Used to give better estimated
-                        completion dates.
+    --hours=CPU_HOURS   Hours per day you expect the GIMPS program will run (1
+                        - 24), Default: 24 hours. Used to give better
+                        estimated completion dates.
+
+  Notification Options:
+    Optionally configure the script to automatically send an e-mail/text
+    message notification if there is an error, if the program has stalled,
+    if the available disk space is low or if it found a new Mersenne
+    prime. Send text messages by using your mobile providers e-mail to SMS
+    or MMS gateway. Use the --test-email option to verify the
+    configuration.
+
+    --to=TOEMAILS       To e-mail address. Use multiple times for multiple
+                        To/recipient e-mail addresses. Defaults to the --from
+                        value if not provided.
+    -f FROMEMAIL, --from=FROMEMAIL
+                        From e-mail address
+    -S SMTP, --smtp=SMTP
+                        SMTP server. Optionally include a port with the
+                        'hostname:port' syntax. Defaults to port 465 with
+                        --tls and port 25 otherwise.
+    --tls               Use a secure connection with SSL/TLS
+    --starttls          Upgrade to a secure connection with StartTLS
+    -U EMAIL_USERNAME, --email-username=EMAIL_USERNAME
+                        SMTP server username
+    -P EMAIL_PASSWORD, --email-password=EMAIL_PASSWORD
+                        SMTP server password
+    --test-email        Send a test e-mail message and exit
 ```
 
 ### Organizations
@@ -291,12 +320,10 @@ PrimeNet script:
 	* Currently this requires using the Bash install scripts for Linux.
 * Get the system information on Windows and macOS using the [ctypes library](https://docs.python.org/3/library/ctypes.html) instead of the `wmic` and `sysctl` commands respectively.
 * Improve the performance.
-* Add an option to send the user an e-mail/text message if there is an error, if the GIMPS program has stalled or if it found a prime, using the [Send Msg CLI/SendPy](https://github.com/tdulcet/Send-Msg-CLI).
 * Support reporting interim residues.
 * Calculate the rolling average.
 * Support downloading certification assignments.
 * Localize the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
-* Remove the dependency on the Requests library
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 * Add an optional GUI using [Tk](https://en.wikipedia.org/wiki/Tk_(software)) and the [tkinter library](https://docs.python.org/3/library/tkinter.html)
 * Add docstrings to all functions

@@ -478,7 +478,7 @@ for j in "${!threads[@]}"; do
 done
 echo -e "\nRegistering computer with PrimeNet\n"
 total=$((TOTAL_PHYSICAL_MEM >> 10))
-python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --np="$CPU_CORES" --hp="$HP"
+python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --cores="$CPU_CORES" --hyperthreads="$HP"
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 args=()
 for i in "${!RUNS[@]}"; do
