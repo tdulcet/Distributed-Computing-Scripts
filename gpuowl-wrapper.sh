@@ -54,7 +54,7 @@ GPUOWL_LL=3
 # Standalone P-1 tests
 GPUOWL_PM1=3
 
-# worktodo and results files for the PrimeNet script
+# worktodo and results files for the PrimeNet program/script
 WorkFile="worktodo.ini"
 ResultsFile="results.ini"
 
@@ -122,7 +122,7 @@ fi
 if [[ -n $TOTAL_GPU_MEM ]]; then
 	# echo -e -n "\tGPU Memory (RAM):\t"
 	# for i in "${!TOTAL_GPU_MEM[@]}"; do
-		# echo -n "$([[ $i -gt 0 ]] && echo ", ")$(printf "%'d" "${TOTAL_GPU_MEM[i]}") MiB ($(numfmt --from=iec --to=iec-i "${TOTAL_GPU_MEM[i]}M")B)"
+		# echo -n "$( ((i)) && echo ", ")$(printf "%'d" "${TOTAL_GPU_MEM[i]}") MiB ($(numfmt --from=iec --to=iec-i "${TOTAL_GPU_MEM[i]}M")B)"
 	# done
 	# echo
 	echo -e "\tGPU Memory (RAM):\t$(printf "%'d" "${TOTAL_GPU_MEM[DEVICE]}") MiB ($(numfmt --from=iec --to=iec-i "${TOTAL_GPU_MEM[DEVICE]}M")B)"
@@ -152,11 +152,11 @@ trap 'trap - INT; kill -INT "$$"' INT
 while true; do
 	date
 
-	if [[ -r $aResultsFile ]] && mapfile -t aresults <"$aResultsFile" && [[ ${#aresults[*]} -gt 0 ]]; then
+	if [[ -r $aResultsFile ]] && mapfile -t aresults <"$aResultsFile" && ((${#aresults[*]})); then
 		printf "Found %'d new result(s) in %s. Moving to %s.\n" ${#aresults[*]} "${aResultsFile@Q}" "${ResultsFile@Q}"
 		for result in "${aresults[@]}"; do
 			if echo "$result" | grep -q 'gpuowl'; then
-				if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && [[ ${#worktodo[*]} -gt 0 ]]; then
+				if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && ((${#worktodo[*]})); then
 					if command -v jq >/dev/null; then
 						exponent=$(echo "$result" | jq -r '.exponent')
 						worktype=$(echo "$result" | jq -r '.worktype')
@@ -208,13 +208,13 @@ while true; do
 		echo "No results found."
 	fi
 
-	if ! [[ -r $aWorkFile ]] || ! mapfile -t aworktodo <"$aWorkFile" || ! [[ ${#aworktodo[*]} -gt 0 ]]; then
-		if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && [[ ${#worktodo[*]} -gt 0 ]]; then
+	if ! [[ -r $aWorkFile ]] || ! mapfile -t aworktodo <"$aWorkFile" || ! ((${#worktodo[*]})); then
+		if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && ((${#worktodo[*]})); then
 			printf "Found %'d work to do(s) in the %s file. Copying the first one to %s.\n" ${#worktodo[*]} "${WorkFile@Q}" "${aWorkFile@Q}"
 			printf '%s\n' "${worktodo[0]}" >>"$aWorkFile"
 			mapfile -t aworktodo <"$aWorkFile"
 		else
-			echo "Error: No work to do. Please run the PrimeNet script or manually add some work to the ${WorkFile@Q} file." >&2
+			echo "Error: No work to do. Please run the PrimeNet program/script or manually add some work to the ${WorkFile@Q} file." >&2
 			exit 1
 		fi
 	else

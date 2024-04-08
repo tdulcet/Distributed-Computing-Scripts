@@ -48,7 +48,7 @@ if ! command -v expect >/dev/null; then
 	echo -e "Installing Expect"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install expect -y
+	sudo apt-get install -y expect
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 

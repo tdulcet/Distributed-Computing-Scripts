@@ -56,13 +56,13 @@ if ! command -v svn >/dev/null; then
 	echo -e "Installing Apache Subversion"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install subversion -y
+	sudo apt-get install -y subversion
 fi
 if ! command -v nvcc >/dev/null; then
 	echo -e "Installing the Nvidia CUDA Toolkit"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install nvidia-cuda-toolkit -y
+	sudo apt-get install -y nvidia-cuda-toolkit
 fi
 if [[ -n $CC ]] && ! command -v "$CC" >/dev/null; then
 	echo "Error: $CC is not installed." >&2
@@ -127,9 +127,9 @@ EOF
 fi
 DIR=$PWD
 if [[ -f "primenet.py" ]]; then
-	echo -e "The PrimeNet script is already downloaded\n"
+	echo -e "The PrimeNet program is already downloaded\n"
 else
-	echo -e "\nDownloading the PrimeNet script\n"
+	echo -e "\nDownloading the PrimeNet program\n"
 	if [[ -e ../primenet.py ]]; then
 		cp -v ../primenet.py .
 	else
@@ -189,7 +189,7 @@ cat <<EOF >CUDALucas.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start CUDALucas and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# Start CUDALucas and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/CUDALucas.sh
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then

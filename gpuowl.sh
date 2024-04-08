@@ -64,7 +64,7 @@ if ! command -v make >/dev/null || ! command -v g++ >/dev/null; then
 	echo -e "Installing Make and the GNU C++ compiler"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install build-essential -y
+	sudo apt-get install -y build-essential
 fi
 if [[ -n $CXX ]] && ! command -v "$CXX" >/dev/null; then
 	echo "Error: $CXX is not installed." >&2
@@ -86,14 +86,14 @@ if ! ldconfig -p | grep -iq 'libgmp\.' || ! ldconfig -p | grep -iq 'libgmpxx\.' 
 	echo -e "Installing the GNU Multiple Precision (GMP) library"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install libgmp-dev -y
+	sudo apt-get install -y libgmp-dev
 fi
 if ! ldconfig -p | grep -iq 'libOpenCL\.'; then
 	echo -e "Installing the OpenCL library"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	# sudo apt-get install ocl-icd-* opencl-headers clinfo -y
-	sudo apt-get install ocl-icd-opencl-dev clinfo -y
+	# sudo apt-get install -y ocl-icd-* opencl-headers clinfo
+	sudo apt-get install -y ocl-icd-opencl-dev clinfo
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 mkdir "$DIR"
@@ -158,7 +158,7 @@ else
 		sed -i 's/`git describe --tags --long --dirty --always`/'"${name}${behind_by:+-${behind_by}${sha:+-g${sha::7}}}"'/' $DIR1/Makefile
 	fi
 fi
-echo -e "\nDownloading the PrimeNet script\n"
+echo -e "\nDownloading the PrimeNet program\n"
 if [[ -e ../primenet.py ]]; then
 	cp -v ../primenet.py .
 else
@@ -263,7 +263,7 @@ cat <<EOF >gpuowl.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start GpuOwl and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# Start GpuOwl and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/gpuowl.sh
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then

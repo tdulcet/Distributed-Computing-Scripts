@@ -53,8 +53,8 @@ jobs:
     - uses: actions/download-artifact@v4
     - name: Install
       run: |
-        sudo apt-get -yqq update
-        sudo apt-get -yqq install lftp
+        sudo apt-get update -y
+        sudo apt-get install -y lftp
     - name: Script
       run: |
         set -x

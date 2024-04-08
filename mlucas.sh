@@ -40,7 +40,7 @@ if ! command -v make >/dev/null || ! command -v gcc >/dev/null; then
 	echo -e "Installing Make and the GNU C compiler"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install build-essential -y
+	sudo apt-get install -y build-essential
 fi
 if [[ -n $CC ]] && ! command -v "$CC" >/dev/null; then
 	echo "Error: $CC is not installed." >&2
@@ -55,13 +55,13 @@ if ! ldconfig -p | grep -iq 'libgmp\.' || ! [[ -f ${files[0]} ]]; then
 	echo -e "Installing the GNU Multiple Precision (GMP) library"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install libgmp-dev -y
+	sudo apt-get install -y libgmp-dev
 fi
 if ! ldconfig -p | grep -iq 'libhwloc\.' || ! [[ -f /usr/include/hwloc.h ]]; then
 	echo -e "Installing the Portable Hardware Locality (hwloc) library"
 	echo -e "Please enter your password if prompted.\n"
 	sudo apt-get update -y
-	sudo apt-get install libhwloc-dev -y
+	sudo apt-get install -y libhwloc-dev
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
@@ -105,9 +105,30 @@ echo -e "CPU frequency/speed:\t\t$(printf "%'.0f" "${CPU_FREQ/./$decimal_point}"
 wait
 
 HP=$(lscpu | grep -i '^thread(s) per core' | sed -n 's/^.\+:[[:blank:]]*//p')
-CPU_CORES=$(lscpu -ap | grep -v '^#' | awk -F, '{ print $2 }' | sort -nu | wc -l)
-CPU_SOCKETS=$(lscpu | grep -i '^\(socket\|cluster\)(s)' | sed -n 's/^.\+:[[:blank:]]*//p' | tail -n 1) # $(lscpu -ap | grep -v '^#' | awk -F, '{ print $3 }' | sort -nu | wc -l)
+CPU_CORES=$(lscpu -ap | grep -v '^#' | cut -d, -f2 | sort -nu | wc -l)
+CPU_SOCKETS=$(lscpu -ap | grep -v '^#' | cut -d, -f3 | sort -nu | wc -l) # $(lscpu | grep -i '^\(socket\|cluster\)(s)' | sed -n 's/^.\+:[[:blank:]]*//p' | tail -n 1)
 echo -e "CPU Sockets/Cores/Threads:\t$CPU_SOCKETS/$CPU_CORES/$CPU_THREADS"
+
+CPU_CACHE_SIZES=([1]=$(getconf LEVEL1_DCACHE_SIZE) [2]=$(getconf LEVEL2_CACHE_SIZE) [3]=$(getconf LEVEL3_CACHE_SIZE) [4]=$(getconf LEVEL4_CACHE_SIZE))
+if [[ ${CPU_CACHE_SIZES[1]} -eq 0 && ${CPU_CACHE_SIZES[2]} -eq 0 && ${CPU_CACHE_SIZES[3]} -eq 0 && ${CPU_CACHE_SIZES[4]} -eq 0 ]]; then
+	for dir in /sys/devices/system/cpu/cpu[0-9]*/cache; do
+		if [[ -d $dir ]]; then
+			for file in "$dir"/index[0-9]*/size; do
+				if [[ -r $file ]]; then
+					size=$(numfmt --from=iec <"$file")
+					adir=${file%/*}
+					level=$(<"$adir/level")
+					type=$(<"$adir/type")
+					if [[ $type == Instruction ]]; then
+						continue
+					fi
+					CPU_CACHE_SIZES[level]=$size
+				fi
+			done
+		fi
+	done
+fi
+echo -e "CPU Caches:\t\t\tL1: $(printf "%'d" $((CPU_CACHE_SIZES[1] >> 10))) KiB, L2: $(printf "%'d" $((CPU_CACHE_SIZES[2] >> 10))) KiB, L3: $(printf "%'d" $((CPU_CACHE_SIZES[3] >> 10))) KiB, L4: $(printf "%'d" $((CPU_CACHE_SIZES[4] >> 10))) KiB"
 
 ARCHITECTURE=$(getconf LONG_BIT)
 echo -e "Architecture:\t\t\t$HOSTTYPE (${ARCHITECTURE}-bit)"
@@ -137,9 +158,9 @@ if [[ -d $DIR ]]; then
 else
 	echo -e "\nDownloading Mlucas v21\n"
 	if command -v git >/dev/null; then
-		git clone https://github.com/tdulcet/Mlucas.git
+		git clone https://github.com/primesearch/Mlucas.git
 	else
-		wget https://github.com/tdulcet/Mlucas/archive/main.tar.gz
+		wget https://github.com/primesearch/Mlucas/archive/main.tar.gz
 		echo -e "\nDecompressing the files\n"
 		tar -xzvf main.tar.gz
 		mv -v Mlucas-main "$DIR"
@@ -157,9 +178,9 @@ else
 	cd ..
 fi
 if [[ -f "primenet.py" ]]; then
-	echo -e "\nThe PrimeNet script is already downloaded\n"
+	echo -e "\nThe PrimeNet program is already downloaded\n"
 else
-	echo -e "\nDownloading the latest PrimeNet script\n"
+	echo -e "\nDownloading the latest PrimeNet program\n"
 	if [[ -e ../primenet.py ]]; then
 		cp -v ../primenet.py .
 	else
@@ -306,7 +327,7 @@ done
 # mapfile -t affts <<<"${FFTS[MIN]}"
 # atimes=(${TIMES[MIN]})
 # for i in "${!TIMES[@]}"; do
-	# if [[ $i -gt 0 ]]; then
+	# if ((i)); then
 		# mapfile -t ffts <<<"${FFTS[i]}"
 		# times=(${TIMES[i]})
 		# mean=$(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then
@@ -378,7 +399,7 @@ MAX=0
 mapfile -t affts <<<"${FFTS[MAX]}"
 aiters=(${ITERS[MAX]})
 for i in "${!ITERS[@]}"; do
-	if [[ $i -gt 0 ]]; then
+	if ((i)); then
 		mapfile -t ffts <<<"${FFTS[i]}"
 		iters=(${ITERS[i]})
 		if [[ -n $ffts ]]; then
@@ -478,7 +499,7 @@ for j in "${!threads[@]}"; do
 done
 echo -e "\nRegistering computer with PrimeNet\n"
 total=$((TOTAL_PHYSICAL_MEM >> 10))
-python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --cores="$CPU_CORES" --hyperthreads="$HP"
+python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" -m $total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --cores="$CPU_CORES" --hyperthreads="$HP" --l1=$((CPU_CACHE_SIZES[1] ? CPU_CACHE_SIZES[1] >> 10 : 8)) --l2=$((CPU_CACHE_SIZES[2] ? CPU_CACHE_SIZES[2] >> 10 : 512)) --l3=$((CPU_CACHE_SIZES[3] >> 10))
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 args=()
 for i in "${!RUNS[@]}"; do
@@ -506,7 +527,7 @@ cat <<EOF >jobs.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start Mlucas and the PrimeNet script
+# Start Mlucas and the PrimeNet program
 # Run: ./jobs.sh
 
 set -e
@@ -514,7 +535,10 @@ set -e
 pgrep -x Mlucas >/dev/null || {
 	echo -e "\nStarting Mlucas\n"
 	set -x
-	$(for i in "${!RUNS[@]}"; do if ((i)); then printf '\t'; fi; echo "(cd 'run$i' && exec nohup nice ../Mlucas -core '${RUNS[i]}' -maxalloc $maxalloc >>'Mlucas.out' &) "; done)
+	$(for i in "${!RUNS[@]}"; do
+		((i)) && printf '\t'
+		echo "(cd 'run$i' && exec nohup nice ../Mlucas -core '${RUNS[i]}' -maxalloc $maxalloc >>'Mlucas.out' &) "
+	done)
 }
 
 pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || {
@@ -529,7 +553,7 @@ cat <<EOF >Mlucas.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start Mlucas and the PrimeNet script if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# Start Mlucas and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/Mlucas.sh
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then cd ${DIR@Q} && ./jobs.sh; else pgrep -x Mlucas >/dev/null && killall -9 Mlucas; fi

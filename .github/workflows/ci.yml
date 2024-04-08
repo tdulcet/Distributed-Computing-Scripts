@@ -58,8 +58,8 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install
       run: |
-        sudo apt-get -yqq update
-        sudo apt-get -yqq install ocl-icd-opencl-dev pocl-opencl-icd
+        sudo apt-get update -y
+        sudo apt-get install -y ocl-icd-opencl-dev pocl-opencl-icd
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
@@ -175,7 +175,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
-        python3 -m pip install --upgrade pip
+        # python3 -m pip install --upgrade pip
         python3 -m pip install requests
     - name: Script
       run: |
