@@ -158,9 +158,8 @@ except ImportError:
                 fun = ctypes.windll.kernel32.GetDiskFreeSpaceExW
             else:
                 fun = ctypes.windll.kernel32.GetDiskFreeSpaceExA
-            ret = fun(path, ctypes.byref(_), ctypes.byref(
-                total), ctypes.byref(free))
-            if not ret:
+            if not fun(path, ctypes.byref(_), ctypes.byref(total),
+                       ctypes.byref(free)):
                 raise ctypes.WinError()
             used = total.value - free.value
             return _ntuple_diskusage(total.value, used, free.value)
@@ -206,11 +205,11 @@ if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(0)
 charset.add_charset("utf-8", charset.QP, charset.QP, "utf-8")
 
-VERSION = "2.0"
+VERSION = "2.0.1"
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = [
     {"name": "Prime95", "version": "30.8", "build": 17},
-    {"name": "Mlucas", "version": "21.0"},
+    {"name": "Mlucas", "version": "21.0.1"},
     {"name": "GpuOwl", "version": "7.5"},
     {"name": "CUDALucas", "version": "2.06"}]
 # People to e-mail when a new prime is found
@@ -366,15 +365,15 @@ errors = {
 
 class Assignment(object):
 
-    """Assignment(work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, B2_start, tests_saved, prp_base, prp_residue_type, prp_dblchk, known_factors, ra_failed)."""
+    """Assignment(work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, B2_start, tests_saved, prp_base, prp_residue_type, prp_dblchk, known_factors, ra_failed, cert_squarings)."""
 
     __slots__ = (
         "work_type", "uid", "k", "b", "n", "c", "sieve_depth", "pminus1ed",
         "B1", "B2", "B2_start", "tests_saved", "prp_base", "prp_residue_type",
-        "prp_dblchk", "known_factors", "ra_failed")
+        "prp_dblchk", "known_factors", "ra_failed", "cert_squarings")
 
     def __init__(self, work_type=None):
-        """Create new instance of Assignment(work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, B2_start, tests_saved, prp_base, prp_residue_type, prp_dblchk, known_factors, ra_failed)."""
+        """Create new instance of Assignment(work_type, uid, k, b, n, c, sieve_depth, pminus1ed, B1, B2, B2_start, tests_saved, prp_base, prp_residue_type, prp_dblchk, known_factors, ra_failed, cert_squarings)."""
         self.work_type = work_type
         self.uid = None
         # k*b^n+c
@@ -393,7 +392,7 @@ class Assignment(object):
         self.prp_dblchk = False
         self.known_factors = None
         self.ra_failed = False
-        # self.cert_squarings = 0
+        self.cert_squarings = 0
 
 
 suffix_power_char = ["", "K", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q"]
@@ -662,7 +661,7 @@ def setup():
         toemails = []
         for i in count():
             toemail = ask_str("To e-mail address #{0:n}, e.g., 'User <user@example.com>' (leave blank {1})".format(
-                i + 1, "to use the From e-mail address" if i == 0 else "to continue"), options.toemails[i] if i < len(options.toemails) else "")
+                i + 1, "to use the From e-mail address" if not i else "to continue"), options.toemails[i] if i < len(options.toemails) else "")
             if not toemail:
                 break
             toemails.append(toemail)
@@ -898,14 +897,14 @@ else:
         return adigits
 
 WORKPATTERN = re.compile(
-    r'^(Test|DoubleCheck|PRP(?:DC)?|P[Ff]actor|P[Mm]inus1|Cert)\s*=\s*(?:(([0-9A-F]{32})|[Nn]/[Aa]|0),)?(?:([-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)|"[0-9]+(?:,[0-9]+)*")(?:,|$)){1,9}$')
+    r'^(?:(?:B1=([0-9]+)(?:,B2=([0-9]+))?|B2=([0-9]+));)?(Test|DoubleCheck|PRP(?:DC)?|P[Ff]actor|P[Mm]inus1|Cert)\s*=\s*(?:(([0-9A-F]{32})|[Nn]/[Aa]|0),)?(?:([-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)|"[0-9]+(?:,[0-9]+)*")(?:,|$)){1,9}$')
 
 Test_RE = re.compile(
-    r"^(Test|DoubleCheck)\s*=\s*(?:([0-9A-F]{32}|[Nn]/[Aa]|0),)?([0-9]+)(?:,([0-9]+),([0-9]+))?$")
+    r"^(?:(?:B1=[0-9]+(?:,B2=[0-9]+)?|B2=[0-9]+);)?(Test|DoubleCheck)\s*=\s*(?:([0-9A-F]{32}|[Nn]/[Aa]|0),)?([0-9]+)(?:,([0-9]+),([0-9]+))?$")
 PRP_RE = re.compile(
-    r'^(PRP(?:DC)?)\s*=\s*(?:([0-9A-F]{32}|[Nn]/[Aa]|0),)?([-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)),([0-9]+),([0-9]+),([-+]?[0-9]+)(?:,([0-9]+),([0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:,([0-9]+),([0-9]+))?)?(?:,"([0-9]+(?:,[0-9]+)*)")?$')
+    r'^(?:(?:B1=[0-9]+(?:,B2=[0-9]+)?|B2=[0-9]+);)?(PRP(?:DC)?)\s*=\s*(?:([0-9A-F]{32}|[Nn]/[Aa]|0),)?([-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)),([0-9]+),([0-9]+),([-+]?[0-9]+)(?:,([0-9]+),([0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:,([0-9]+),([0-9]+))?)?(?:,"([0-9]+(?:,[0-9]+)*)")?$')
 PFactor_RE = re.compile(
-    r'^(P[Ff]actor)\s*=\s*(?:([0-9A-F]{32}|[Nn]/[Aa]|0),)?([-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)),([0-9]+),([0-9]+),([-+]?[0-9]+),([0-9]+),([0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:,"([0-9]+(?:,[0-9]+)*)")?$')
+    r'^(?:(?:B1=[0-9]+(?:,B2=[0-9]+)?|B2=[0-9]+);)?(P[Ff]actor)\s*=\s*(?:([0-9A-F]{32}|[Nn]/[Aa]|0),)?([-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)),([0-9]+),([0-9]+),([-+]?[0-9]+),([0-9]+),([0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:,"([0-9]+(?:,[0-9]+)*)")?$')
 PMinus1_RE = re.compile(
     r'^(P[Mm]inus1)\s*=\s*(?:([0-9A-F]{32}|[Nn]/[Aa]|0),)?([-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)),([0-9]+),([0-9]+),([-+]?[0-9]+),([0-9]+),([0-9]+)(?:,([0-9]+)(?:,([0-9]+))?)?(?:,"([0-9]+(?:,[0-9]+)*)")?$')
 Cert_RE = re.compile(
@@ -920,7 +919,14 @@ def parse_assignment(task):
         return None
     # logging.debug(task)
     assignment = Assignment()
-    work_type, value, assignment.uid = found.group(1, 2, 3)
+    B1, B21, B22, work_type, value, assignment.uid = found.group(
+        1, 2, 3, 4, 5, 6)
+    if B1:
+        assignment.B1 = int(B1)
+        if B21:
+            assignment.B2 = int(B21)
+    if B22:
+        assignment.B2 = int(B22)
     assignment.ra_failed = bool(value) and not assignment.uid
     # e.g., "57600769", "197ED240A7A41EC575CB408F32DDA661"
     # logging.debug("type = {0}, assignment_id = {1}".format(work_type, assignment.uid))
@@ -955,7 +961,8 @@ def parse_assignment(task):
                 assignment.prp_base = int(prp_base)
                 assignment.prp_residue_type = int(prp_residue_type)
         if known_factors:
-            assignment.known_factors = known_factors
+            assignment.known_factors = tuple(
+                map(int, known_factors.split(",")))
     elif work_type in {"PFactor", "Pfactor"}:
         found = PFactor_RE.match(task)
         if not found:
@@ -969,7 +976,8 @@ def parse_assignment(task):
         assignment.sieve_depth = float(sieve_depth)
         assignment.tests_saved = float(tests_saved)
         if known_factors:
-            assignment.known_factors = known_factors
+            assignment.known_factors = tuple(
+                map(int, known_factors.split(",")))
     elif work_type in {"PMinus1", "Pminus1"}:
         found = PMinus1_RE.match(task)
         if not found:
@@ -988,7 +996,8 @@ def parse_assignment(task):
             if B2_start:
                 assignment.B2_start = int(B2_start)
         if known_factors:
-            assignment.known_factors = known_factors
+            assignment.known_factors = tuple(
+                map(int, known_factors.split(",")))
     elif work_type == "Cert":
         found = Cert_RE.match(task)
         if not found:
@@ -1060,13 +1069,15 @@ def output_assignment(assignment):
             if assignment.prp_base or assignment.prp_residue_type:
                 temp += [assignment.prp_base, assignment.prp_residue_type]
         if assignment.known_factors:
-            temp.append('"' + assignment.known_factors + '"')
+            temp.append(
+                '"' + ",".join(map(str, assignment.known_factors)) + '"')
     elif assignment.work_type == PRIMENET.WORK_TYPE_PFACTOR:
         test = "Pfactor"
         temp += ["{0:.0f}".format(assignment.k), assignment.b, assignment.n, assignment.c,
                  "{0:g}".format(assignment.sieve_depth), "{0:g}".format(assignment.tests_saved)]
         if assignment.known_factors:
-            temp.append('"' + assignment.known_factors + '"')
+            temp.append(
+                '"' + ",".join(map(str, assignment.known_factors)) + '"')
     elif assignment.work_type == PRIMENET.WORK_TYPE_PMINUS1:
         test = "Pminus1"
         temp += ["{0:.0f}".format(assignment.k), assignment.b,
@@ -1076,11 +1087,19 @@ def output_assignment(assignment):
         if assignment.B2_start > assignment.B1:
             temp += [assignment.B2_start]
         if assignment.known_factors:
-            temp.append('"' + assignment.known_factors + '"')
+            temp.append(
+                '"' + ",".join(map(str, assignment.known_factors)) + '"')
     elif assignment.work_type == PRIMENET.WORK_TYPE_CERT:
         test = "Cert"
         temp += ["{0:.0f}".format(assignment.k), assignment.b,
                  assignment.n, assignment.c, assignment.cert_squarings]
+
+    if assignment.work_type != PRIMENET.WORK_TYPE_PMINUS1:
+        if assignment.B1:
+            test = "B1={0}{1};".format(assignment.B1, ",B2={0}".format(
+                assignment.B2) if assignment.B2 else "") + test
+        elif assignment.B2:
+            test = "B2={0};".format(assignment.B2) + test
     return test + "=" + ",".join(map(str, temp))
 
 
@@ -1313,9 +1332,9 @@ def send_msg(subject, message="", attachments=None, to=None,
 
 def test_msg(guid):
     """Sends a test message."""
-    if not send_msg("👋 Test from the PrimeNet script", """Hello {0},
+    if not send_msg("👋 Test from the PrimeNet program", """Hello {0},
 
-This is the requested test message from the PrimeNet script (primenet.py)! You have successfully configured the script to send e-mail notifications.
+This is the requested test message from the PrimeNet program/script (primenet.py)! You have successfully configured the program to send e-mail notifications.
 
 Version: {1}
 Python version: {2}
@@ -1356,8 +1375,10 @@ def get_cpu_model():
     output = ""
     if system == "Windows":
         output = check_output(
-            'powershell -c "(Get-CimInstance Win32_Processor).Name"').rstrip()
-        if not output:
+            'powershell -c "(Get-CimInstance Win32_Processor).Name"')
+        if output:
+            output = output.rstrip()
+        else:
             output = check_output("wmic cpu get name").splitlines()[2].rstrip()
     elif system == "Darwin":
         os.environ["PATH"] += os.pathsep + "/usr/sbin"
@@ -1376,16 +1397,17 @@ def get_cpu_cores_threads():
     """Returns the number of CPU cores and threads on the system."""
     # Python 3.4+
     # threads = os.cpu_count()
+    # threads = multiprocessing.cpu_count()
     cores = threads = 0
     if system == "Windows":
-        # os.environ['NUMBER_OF_PROCESSORS']
         output = check_output(
-            'powershell -c "Get-CimInstance Win32_Processor | Select NumberOfCores,NumberOfLogicalProcessors"')
+            'powershell -c "(Get-CimInstance Win32_Processor).NumberOfCores"')
         if output:
-            cores, threads = output.splitlines()[3].split()
+            cores = output.rstrip()
         else:
-            cores, threads = check_output(
-                "wmic cpu get NumberOfCores,NumberOfLogicalProcessors").splitlines()[2].split()
+            cores = check_output("wmic cpu get NumberOfCores").splitlines()[
+                2].rstrip()
+        threads = os.environ["NUMBER_OF_PROCESSORS"]
     elif system == "Darwin":
         os.environ["PATH"] += os.pathsep + "/usr/sbin"
         cores, threads = check_output(
@@ -1419,8 +1441,10 @@ def get_cpu_frequency():
     frequency = 0
     if system == "Windows":
         output = check_output(
-            'powershell -c "(Get-CimInstance Win32_Processor).MaxClockSpeed"').rstrip()
-        if not output:
+            'powershell -c "(Get-CimInstance Win32_Processor).MaxClockSpeed"')
+        if output:
+            output = output.rstrip()
+        else:
             output = check_output("wmic cpu get MaxClockSpeed").splitlines()[
                 2].rstrip()
         if output:
@@ -1449,8 +1473,10 @@ def get_physical_memory():
     memory = 0
     if system == "Windows":
         output = check_output(
-            'powershell -c "(Get-CimInstance Win32_PhysicalMemoryArray).MaxCapacity"').rstrip()
-        if not output:
+            'powershell -c "(Get-CimInstance Win32_PhysicalMemoryArray).MaxCapacity"')
+        if output:
+            output = output.rstrip()
+        else:
             output = check_output("wmic memphysical get MaxCapacity").splitlines()[
                 2].rstrip()
         if output:
@@ -1619,7 +1645,7 @@ def register_exponents(dirs):
                     print(
                         "It has not yet been P-1 factored: B1={0}, B2={1}\n".format(bound1, bound2))
         if sieve_depth is None:
-            print("\n" + wrapper.fill("Unfortunately, the script was unable to automatically determine the TF bits and P-1 bounds for this exponent. It may be above the mersenne.org exponent limit."))
+            print("\n" + wrapper.fill("Unfortunately, the program was unable to automatically determine the TF bits and P-1 bounds for this exponent. It may be above the mersenne.org exponent limit."))
             print("""Here are the links to find this information:
 https://www.mersenne.org/M{0}
 https://www.mersenne.ca/M{0}
@@ -1635,7 +1661,7 @@ https://www.mersenne.ca/M{0}
                 "Primality tests saved if factor is found", 0.0 if pminus1ed else 1.3, 0)
 
         if work_type == 151:
-            prp_base = ask_int("PRP base", 3, 0)
+            prp_base = ask_int("PRP base", 3, 2)
             prp_residue_type = ask_int("PRP residue type", 1, 1, 5)
 
         if not ask_ok_cancel():
@@ -1756,7 +1782,7 @@ def n_primes_between(B1, B2):
 
 def work_for_bounds(B1, B2, factorB1=1.2, factorB2=1.35):
     """Returns work for stage-1, stage-2 in the negative (no factor found) case."""
-    return (B1 * 1.442 * factorB1, n_primes_between(B1, B2) * 0.85 * factorB2)
+    return B1 * 1.442 * factorB1, n_primes_between(B1, B2) * 0.85 * factorB2
 
 
 # steps of approx 10%
@@ -1805,7 +1831,7 @@ def pm1(exponent, factoredTo, B1, B2):
         alpha += alphaStep
         invSliceProb += 1
 
-    return (-expm1(-sum1), -expm1(-sum2))
+    return -expm1(-sum1), -expm1(-sum2)
 
 
 def gain(exponent, factoredTo, B1, B2):
@@ -1814,7 +1840,7 @@ def gain(exponent, factoredTo, B1, B2):
     (w1, w2) = work_for_bounds(B1, B2)
     p = p1 + p2
     w = (w1 + (1 - p1 - p2 / 4) * w2) * (1 / exponent)
-    return (p, w)
+    return p, w
 
 
 def walk(exponent, factoredTo):
@@ -1876,7 +1902,7 @@ def walk(exponent, factoredTo):
         midB1 = B1
         midB2 = B2
 
-    return ((smallB1, smallB2), (midB1, midB2), (B1, B2))
+    return (smallB1, smallB2), (midB1, midB2), (B1, B2)
 
 
 # End of Mihai Preda's script
@@ -2834,11 +2860,11 @@ def upload_proofs(adir, cpu_num):
         else:
             send_msg("❌📜 Failed to upload the {0} proof file on {1}".format(filename, options.computer_id), """Failed to upload the {0!r} PRP proof file on your {1!r} computer (worker #{2}).
 
-Below is the last up to 10 lines of the {3!r} log file for the PrimeNet script:
+Below is the last up to 10 lines of the {3!r} log file for the PrimeNet program:
 
 {4}
 
-If you believe this is a bug with the script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
+If you believe this is a bug with the program/script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
 """.format(entry, options.computer_id, cpu_num + 1, logfile, tail(logfile, 10)), priority="2 (High)")
 
 
@@ -3021,7 +3047,7 @@ CPU cores: {0.num_cores:n}
 CPU threads per core: {0.cpu_hyperthreads:n}
 CPU frequency/speed: {0.cpu_speed:n} MHz
 Total RAM: {0.memory:n} MiB
-To change these values, please rerun the script with different options
+To change these values, please rerun the program with different options
 You can see the result in this page:
 https://www.mersenne.org/editcpu/?g={guid}""".format(options, guid=guid))
 
@@ -3138,7 +3164,7 @@ def update_assignment(cpu_num, assignment, task):
                     _, (midB1, midB2), _ = walk(
                         assignment.n, assignment.sieve_depth)
                     logging.debug(
-                        "Optimal bounds are B1={0:n}, B2={1:n}".format(midB1, midB2))
+                        "Optimal P-1 bounds are B1={0:n}, B2={1:n}".format(midB1, midB2))
                     p1, p2 = pm1(
                         assignment.n, assignment.sieve_depth, midB1, midB2)
                     logging.debug("Chance of finding a factor is an estimated {0:%} ({1:.3%} + {2:.3%}) or a difference of {3:%} ({4:.3%} + {5:.3%})".format(
@@ -3260,7 +3286,7 @@ def get_assignment(cpu_num, assignment_num=None, retry_count=0):
                     # TODO: Unreserve assignment
                     # assignment_unreserve()
         if "kf" in r:
-            assignment.known_factors = r["kf"]
+            assignment.known_factors = tuple(map(int, r["kf"].split(",")))
         if "pp" in r:
             config.set(SEC.PrimeNet, "ProofPower", r["pp"])
         else:
@@ -3467,11 +3493,11 @@ def get_assignments(adir, cpu_num, progress, tasks):
             num_to_get, num_fetched))
         send_msg("❌📥 Failed to get new assignments on {0}".format(options.computer_id), """Failed to get new assignments for the {0!r} file on your {1!r} computer (worker #{2}).
 
-Below is the last up to 10 lines of the {3!r} log file for the PrimeNet script:
+Below is the last up to 10 lines of the {3!r} log file for the PrimeNet program:
 
 {4}
 
-If you believe this is a bug with the script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
+If you believe this is a bug with the program/script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
 """.format(workfile, options.computer_id, cpu_num + 1, logfile, tail(logfile, 10)), priority="2 (High)")
     return assignments
 
@@ -3711,7 +3737,7 @@ Below is the last up to 100 lines of the {5!r} log/output file:
 
 {6}
 
-This script will alert you when it has resumed.
+This program will alert you when it has resumed.
 """.format(PROGRAM["name"], options.computer_id, cpu_num + 1, now - date, date, file, tail(file)), priority="1 (Highest)")
                     config.set(section, "stalled", str(mtime))
                 modified = False
@@ -3958,7 +3984,7 @@ def report_result(adir, sendline, ar, tasks, retry_count=0):
                 savefile = os.path.join(adir, "p{0}".format(exponent))
             adigits = digits(exponent)
             no_report = options.no_report_100m and adigits >= 100000000
-            send_msg(subject, """This is an automated message sent by the PrimeNet script (primenet.py).
+            send_msg(subject, """This is an automated message sent by the PrimeNet program (primenet.py).
 
 User {0!r} (user ID: {1}) has allegedly found a new {2} prime on their {3!r} computer with the {4!r} GIMPS program!
 
@@ -3976,11 +4002,11 @@ Below is the last up to 100 lines of the log/output file for {10} (the program m
 
 {11}
 
-Attached is a zipped copy of the full log/output file and last savefile/checkpoint file for the user’s GIMPS program and the log file for the PrimeNet script.
+Attached is a zipped copy of the full log/output file and last savefile/checkpoint file for the user’s GIMPS program and the log file for the PrimeNet program.
 
 Exponent links: https://www.mersenne.org/M{5}, https://www.mersenne.ca/M{5}
 
-PrimeNet script version: {12}
+PrimeNet program/script version: {12}
 Python version: {13}
 """.format(user_name, options.user_id, temp, computer, aprogram, exponent, adigits, " ‼️" if adigits >= 100000000 else "", buf, message, PROGRAM["name"], tail(file), VERSION, platform.python_version()), [file, savefile, logfile], cc=None if no_report else CCEMAILS, priority="1 (Highest)", azipfile="attachments.zip")
         if no_report:
@@ -4017,7 +4043,7 @@ Python version: {13}
             return True
         elif rc == PRIMENET.ERROR_INVALID_PARAMETER:
             logging.error(
-                "INVALID PARAMETER: This may be a bug in the script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
+                "INVALID PARAMETER: This may be a bug in the program, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues")
             return False
 
     return report_result(adir, sendline, ar, tasks, retry_count + 1)
@@ -4131,11 +4157,11 @@ def submit_work(adir, cpu_num, tasks):
 
 > {3}
 
-Below is the last up to 10 lines of the {4!r} log file for the PrimeNet script:
+Below is the last up to 10 lines of the {4!r} log file for the PrimeNet program:
 
 {5}
 
-If you believe this is a bug with the script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
+If you believe this is a bug with the program/script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
 """.format(resultsfile, options.computer_id, cpu_num + 1, sendline, logfile, tail(logfile, 10)), priority="2 (High)")
     write_list_file(sentfile, sent, "a")
 
@@ -4253,11 +4279,11 @@ parser.add_option("--unreserve", dest="exponent", type="int",
 parser.add_option("--unreserve-all", action="store_true", dest="unreserve_all",
                   help="Unreserve all assignments and exit. Quit GIMPS immediately. Requires that the instance is registered with PrimeNet.")
 parser.add_option("--no-more-work", action="store_true", dest="QuitGIMPS",
-                  help="Prevent the script from getting new assignments and exit. Quit GIMPS after current work completes.")
+                  help="Prevent this program from getting new assignments and exit. Quit GIMPS after current work completes.")
 parser.add_option("--ping", action="store_true", dest="ping",
                   help="Ping the PrimeNet server, show version information and exit.")
 parser.add_option("--setup", action="store_true",
-                  help="Prompt for all the options that are needed to setup the script and exit.")
+                  help="Prompt for all the options that are needed to setup this program and exit.")
 
 # TODO: add detection for most parameter, including automatic change of the hardware
 memory = get_physical_memory() or 1024
@@ -4298,7 +4324,7 @@ parser.add_option_group(group)
 group = optparse.OptionGroup(
     parser,
     "Notification Options",
-    "Optionally configure the script to automatically send an e-mail/text message notification if there is an error, if the program has stalled, if the available disk space is low or if it found a new Mersenne prime. Send text messages by using your mobile providers e-mail to SMS or MMS gateway. Use the --test-email option to verify the configuration.")
+    "Optionally configure this program to automatically send an e-mail/text message notification if there is an error, if the GIMPS program has stalled, if the available disk space is low or if it found a new Mersenne prime. Send text messages by using your mobile providers e-mail to SMS or MMS gateway. Use the --test-email option to verify the configuration.")
 group.add_option("--to", dest="toemails", action="append", default=[],
                  help="To e-mail address. Use multiple times for multiple To/recipient e-mail addresses. Defaults to the --from value if not provided.")
 group.add_option("-f", "--from", dest="fromemail", help="From e-mail address")
@@ -4461,7 +4487,7 @@ if not options.dirs and options.cpu >= options.num_workers:
 
 if options.gpuowl and options.cudalucas:
     parser.error(
-        "This script can only be used with GpuOwl or CUDALucas")
+        "This program can only be used with GpuOwl or CUDALucas")
 
 if options.day_night_memory > options.memory:
     parser.error("Max memory ({0:n} MiB) must be less than or equal to the total physical memory ({1:n} MiB)".format(
@@ -4628,7 +4654,7 @@ while True:
     # Carry on with Loarer's style of primenet
     if options.password:
         logging.warning(
-            "The legacy manual testing feature is deprecated and will be removed in a future version of the script")
+            "The legacy manual testing feature is deprecated and will be removed in a future version of this program")
         login_data = {"user_login": options.user_id,
                       "user_password": options.password}
         try:

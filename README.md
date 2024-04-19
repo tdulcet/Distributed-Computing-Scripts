@@ -172,6 +172,8 @@ Options:
   --recover-all         Recover all assignments and exit. This will overwrite
                         any existing work files. Requires that the instance is
                         registered with PrimeNet.
+  --register-exponents  Prompt for all parameters needed to register one or
+                        more specific exponents and exit.
   --unreserve=EXPONENT  Unreserve the exponent and exit. Use this only if you
                         are sure you will not be finishing this exponent.
                         Requires that the instance is registered with
@@ -179,12 +181,12 @@ Options:
   --unreserve-all       Unreserve all assignments and exit. Quit GIMPS
                         immediately. Requires that the instance is registered
                         with PrimeNet.
-  --no-more-work        Prevent the script from getting new assignments and
+  --no-more-work        Prevent this program from getting new assignments and
                         exit. Quit GIMPS after current work completes.
   --ping                Ping the PrimeNet server, show version information and
                         exit.
   --setup               Prompt for all the options that are needed to setup
-                        the script and exit.
+                        this program and exit.
 
   Registering Options:
     Sent to PrimeNet/GIMPS when registering. It will automatically send
@@ -229,12 +231,12 @@ Options:
                         estimated completion dates.
 
   Notification Options:
-    Optionally configure the script to automatically send an e-mail/text
-    message notification if there is an error, if the program has stalled,
-    if the available disk space is low or if it found a new Mersenne
-    prime. Send text messages by using your mobile providers e-mail to SMS
-    or MMS gateway. Use the --test-email option to verify the
-    configuration.
+    Optionally configure this program to automatically send an e-mail/text
+    message notification if there is an error, if the GIMPS program has
+    stalled, if the available disk space is low or if it found a new
+    Mersenne prime. Send text messages by using your mobile providers
+    e-mail to SMS or MMS gateway. Use the --test-email option to verify
+    the configuration.
 
     --to=TOEMAILS       To e-mail address. Use multiple times for multiple
                         To/recipient e-mail addresses. Defaults to the --from
