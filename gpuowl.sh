@@ -10,6 +10,9 @@ DIR="gpuowl"
 DIR1="gpuowl-master"
 DIR2="gpuowl-7.2"
 DIR3="gpuowl-6"
+BRANCH1=gpuowl # master
+BRANCH2=d6ad1e0cf5a323fc4e0ee67e79884448a503a818
+BRANCH3=v6
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -104,23 +107,26 @@ if command -v git >/dev/null; then
 	git clone https://github.com/preda/gpuowl.git $DIR1
 	cp -r $DIR1/ $DIR2/
 	cp -r $DIR1/ $DIR3/
-	sed -i 's/--dirty //' $DIR1/Makefile
+	pushd $DIR1 >/dev/null
+	git checkout -f $BRANCH1
+	sed -i 's/--dirty //' Makefile
+	popd >/dev/null
 	echo
 	pushd $DIR2 >/dev/null
-	git checkout -f -b v7.2-112 d6ad1e0cf5a323fc4e0ee67e79884448a503a818
+	git checkout -f -b v7.2-112 $BRANCH2
 	sed -i 's/--dirty //' Makefile
 	popd >/dev/null
 	echo
 	pushd $DIR3 >/dev/null
-	git checkout -f v6
+	git checkout -f $BRANCH3
 	sed -i 's/--dirty //' Makefile
 	popd >/dev/null
 else
 	echo -e "Downloading GpuOwl v6.11\n"
-	wget https://github.com/preda/gpuowl/archive/v6.tar.gz
+	wget https://github.com/preda/gpuowl/archive/$BRANCH3.tar.gz
 	echo -e "\nDecompressing the files\n"
-	tar -xzvf v6.tar.gz
-	if output=$(curl -s 'https://api.github.com/repos/preda/gpuowl/compare/v6.11...v6'); then
+	tar -xzvf $BRANCH3.tar.gz
+	if output=$(curl -s "https://api.github.com/repos/preda/gpuowl/compare/v6.11...$BRANCH3"); then
 		if command -v jq >/dev/null; then
 			behind_by=$(echo "$output" | jq '.behind_by')
 			sha=$(echo "$output" | jq -r '.base_commit.sha')
@@ -131,22 +137,22 @@ else
 		sed -i 's/`git describe --long --dirty --always`/v6.11'"-${behind_by}-g${sha::7}"'/' $DIR3/Makefile
 	fi
 	echo -e "Downloading GpuOwl v7.2-112\n"
-	wget https://github.com/preda/gpuowl/archive/d6ad1e0cf5a323fc4e0ee67e79884448a503a818.tar.gz
+	wget https://github.com/preda/gpuowl/archive/$BRANCH2.tar.gz
 	echo -e "\nDecompressing the files\n"
-	tar -xzvf v6.tar.gz
-	mv -v gpuowl-d6ad1e0cf5a323fc4e0ee67e79884448a503a818/ $DIR2/
+	tar -xzvf $BRANCH2.tar.gz
+	mv -v gpuowl-$BRANCH2/ $DIR2/
 	sed -i 's/`git describe --long --dirty --always`/v7.2-112-gd6ad1e0/' $DIR2/Makefile
 	echo -e "\nDownloading the current version of GpuOwl\n"
-	wget https://github.com/preda/gpuowl/archive/master.tar.gz
+	wget https://github.com/preda/gpuowl/archive/$BRANCH1.tar.gz
 	echo -e "\nDecompressing the files\n"
-	tar -xzvf master.tar.gz
+	tar -xzvf $BRANCH1.tar.gz
 	if output=$(curl -s 'https://api.github.com/repos/preda/gpuowl/tags?per_page=1'); then
 		if command -v jq >/dev/null; then
 			name=$(echo "$output" | jq -r '.[0].name')
 		else
 			name=$(echo "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)[0]["name"])')
 		fi
-		if output=$(curl -s "https://api.github.com/repos/preda/gpuowl/compare/master...$name"); then
+		if output=$(curl -s "https://api.github.com/repos/preda/gpuowl/compare/$BRANCH1...$name"); then
 			if command -v jq >/dev/null; then
 				behind_by=$(echo "$output" | jq '.behind_by')
 				sha=$(echo "$output" | jq -r '.base_commit.sha')

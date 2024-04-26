@@ -7,10 +7,10 @@
 # ./mprime2.sh <N> ANONYMOUS
 
 DIR="mprime"
-FILE32=p95v3019b13.linux32.tar.gz
-SUM32=92571175729fde254965de45edd6588c9b3d3f5bd790b1c38c5becf2704aae06
-FILE64=p95v3019b13.linux64.tar.gz
-SUM64=2527f5961ce043b3f551c98dfe6a33dec0f921d38a8ca0367c6d86250714d7af
+FILE32=p95v3019b14.linux32.tar.gz
+SUM32=17af605e06b050f93722d11f41b8e55e23ed148bc343288cdd2caa20e022d6f6
+FILE64=p95v3019b14.linux64.tar.gz
+SUM64=ccd48d2ceebfe583003dbf8ff1dca8d744e98bf7ed4124e482bd6a3a06eaf507
 if [[ $# -lt 1 || $# -gt 5 ]]; then
 	echo "Usage: $0 <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1

@@ -171,12 +171,14 @@ jobs:
       matrix:
         os: [macos-13, macos-14]
       fail-fast: false
+    env:
+      PIP_BREAK_SYSTEM_PACKAGES: 1
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
-        python3 -m pip install --upgrade pip || true
-        python3 -m pip install requests || true
+        python3 -m pip install --upgrade pip
+        python3 -m pip install requests
     - name: Script
       run: |
         set -x

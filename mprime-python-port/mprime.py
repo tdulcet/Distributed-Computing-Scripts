@@ -16,8 +16,8 @@ import sys
 import tarfile
 
 DIR = "mprime"
-FILE = "p95v3019b13.linux64.tar.gz"
-SUM = "2527f5961ce043b3f551c98dfe6a33dec0f921d38a8ca0367c6d86250714d7af"
+FILE = "p95v3019b14.linux64.tar.gz"
+SUM = "ccd48d2ceebfe583003dbf8ff1dca8d744e98bf7ed4124e482bd6a3a06eaf507"
 
 
 def misc_check(condition, err):

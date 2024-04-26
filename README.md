@@ -311,10 +311,6 @@ Pull requests welcome! Ideas for contributions:
 PrimeNet program/script:
 * Support more GIMPS programs.
 * Support setting more of the program options.
-* Support setting per thread options.
-	* Get different work types on different CPU cores or GPUs.
-* Support using the save/checkpoint files to determine assignment progress.
-	* See my [gimps_status.py](https://gist.github.com/tdulcet/19b89559f6b4f2cc2434547cc7528379) script for example.
 * Improve the error handling of PrimeNet API calls.
 * Check for new results to submit and proof files to upload when the results file is updated.
 * Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
