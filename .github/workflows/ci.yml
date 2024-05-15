@@ -6,6 +6,9 @@ on:
   schedule:
     - cron:  '0 0 1 * *'
 
+env:
+  PIP_BREAK_SYSTEM_PACKAGES: 1
+
 jobs:
   CUDALucas:
     name: CUDALucas
@@ -13,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
       fail-fast: false
     steps:
     - uses: actions/checkout@v4
@@ -22,7 +25,7 @@ jobs:
         sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
         sed -i 's/ -flto//' cudalucas.sh
         sed -i '/^if ! COMPUTE=/,/^fi/ s/^/# /' cudalucas.sh
-        sed -i 's/\/$COMPUTE/\/-gencode arch=compute_35,code=sm_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_70,code=sm_70/' cudalucas.sh
+        sed -i 's/\/$COMPUTE/\/-gencode arch=compute_50,code=sm_50 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_70,code=sm_70/' cudalucas.sh
         sed -i '/^\.\/CUDALucas / s/^/# /' cudalucas.sh
         sed -i '/^timeout / s/^/# /' cudalucas.sh
         sed -i '/^nohup / s/^/# /' cudalucas.sh
@@ -40,16 +43,15 @@ jobs:
       run: shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh
       continue-on-error: true
     - name: Clang-Tidy
-      run: cd cudalucas && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-const-correctness,misc-redundant-expression,misc-unused-*,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-anyofallof' -header-filter='.*' *.c *.cu -- -Wall -O3 --cuda-gpu-arch=sm_35
+      run: cd cudalucas && clang-tidy --use-color -checks='bugprone-*,cert-*,clang-analyzer-*,concurrency-*,misc-*,-misc-no-recursion,performance-*,portability-*,readability-const-return-type,readability-container-*,readability-duplicate-include,readability-else-after-return,readability-make-member-function-cons,readability-non-const-parameter,readability-redundant-*,readability-simplify-*,readability-string-compare,readability-use-*' -header-filter='.*' *.c *.cu -- -Wall -O3 --cuda-gpu-arch=sm_50
 
   GpuOwl:
     name: GpuOwl
 
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.cxx == 'clang++' && matrix.os == 'ubuntu-22.04' }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
         cxx: [g++, clang++]
       fail-fast: false
     env:
@@ -63,6 +65,7 @@ jobs:
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
+        [[ $CXX =~ ^clang ]] && sed -i 's/-O3 -flto/-O3/' gpuowl.sh
         sed -i '/^nohup / s/^/# /' gpuowl.sh
         sed -i '/^python3 -OO / s/^/# /' gpuowl.sh
         $CXX --version
@@ -82,10 +85,9 @@ jobs:
     name: Mlucas
 
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.cc == 'clang' }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
         cc: [gcc, clang]
       fail-fast: false
     env:
@@ -125,7 +127,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install pylint
     - name: Script
-      run: pylint -f colorized --py-version 2.6 -d design,C0103,W0311,C0301,C0302,C0209 --load-plugins pylint.extensions.code_style,pylint.extensions.comparison_placement,pylint.extensions.for_any_all,pylint.extensions.consider_refactoring_into_while_condition,pylint.extensions.consider_ternary_expression,pylint.extensions.dict_init_mutate,pylint.extensions.docstyle,pylint.extensions.check_elif,pylint.extensions.set_membership,pylint.extensions.typing -e R6104,C1804,C1805 -r y *.py mprime-python-port/*.py
+      run: pylint -f github --py-version 2.6 -d design,C0103,W0311,C0301,C0302,C0209 --load-plugins pylint.extensions.code_style,pylint.extensions.comparison_placement,pylint.extensions.for_any_all,pylint.extensions.consider_refactoring_into_while_condition,pylint.extensions.consider_ternary_expression,pylint.extensions.dict_init_mutate,pylint.extensions.docstyle,pylint.extensions.check_elif,pylint.extensions.set_membership,pylint.extensions.typing -e R6104,C1804,C1805 -r y *.py mprime-python-port/*.py
       continue-on-error: true
 
   Ruff:
@@ -148,7 +150,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
       fail-fast: false
     steps:
     - uses: actions/checkout@v4
@@ -159,7 +161,7 @@ jobs:
     - name: Script
       run: |
         set -x
-        wget https://raw.github.com/tdulcet/Linux-System-Information/master/info.sh -qO - | bash -s --
+        wget -qO - https://raw.github.com/tdulcet/Linux-System-Information/master/info.sh | bash -s --
         python3 -X dev -c 'import platform; print(platform.freedesktop_os_release())' || true
         python3 -X dev primenet.py --help
 
@@ -169,10 +171,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13, macos-14]
+        os: [macos-13, macos-latest]
       fail-fast: false
-    env:
-      PIP_BREAK_SYSTEM_PACKAGES: 1
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies

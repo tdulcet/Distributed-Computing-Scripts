@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl2.sh -qO - | bash -s --
+# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl2.sh | bash -s --
 # ./gpuowl2.sh <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./gpuowl2.sh <N> "$USER" "$HOSTNAME" 150 10
 # ./gpuowl2.sh <N> ANONYMOUS
@@ -45,7 +45,7 @@ echo -e "Idle time to run:\t$TIME minutes\n"
 if [[ -e idletime.sh ]]; then
 	bash -- idletime.sh
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+	wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s
 fi
 GPU=$(lspci | grep -i 'vga\|3d\|2d')
 if ! echo "$GPU" | grep -iq 'amd\|nvidia\|intel'; then
@@ -170,6 +170,7 @@ else
 		fi
 	fi
 	echo -e "\nSetting up GpuOwl\n"
+	sed -i 's/ -flto//' $DIR1/Makefile
 	sed -i 's/power <= 10/power <= 12/' $DIR2/Proof.cpp
 	sed -i 's/power > 10/power > 12/' $DIR2/Args.cpp
 	pushd $DIR3 >/dev/null
@@ -177,6 +178,9 @@ else
 	sed -i 's/power >= 6 && power <= 10/power > 0 and power <= 12/' ProofSet.h
 	sed -i 's/proofPow >= 6 && proofPow <= 10/proofPow > 0 and proofPow <= 12/' Args.cpp
 	sed -i 's/< 6 || power > 10/< 1 || power > 12/' Args.cpp
+	sed -i '/^#include <cassert>/a #include <array>' Pm1Plan.h
+	sed -i '/^#pragma once/a #include <array>' Sha3Hash.h
+	sed -i '/^#include <vector>/a #include <array>' clwrap.cpp
 	popd >/dev/null
 	for dir in $DIR1 $DIR2 $DIR3; do
 		echo

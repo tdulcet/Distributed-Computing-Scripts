@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # Teal Dulcet
-# wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh -qO - | bash -s --
+# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh | bash -s --
 # ./mprime.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./mprime.sh "$USER" "$HOSTNAME" 150 10
 # ./mprime.sh ANONYMOUS
 
 DIR="mprime"
-FILE32=p95v3019b14.linux32.tar.gz
-SUM32=17af605e06b050f93722d11f41b8e55e23ed148bc343288cdd2caa20e022d6f6
-FILE64=p95v3019b14.linux64.tar.gz
-SUM64=ccd48d2ceebfe583003dbf8ff1dca8d744e98bf7ed4124e482bd6a3a06eaf507
+FILE32=p95v3019b15.linux32.tar.gz
+SUM32=3ec9e4aed4204f2f3ea99e082dcc2a022d82dfdef3fba1b9f71a112d652d2711
+FILE64=p95v3019b15.linux64.tar.gz
+SUM64=758e43f56683b5ec0401cd75f8e761da59341ccb7f343d5a9e3e12f44f9bda42
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -36,7 +36,7 @@ echo -e "Idle time to run:\t$TIME minutes\n"
 if [[ -e idletime.sh ]]; then
 	bash -- idletime.sh
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+	wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s
 fi
 if [[ -d $DIR ]]; then
 	echo "Error: Prime95 is already downloaded" >&2

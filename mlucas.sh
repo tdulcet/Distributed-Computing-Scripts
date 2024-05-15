@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Teal Dulcet
-# wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s --
+# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh | bash -s --
 # ./mlucas.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./mlucas.sh "$USER" "$HOSTNAME" 150 10
 # ./mlucas.sh ANONYMOUS
@@ -34,7 +34,7 @@ echo -e "Idle time to run:\t$TIME minutes\n"
 if [[ -e idletime.sh ]]; then
 	bash -- idletime.sh
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+	wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s
 fi
 if ! command -v make >/dev/null || ! command -v gcc >/dev/null; then
 	echo -e "Installing Make and the GNU C compiler"
@@ -171,9 +171,6 @@ else
 		exit 1
 	fi
 	cd obj
-	if [[ -n $CI ]]; then
-		cat build.log
-	fi
 	make clean
 	cd ..
 fi

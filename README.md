@@ -16,7 +16,7 @@ Copyright © 2018 Teal Dulcet and Daniel Connelly
 Downloads, sets up and runs [Prime95](https://www.mersenne.org/download/#download). Supports only x86 CPUs.
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
 To run Prime95 for Stress/Torture Testing, see the [Testing and Benchmarking](https://github.com/tdulcet/Testing-and-Benchmarking-Scripts) scripts.
@@ -26,16 +26,16 @@ To run Prime95 for Stress/Torture Testing, see the [Testing and Benchmarking](ht
 Downloads, builds, sets up and runs [CUDALucas](https://sourceforge.net/p/cudalucas/code/HEAD/tree/trunk/). Downloads, sets up and runs our [PrimeNet Python program](#primenet) for automated PrimeNet assignments.
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
 ### Mlucas
 
-Downloads, builds, sets up and runs [Mlucas](https://www.mersenneforum.org/mayer/README.html#download1). Downloads, sets up and runs our [PrimeNet Python program](#primenet) for automated PrimeNet assignments. Supports x86 Intel and AMD and ARM CPUs, but only recommended for ARM CPUs, which [Prime95/MPrime](#prime95mprime) does not support. Prime95/MPrime is faster than Mlucas on x86 CPUs. Run: `wget https://raw.github.com/tdulcet/Linux-System-Information/master/info.sh -qO - | bash -s` to output your system information, including CPU and architecture.
+Downloads, builds, sets up and runs [Mlucas](https://www.mersenneforum.org/mayer/README.html#download1). Downloads, sets up and runs our [PrimeNet Python program](#primenet) for automated PrimeNet assignments. Supports x86 Intel and AMD and ARM CPUs, but only recommended for ARM CPUs, which [Prime95/MPrime](#prime95mprime) does not support. Prime95/MPrime is faster than Mlucas on x86 CPUs. Run: `wget -qO - https://raw.github.com/tdulcet/Linux-System-Information/master/info.sh | bash -s` to output your system information, including CPU and architecture.
 This script follows the recommended instructions on the [Mlucas README](https://www.mersenneforum.org/mayer/README.html) for each architecture and CPU.
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
 ### GpuOwl
@@ -43,7 +43,7 @@ wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.
 Downloads, builds, sets up and runs the latest version of [GpuOwl](https://github.com/preda/gpuowl) for PRP tests, version 7.2-112 for PRP tests with combined P-1 and the [v6 branch](https://github.com/preda/gpuowl/tree/v6) for LL and standalone P-1 tests. Downloads, sets up and runs our [PrimeNet Python program](#primenet) for automated PrimeNet assignments. Creates wrapper script to run the correct version of GpuOwl based on the next assignment. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that [GpuOwl uses C++20](https://github.com/preda/gpuowl#build) and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl.sh -qO - | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
 ### PrimeNet
@@ -263,19 +263,19 @@ For installing on multiple computers to a shared or network directory. Developed
 #### Prime95/MPrime
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime2.sh -qO - | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime2.sh | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 ```
 
 #### CUDALucas
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas2.sh -qO - | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas2.sh | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 ```
 
 #### GpuOwl
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl2.sh -qO - | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl2.sh | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 ```
 
 ## BOINC
@@ -283,13 +283,13 @@ wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl2
 Downloads, installs and sets up [BOINC](https://boinc.berkeley.edu/download.php).
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/boinc.sh -qO - | bash -s -- <Project URL> <E-mail> <Password>
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/boinc.sh | bash -s -- <Project URL> <E-mail> <Password>
 ```
 
 OR
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/boinc.sh -qO - | bash -s -- <Project URL> <Account Key>
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/boinc.sh | bash -s -- <Project URL> <Account Key>
 ```
 
 This script can be used with any [project that uses BOINC](https://boinc.berkeley.edu/projects.php).
@@ -299,7 +299,7 @@ This script can be used with any [project that uses BOINC](https://boinc.berkele
 Downloads, installs and sets up [Folding@home](https://foldingathome.org/start-folding/).
 
 ```
-wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh -qO - | bash -s -- [Username] [Team number] [Passkey] [Power]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh | bash -s -- [Username] [Team number] [Passkey] [Power]
 ```
 
 These scripts should work on Ubuntu, Debian and any Linux distribution that can use the apt package manager.

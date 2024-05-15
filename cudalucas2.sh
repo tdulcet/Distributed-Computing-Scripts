@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Teal Dulcet
-# wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas2.sh -qO - | bash -s --
+# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas2.sh | bash -s --
 # ./cudalucas2.sh <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./cudalucas2.sh <N> "$USER" "$HOSTNAME" 100 10
 # ./cudalucas2.sh <N> ANONYMOUS
@@ -39,7 +39,7 @@ echo -e "Idle time to run:\t$TIME minutes\n"
 if [[ -e idletime.sh ]]; then
 	bash -- idletime.sh
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+	wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s
 fi
 GPU=$(lspci | grep -i 'vga\|3d\|2d')
 if ! echo "$GPU" | grep -iq 'nvidia'; then

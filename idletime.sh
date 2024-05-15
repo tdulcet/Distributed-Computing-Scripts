@@ -2,7 +2,7 @@
 
 # Teal Dulcet
 # Outputs system idle time
-# wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s --
+# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s --
 # ./idletime.sh
 
 if [[ $# -ne 0 ]]; then

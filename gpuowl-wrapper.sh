@@ -74,6 +74,7 @@ DEVICE=0
 # GpuOwl arguments for all versions
 ARGS=(
 	-device $DEVICE
+	# -block 1000
 	# -results "$aResultsFile"
 
 )

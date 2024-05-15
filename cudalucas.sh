@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Teal Dulcet
-# wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh -qO - | bash -s --
+# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas.sh | bash -s --
 # ./cudalucas.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./cudalucas.sh "$USER" "$HOSTNAME" 100 10
 # ./cudalucas.sh ANONYMOUS
@@ -33,7 +33,7 @@ echo -e "Idle time to run:\t$TIME minutes\n"
 if [[ -e idletime.sh ]]; then
 	bash -- idletime.sh
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+	wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s
 fi
 if [[ -d $DIR ]]; then
 	echo "Error: CUDALucas is already downloaded" >&2

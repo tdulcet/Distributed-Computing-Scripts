@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Teal Dulcet
-# wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh -qO - | bash -s --
+# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh | bash -s --
 # ./folding.sh [Username] [Team number] [Passkey] [Power]
 # ./folding.sh "$USER" 0 "" medium
 # ./folding.sh anonymous
@@ -25,7 +25,7 @@ if ! [[ $TEAM =~ $RE ]]; then
 	exit 1
 fi
 RE='^[[:xdigit:]]{32}$'
-if ! [[ -z "$PASSKEY" || $PASSKEY =~ $RE ]]; then
+if ! [[ -z $PASSKEY || $PASSKEY =~ $RE ]]; then
 	echo "Usage: [Passkey] must be blank or a 32 digit hexadecimal number" >&2
 	exit 1
 fi
@@ -41,9 +41,9 @@ echo -e "Power:\t\t$POWER\n"
 if [[ -e idletime.sh ]]; then
 	bash -- idletime.sh
 else
-	wget https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh -qO - | bash -s
+	wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s
 fi
-if [[ -d "$DIR" ]] && command -v FAHClient >/dev/null; then
+if [[ -d $DIR ]] && command -v FAHClient >/dev/null; then
 	echo "Error: Folding@home is already downloaded and installed" >&2
 	exit 1
 fi
@@ -62,7 +62,7 @@ echo -e "Please enter your password if prompted.\n"
 # Adapted from: https://www.linuxquestions.org/questions/blog/bittner-195120/howto-automate-interactive-debian-package-installations-debconf-preseeding-2879/
 # dpkg-deb -e fahclient_7.5.1_amd64.deb control_files/
 # grep -e '^Template:' -e '^Type:' -e '^Default:' control_files/templates | xargs | sed -e 's/\s*Template: /\nFAHClient\t/g' -e 's/\s*Type: */\t/g' -e 's/\s*Default: */\t/g' > FAHClient.conf
-sudo debconf-set-selections <<< "FAHClient	fahclient/user	string	$USERID
+sudo debconf-set-selections <<<"FAHClient	fahclient/user	string	$USERID
 FAHClient	fahclient/team	string	$TEAM
 FAHClient	fahclient/passkey	string	$PASSKEY
 FAHClient	fahclient/power	select	$POWER
