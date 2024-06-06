@@ -529,12 +529,15 @@ cat <<EOF >jobs.sh
 
 set -e
 
+# Mlucas maximum memory usage precentage per worker
+maxalloc=$maxalloc
+
 pgrep -x Mlucas >/dev/null || {
 	echo -e "\nStarting Mlucas\n"
 	set -x
 	$(for i in "${!RUNS[@]}"; do
 		((i)) && printf '\t'
-		echo "(cd 'run$i' && exec nohup nice ../Mlucas -core '${RUNS[i]}' -maxalloc $maxalloc >>'Mlucas.out' &) "
+		echo "(cd 'run$i' && exec nohup nice ../Mlucas -core ${RUNS[i]} -maxalloc \$maxalloc >>'Mlucas.out' &) "
 	done)
 }
 
