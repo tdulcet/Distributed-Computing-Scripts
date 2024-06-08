@@ -57,15 +57,15 @@ Usage: primenet.py [options]
 
 This program will automatically get assignments, report assignment results,
 upload proof files and optionally register assignments and report assignment
-progress to PrimeNet for the GpuOwl, CUDALucas and Mlucas GIMPS programs. It
-also saves its configuration to a “local.ini” file by default, so it is only
-necessary to give most of the arguments once. The first time it is run, if a
-password is NOT provided, it will register the current GpuOwl/CUDALucas/Mlucas
-instance with PrimeNet (see the Registering Options below). Then, it will
-report assignment results, get assignments and upload any proof files to
-PrimeNet on the --timeout interval, or only once if --timeout is 0. If
-registered, it will additionally report the progress on the --checkin
-interval.
+progress to PrimeNet for the GpuOwl/PRPLL, CUDALucas and Mlucas GIMPS
+programs. It also saves its configuration to a “local.ini” file by default, so
+it is only necessary to give most of the arguments once. The first time it is
+run, if a password is NOT provided, it will register the current
+GpuOwl/PRPLL/CUDALucas/Mlucas instance with PrimeNet (see the Registering
+Options below). Then, it will report assignment results, get assignments and
+upload any proof files to PrimeNet on the --timeout interval, or only once if
+--timeout is 0. If registered, it will additionally report the progress on the
+--checkin interval.
 
 Options:
   --version             show program's version number and exit
@@ -118,7 +118,9 @@ Options:
                         999,999,999)
   --max-exp=MAX_EXP     Maximum exponent to get from PrimeNet (2 -
                         999,999,999)
-  -g, --gpuowl          Get assignments for GpuOwl instead of Mlucas.
+  -g, --gpuowl, --prpll
+                        Get assignments for GpuOwl or PRPLL instead of
+                        Mlucas.
   --cudalucas=CUDALUCAS
                         Get assignments for CUDALucas instead of Mlucas.
                         Provide the CUDALucas output filename as the argument.
@@ -138,13 +140,20 @@ Options:
                         assignments is less than this number of days.
   --force-pminus1=TESTS_SAVED
                         Force P-1 factoring before LL/PRP tests and/or change
-                        the default PrimeNet PRP tests_saved value.
+                        the default PrimeNet PRP and P-1 tests_saved value.
   --pminus1-threshold=PM1_MULTIPLIER
                         Retry the P-1 factoring before LL/PRP tests only if
                         the existing P-1 bounds are less than the target
                         bounds (as listed on mersenne.ca) times this
                         threshold/multiplier. Requires the --force-pminus1
                         option.
+  --force-pminus1-bounds=PM1_BOUNDS
+                        Force using the 'MIN', 'MID' or 'MAX' optimal P-1
+                        bounds (as listed on mersenne.ca) for P-1 tests. For
+                        Mlucas, this will rewrite Pfactor= assignments to
+                        Pminus1=. For GpuOwl, this will use a nonstandard
+                        Pfactor= format to add the bounds. Can be used in
+                        combination with the --force-pminus1 option.
   --convert-ll-to-prp   Convert all LL assignments to PRP. This is for use
                         when registering assignments.
   --convert-prp-to-ll   Convert all PRP assignments to LL. This is
@@ -216,7 +225,7 @@ Options:
                         (GiB/worker), Default: 0.0 GiB/worker. Use 0 to not
                         send.
     --l1=CPU_L1_CACHE_SIZE
-                        L1 Cache size (KiB), Default: 8 KiB
+                        L1 Data Cache size (KiB), Default: 8 KiB
     --l2=CPU_L2_CACHE_SIZE
                         L2 Cache size (KiB), Default: 512 KiB
     --l3=CPU_L3_CACHE_SIZE
@@ -313,9 +322,6 @@ PrimeNet program/script:
 * Support setting more of the program options.
 * Improve the error handling of PrimeNet API calls.
 * Check for new results to submit and proof files to upload when the results file is updated.
-* Automatically detect more system information using code from [psutil](https://github.com/giampaolo/psutil), so users do not have to manually determine and specify it.
-	* Currently this requires using the Bash install scripts for Linux.
-* Get the system information on Windows and macOS using the [ctypes library](https://docs.python.org/3/library/ctypes.html) instead of the `wmic` and `sysctl` commands respectively.
 * Improve the performance.
 * Support reporting interim residues.
 * Calculate the rolling average.
