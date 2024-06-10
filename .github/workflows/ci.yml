@@ -127,7 +127,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install pylint
     - name: Script
-      run: pylint -f github --py-version 2.6 -d design,C0103,W0311,C0301,C0302,C0209 --load-plugins pylint.extensions.code_style,pylint.extensions.comparison_placement,pylint.extensions.for_any_all,pylint.extensions.consider_refactoring_into_while_condition,pylint.extensions.consider_ternary_expression,pylint.extensions.dict_init_mutate,pylint.extensions.docstyle,pylint.extensions.check_elif,pylint.extensions.set_membership,pylint.extensions.typing -e R6104,C1804,C1805 -r y *.py mprime-python-port/*.py
+      run: pylint -f github --py-version 2.6 -d design,C0103,W0311,C0301,C0302,C0209,R1702 --load-plugins pylint.extensions.code_style,pylint.extensions.comparison_placement,pylint.extensions.for_any_all,pylint.extensions.consider_refactoring_into_while_condition,pylint.extensions.consider_ternary_expression,pylint.extensions.dict_init_mutate,pylint.extensions.docstyle,pylint.extensions.check_elif,pylint.extensions.set_membership,pylint.extensions.typing -e R6104,C1804,C1805 -r y *.py mprime-python-port/*.py
       continue-on-error: true
 
   Ruff:
@@ -141,7 +141,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install ruff
     - name: Script
-      run: ruff check --output-format=github --target-version py37 --select F,E4,E7,E9,W,I,D,UP,YTT,S,BLE,B,A,COM819,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SLOT,SIM,TID,TCH,ARG,PGH,PL,TRY,PERF,FURB,LOG,RUF --preview --ignore W191,D211,D213,D401,UP004,UP009,UP010,UP024,UP030,UP032,UP036,PYI024,PLR09,PLR1702,PLR2004,S324,S404,S603,FURB101,FURB167,RUF001,RUF002,RUF003,RUF005,RUF023 .
+      run: ruff check --output-format=github --target-version py37 --select F,E4,E7,E9,W,I,D,UP,YTT,S,BLE,B,A,COM819,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SLOT,SIM,TID,TCH,ARG,PGH,PL,TRY,PERF,FURB,LOG,RUF --preview --ignore W191,D211,D213,D401,UP004,UP008,UP009,UP010,UP024,UP030,UP032,UP036,PYI024,PLR09,PLR1702,PLR2004,S324,S404,S603,FURB101,FURB167,RUF001,RUF002,RUF003,RUF005,RUF023 .
       continue-on-error: true
 
   Linux:
@@ -213,5 +213,11 @@ jobs:
         Get-CimInstance Win32_Processor | Select MaxClockSpeed
         wmic memphysical get MaxCapacity
         Get-CimInstance Win32_PhysicalMemoryArray | Select MaxCapacity
+        wmic ComputerSystem get TotalPhysicalMemory
+        Get-CimInstance Win32_ComputerSystem | Select TotalPhysicalMemory
+        wmic cpu get L2CacheSize,L3CacheSize
+        Get-CimInstance Win32_Processor | Select L2CacheSize,L3CacheSize
+        wmic path Win32_CacheMemory get CacheType,InstalledSize,Level
+        Get-CimInstance Win32_CacheMemory | Select CacheType,InstalledSize,Level
         python -X dev -c "import platform; print(platform.win32_ver())"
         python -X dev primenet.py --help

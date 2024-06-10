@@ -119,8 +119,7 @@ Options:
   --max-exp=MAX_EXP     Maximum exponent to get from PrimeNet (2 -
                         999,999,999)
   -g, --gpuowl, --prpll
-                        Get assignments for GpuOwl or PRPLL instead of
-                        Mlucas.
+                        Get assignments for GpuOwl or PRPLL instead of Mlucas.
   --cudalucas=CUDALUCAS
                         Get assignments for CUDALucas instead of Mlucas.
                         Provide the CUDALucas output filename as the argument.

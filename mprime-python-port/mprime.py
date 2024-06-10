@@ -25,6 +25,7 @@ def misc_check(condition, err):
         print(err, file=sys.stderr)
         sys.exit(1)
 
+
 # Source: https://stackoverflow.com/questions/22058048/hashing-a-file-in-python
 # There is no sha256sum in the hashlib library normally
 def sha256sum(filename):
@@ -53,7 +54,7 @@ print(f"Computer name:\t\t{COMPUTER}")
 print(f"Type of work:\t\t{TYPE}")
 print(f"Idle time to run:\t{TIME // 60} minutes\n")
 
-#---Dependencies/Downloads---#
+# ---Dependencies/Downloads---#
 print("Asserting Python version is >= Python3.6")
 assert sys.version_info >= (3, 6)
 
@@ -63,14 +64,14 @@ except ImportError:
     print("Installing requests dependency")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
     import requests
-#----------------------------#
-#---Command Line Checks------#
+# ----------------------------#
+# ---Command Line Checks------#
 misc_check(len(sys.argv) > 5, f"Usage: {sys.argv[0]} [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]")
 misc_check(not re.match(r"^([024568]|1(0[0124]|5[0123]|6[01])?)$", TYPE), "Usage: [Type of work] is not a valid number")
 misc_check(not re.match(r"^([0-9]*\.)?[0-9]+$", TIME), "Usage: [Idle time to run] must be a number")
-#----------------------------#
+# ----------------------------#
 
-#---Downloading/Directory Ops---#
+# ---Downloading/Directory Ops---#
 misc_check(os.path.exists(DIR), "Error: Prime95 is already downloaded")
 print("Making directory to house contents of Prime95")
 os.mkdir(DIR)
@@ -86,26 +87,29 @@ with requests.get(f"https://www.mersenne.org/download/software/v30/30.19/{FILE}"
         for chunk in r.iter_content(chunk_size=None):
             if chunk:
                 f.write(chunk)
-misc_check(sha256sum(FILE).lower() == SUM, f'Error: sha256sum does not match. Please run "rm -r {shlex.quote(DIR)}" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues')
+misc_check(
+    sha256sum(FILE).lower() == SUM,
+    f'Error: sha256sum does not match. Please run "rm -r {shlex.quote(DIR)}" make sure you are using the latest version of this script and try running it again\nIf you still get this error, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues',
+)
 
 print("\nDecompressing the files")
 with tarfile.open(FILE) as tar:
     tar.list()
     tar.extractall()
-#---------------------------------------#
+# ---------------------------------------#
 
-#---Configuration---#
+# ---Configuration---#
 
 print("Setting up Prime95.")
 subprocess.check_call([sys.executable, "../exp.py", USERID, COMPUTER, TYPE])
-#---------------------------------------#
+# ---------------------------------------#
 
-#---Starting Program---#
+# ---Starting Program---#
 print("Starting up Prime95.")
 subprocess.Popen(["./mprime"])  # daemon process
 
 with open("mprime.sh", "w", encoding="utf-8") as f:
-    f.write(fr"""#!/bin/bash
+    f.write(rf"""#!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
 # Start MPrime if the computer has not been used in the specified idle time and stop it when someone uses the computer
@@ -116,7 +120,9 @@ if who -s | awk '{{ print $2 }}' | (cd /dev && xargs -r stat -c '%U %X') | awk '
 st = os.stat("mprime.sh")
 os.chmod("mprime.sh", st.st_mode | stat.S_IEXEC)
 
-print("\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n")
+print(
+    "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
+)
 print(f'crontab -l | {{ cat; echo "* * * * * {shlex.quote(DIR)}/mprime.sh"; }} | crontab -')
 print('\nTo edit the crontab, run "crontab -e"')
-#----------------------#
+# ----------------------#
