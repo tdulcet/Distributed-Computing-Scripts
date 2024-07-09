@@ -39,7 +39,7 @@ else
 	wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s
 fi
 if [[ -d $DIR ]]; then
-	echo "Error: Prime95 is already downloaded" >&2
+	echo "Error: MPrime is already downloaded" >&2
 	exit 1
 fi
 if ! command -v expect >/dev/null; then
@@ -70,7 +70,7 @@ if ! mkdir "$DIR"; then
 fi
 cd "$DIR"
 DIR=$PWD
-echo -e "Downloading Prime95\n"
+echo -e "Downloading MPrime\n"
 wget https://www.mersenne.org/download/software/v30/30.19/$FILE
 if [[ "$(sha256sum $FILE | head -c 64)" != "$SUM" ]]; then
 	echo "Error: sha256sum does not match" >&2
@@ -80,9 +80,9 @@ if [[ "$(sha256sum $FILE | head -c 64)" != "$SUM" ]]; then
 fi
 echo -e "\nDecompressing the files\n"
 tar -xzvf $FILE
-echo -e "\nOptimizing Prime95 for your computer\nThis may take a while…\n"
+echo -e "\nOptimizing MPrime for your computer\nThis may take a while…\n"
 ./mprime -b
-echo -e "\nSetting up Prime95\n"
+echo -e "\nSetting up MPrime\n"
 if [[ -e ../mprime.exp ]]; then
 	cp ../mprime.exp .
 else
@@ -90,7 +90,7 @@ else
 fi
 sed -i '/^expect {/a \\t"stage 2 memory in GiB (*):" { sleep 1; send -- "'"$(echo "$TOTAL_PHYSICAL_MEM" | awk '{ printf "%g", ($1 * 0.8) / 1024 / 1024 }')"'\\r"; exp_continue }' mprime.exp
 expect mprime.exp -- "$USERID" "$COMPUTER" "$TYPE"
-echo -e "\nStarting Prime95\n"
+echo -e "\nStarting MPrime\n"
 nohup ./mprime -d >>"mprime.out" &
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./mprime -d >> 'mprime.out' &"; } | crontab -
 cat <<EOF >mprime.sh

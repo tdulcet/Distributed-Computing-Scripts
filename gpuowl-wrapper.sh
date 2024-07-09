@@ -283,7 +283,7 @@ while true; do
 				fi
 				args+=(-proof "$proof_power")
 			fi
-			echo -e "with GpuOwl $(<${!dir}/version.inc).\n"
+			echo -e "with GpuOwl $(<"$(if [[ -d ${!dir}/src ]]; then echo ${!dir}/src/version.inc; else echo ${!dir}/version.inc; fi)").\n"
 			gpuowl=(nice "./${!dir}/gpuowl" "${args[@]}")
 			if [[ -z $RESTART ]]; then
 				exec "${gpuowl[@]}"

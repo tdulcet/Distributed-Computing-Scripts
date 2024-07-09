@@ -68,7 +68,7 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 # Adapted from: https://github.com/tdulcet/Linux-System-Information/blob/master/info.sh
 . /etc/os-release
 
-echo -e "\nLinux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
+echo -e "\nLinux Distribution:\t\t${PRETTY_NAME:-$NAME-$VERSION}"
 
 KERNEL=$(</proc/sys/kernel/osrelease) # uname -r
 echo -e "Linux Kernel:\t\t\t$KERNEL"

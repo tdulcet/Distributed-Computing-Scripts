@@ -85,7 +85,7 @@ else
 	sed -i 's/^OptLevel = 1/OptLevel = 3/' Makefile
 	CUDA=$(command -v nvcc | sed 's/\/bin\/nvcc$//')
 	sed -i "s/^CUDA = \/usr\/local\/cuda/CUDA = ${CUDA//\//\\/}/" Makefile
-	sed -i 's/--compiler-options=-Wall/--compiler-options="-O$(OptLevel) -flto -Wall"/' Makefile
+	sed -i 's/--compiler-options=-Wall/-use_fast_math --compiler-options="-O$(OptLevel) -flto -Wall"/' Makefile
 	CC=$(command -v "${CC:-gcc}")
 	# sed -i "/^CUFLAGS / s/\$/ -ccbin ${CC//\//\\/}/" Makefile # -dlto
 	sed -i '/^CFLAGS / s/$/ -flto/' Makefile
@@ -95,10 +95,11 @@ else
 #include <stdio.h>
 int main()
 {
+	const int device = $DEVICE;
 	cudaDeviceProp prop;
-	cudaError_t status = cudaGetDeviceProperties(&prop, $DEVICE);
+	cudaError_t status = cudaGetDeviceProperties(&prop, device);
 	if (status != cudaSuccess) { 
-		fprintf(stderr, "cudaGetDeviceProperties() for device $DEVICE failed: %s\n", cudaGetErrorString(status)); 
+		fprintf(stderr, "cudaGetDeviceProperties() for device %d failed: %s\n", device, cudaGetErrorString(status)); 
 		return 1;
 	}
 	const int v = prop.major * 10 + prop.minor;

@@ -13,13 +13,13 @@ Copyright © 2018 Teal Dulcet and Daniel Connelly
 
 ### Prime95/MPrime
 
-Downloads, sets up and runs [Prime95](https://www.mersenne.org/download/#download). Supports only x86 CPUs.
+Downloads, sets up and runs [Prime95/MPrime](https://www.mersenne.org/download/#download). Supports only x86 CPUs.
 
 ```
 wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
-To run Prime95 for Stress/Torture Testing, see the [Testing and Benchmarking](https://github.com/tdulcet/Testing-and-Benchmarking-Scripts) scripts.
+To run MPrime for Stress/Torture Testing, see the [Testing and Benchmarking](https://github.com/tdulcet/Testing-and-Benchmarking-Scripts) scripts.
 
 ### CUDALucas
 
@@ -325,6 +325,7 @@ PrimeNet program/script:
 * Support reporting interim residues.
 * Calculate the rolling average.
 * Support downloading certification assignments.
+	Requires support from one of more of the GIMPS programs.
 * Localize the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 * Add an optional GUI using [Tk](https://en.wikipedia.org/wiki/Tk_(software)) and the [tkinter library](https://docs.python.org/3/library/tkinter.html)
@@ -343,7 +344,7 @@ General:
 
 The scripts are all MIT licensed, except the PrimeNet program which is GPLv2.
 
-Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimeNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimeNet API, for porting the Prime95 script to Python and for helping create and test the Google Colab Jupyter Notebooks!
+Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeNet Python script from Mlucas to eliminate the password requirement by getting assignments using the [PrimeNet API](http://v5.mersenne.org/v5design/v5webAPI_0.97.html) and to support reporting the assignment results and progress for CUDALucas using the PrimeNet API, for porting the MPrime script to Python and for helping create and test the Google Colab Jupyter Notebooks!
 
 Thanks to Ernst W. Mayer for helping test and for providing feedback on the Mlucas install script.
 
