@@ -65,7 +65,7 @@ jobs:
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
-        [[ $CXX =~ ^clang ]] && sed -i 's/-O3 -flto/-O3/' gpuowl.sh
+        [[ $CXX == clang* ]] && sed -i 's/-O3 -flto/-O3/' gpuowl.sh
         sed -i '/^nohup / s/^/# /' gpuowl.sh
         sed -i '/^python3 -OO / s/^/# /' gpuowl.sh
         $CXX --version
@@ -186,6 +186,7 @@ jobs:
         sysctl -n hw.physicalcpu_max hw.logicalcpu_max
         sysctl -n hw.cpufrequency hw.cpufrequency_max hw.tbfrequency kern.clockrate
         sysctl -n hw.memsize
+        sysctl -n hw.l1dcachesize hw.l2cachesize hw.l3cachesize
         python3 -X dev -c 'import platform; print(platform.mac_ver())'
         python3 -X dev primenet.py --help
 

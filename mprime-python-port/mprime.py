@@ -5,7 +5,6 @@
 # ./mprime.py "$USER" "$HOSTNAME" 150 10
 # ./mprime.py ANONYMOUS
 
-import hashlib  # sha256
 import os
 import platform
 import re  # regular expression matching
@@ -14,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tarfile
+from hashlib import sha256
 
 DIR = "mprime"
 FILE = "p95v3019b20.linux64.tar.gz"
@@ -35,9 +35,9 @@ def sha256sum(filename):
     Returns:
     The hash sum string in hexidecimal digits.
     """
-    h = hashlib.sha256()
+    h = sha256()
     with open(filename, "rb") as f:
-        for chunk in iter(lambda: f.read(128 * h.block_size), b""):
+        for chunk in iter(lambda: f.read(256 * h.block_size), b""):
             h.update(chunk)
     return h.hexdigest()
 
@@ -55,9 +55,6 @@ print(f"Type of work:\t\t{TYPE}")
 print(f"Idle time to run:\t{TIME // 60} minutes\n")
 
 # ---Dependencies/Downloads---#
-print("Asserting Python version is >= Python3.6")
-assert sys.version_info >= (3, 6)
-
 try:
     import requests
 except ImportError:
@@ -72,15 +69,15 @@ misc_check(not re.match(r"^([0-9]*\.)?[0-9]+$", TIME), "Usage: [Idle time to run
 # ----------------------------#
 
 # ---Downloading/Directory Ops---#
-misc_check(os.path.exists(DIR), "Error: Prime95 is already downloaded")
-print("Making directory to house contents of Prime95")
+misc_check(os.path.exists(DIR), "Error: MPrime is already downloaded")
+print("Making directory to house contents of MPrime")
 os.mkdir(DIR)
 misc_check(not os.path.exists(DIR), f"Error: Failed to create directory: {DIR}")
 
 os.chdir(DIR)
 DIR = os.getcwd()
 
-print("\nDownloading Prime95\n")
+print("\nDownloading MPrime\n")
 with requests.get(f"https://www.mersenne.org/download/software/v30/30.19/{FILE}", stream=True) as r:
     r.raise_for_status()
     with open(FILE, "wb") as f:
@@ -100,12 +97,12 @@ with tarfile.open(FILE) as tar:
 
 # ---Configuration---#
 
-print("Setting up Prime95.")
+print("Setting up MPrime.")
 subprocess.check_call([sys.executable, "../exp.py", USERID, COMPUTER, TYPE])
 # ---------------------------------------#
 
 # ---Starting Program---#
-print("Starting up Prime95.")
+print("Starting up MPrime.")
 subprocess.Popen(["./mprime"])  # daemon process
 
 with open("mprime.sh", "w", encoding="utf-8") as f:
@@ -115,7 +112,13 @@ with open("mprime.sh", "w", encoding="utf-8") as f:
 # Start MPrime if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # {shlex.quote(DIR)}/mprime.sh
 
-if who -s | awk '{{ print $2 }}' | (cd /dev && xargs -r stat -c '%U %X') | awk '{{if ('"${{EPOCHSECONDS:-$(date +%s)}}"'-$2<{TIME}) {{ print $1"\t"'"${{EPOCHSECONDS:-$(date +%s)}}"'-$2; ++count }}}} END{{if (count>0) {{ exit 1 }}}}' >/dev/null; then pgrep -x mprime >/dev/null || (cd {shlex.quote(DIR)} && exec nohup ./mprime -d >> 'mprime.out' &); else pgrep -x mprime >/dev/null && killall mprime; fi
+NOW=${{EPOCHSECONDS:-$(date +%s)}}
+
+if who -s | awk '{{ print $2 }}' | (cd /dev && xargs -r stat -c '%U %X') | awk '{{if ('"$NOW"'-$2<{TIME}) {{ print $1"\t"'"$NOW"'-$2; ++count }}}} END{{if (count>0) {{ exit 1 }}}}' >/dev/null; then
+	pgrep -x mprime >/dev/null || (cd {shlex.quote(DIR)} && exec nohup ./mprime -d >> 'mprime.out' &)
+else
+	pgrep -x mprime >/dev/null && killall mprime
+fi
 """)
 st = os.stat("mprime.sh")
 os.chmod("mprime.sh", st.st_mode | stat.S_IEXEC)

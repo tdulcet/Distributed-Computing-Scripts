@@ -85,7 +85,7 @@ else
 	sed -i 's/^OptLevel = 1/OptLevel = 3/' Makefile
 	CUDA=$(command -v nvcc | sed 's/\/bin\/nvcc$//')
 	sed -i "s/^CUDA = \/usr\/local\/cuda/CUDA = ${CUDA//\//\\/}/" Makefile
-	sed -i 's/--compiler-options=-Wall/--compiler-options="-O$(OptLevel) -flto -Wall"/' Makefile
+	sed -i 's/--compiler-options=-Wall/-use_fast_math --compiler-options="-O$(OptLevel) -flto -Wall"/' Makefile
 	CC=$(command -v "${CC:-gcc}")
 	# sed -i "/^CUFLAGS / s/\$/ -ccbin ${CC//\//\\/}/" Makefile # -dlto
 	sed -i '/^CFLAGS / s/$/ -flto/' Makefile
@@ -95,10 +95,11 @@ else
 #include <stdio.h>
 int main()
 {
+	const int device = $DEVICE;
 	cudaDeviceProp prop;
-	cudaError_t status = cudaGetDeviceProperties(&prop, $DEVICE);
+	cudaError_t status = cudaGetDeviceProperties(&prop, device);
 	if (status != cudaSuccess) { 
-		fprintf(stderr, "cudaGetDeviceProperties() for device $DEVICE failed: %s\n", cudaGetErrorString(status)); 
+		fprintf(stderr, "cudaGetDeviceProperties() for device %d failed: %s\n", device, cudaGetErrorString(status)); 
 		return 1;
 	}
 	const int v = prop.major * 10 + prop.minor;
@@ -192,10 +193,14 @@ cat <<EOF >CUDALucas.sh
 # Start CUDALucas and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/CUDALucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
+NOW=\${EPOCHSECONDS:-\$(date +%s)}
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
 	pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && exec nohup nice ./CUDALucas -i 'CUDALucas$N.ini' >>'cudalucas$N.out' &)
 	pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO primenet.py -l 'local$N.ini' >>'primenet$N.out' &)
-else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi
+else
+	pgrep -x CUDALucas >/dev/null && killall CUDALucas
+fi
 EOF
 chmod +x CUDALucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

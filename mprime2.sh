@@ -60,7 +60,7 @@ TOTAL_PHYSICAL_MEM=$(echo "$MEMINFO" | awk '/^MemTotal:/ { print $2 }')
 echo -e "Total memory (RAM):\t\t$(printf "%'d" $((TOTAL_PHYSICAL_MEM >> 10))) MiB ($(printf "%'d" $((((TOTAL_PHYSICAL_MEM << 10) / 1000) / 1000))) MB)\n"
 
 if [[ -d $DIR && -x "$DIR/mprime" ]]; then
-	echo -e "Prime95 is already downloaded\n"
+	echo -e "MPrime is already downloaded\n"
 	cd "$DIR"
 	DIR=$PWD
 else
@@ -77,7 +77,7 @@ else
 	fi
 	cd "$DIR"
 	DIR=$PWD
-	echo -e "Downloading Prime95\n"
+	echo -e "Downloading MPrime\n"
 	wget https://www.mersenne.org/download/software/v30/30.19/$FILE
 	if [[ "$(sha256sum $FILE | head -c 64)" != "$SUM" ]]; then
 		echo "Error: sha256sum does not match" >&2
@@ -88,9 +88,9 @@ else
 	echo -e "\nDecompressing the files\n"
 	tar -xzvf $FILE
 fi
-echo -e "\nOptimizing Prime95 for your computer\nThis may take a while…\n"
+echo -e "\nOptimizing MPrime for your computer\nThis may take a while…\n"
 ./mprime -A"$N" -b
-echo -e "\nSetting up Prime95\n"
+echo -e "\nSetting up MPrime\n"
 if [[ -e ../mprime2.exp ]]; then
 	cp ../mprime2.exp .
 else
@@ -98,7 +98,7 @@ else
 fi
 sed -i '/^expect {/a \\t"stage 2 memory in GiB (*):" { sleep 1; send -- "'"$(echo "$TOTAL_PHYSICAL_MEM" | awk '{ printf "%g", ($1 * 0.8) / 1024 / 1024 }')"'\\r"; exp_continue }' mprime2.exp
 expect mprime2.exp -- "$USERID" "$COMPUTER" "$TYPE" "$N"
-echo -e "\nStarting Prime95\n"
+echo -e "\nStarting MPrime\n"
 nohup ./mprime -A"$N" -d >>"mprime$N.out" &
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./mprime -A$N -d >> 'mprime$N.out' &"; } | crontab -
 cat <<EOF >mprime.sh
@@ -108,7 +108,13 @@ cat <<EOF >mprime.sh
 # Start MPrime if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/mprime.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -A$N -d >>'mprime$N.out' &) else pgrep -x mprime >/dev/null && killall mprime; fi
+NOW=\${EPOCHSECONDS:-\$(date +%s)}
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
+	pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -A$N -d >>'mprime$N.out' &)
+else
+	pgrep -x mprime >/dev/null && killall mprime
+fi
 EOF
 chmod +x mprime.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

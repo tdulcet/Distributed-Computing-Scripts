@@ -17,6 +17,7 @@ TYPE=${3:-150}
 TIME=${4:-10}
 # COMBO=0
 decimal_point=$(locale decimal_point)
+date_fmt=$(locale date_fmt)
 RE='^(4|1(0[0124]|5[01234]|6[01]))$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
@@ -68,7 +69,7 @@ TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 # Adapted from: https://github.com/tdulcet/Linux-System-Information/blob/master/info.sh
 . /etc/os-release
 
-echo -e "\nLinux Distribution:\t\t${PRETTY_NAME:-$ID-$VERSION_ID}"
+echo -e "\nLinux Distribution:\t\t${PRETTY_NAME:-$NAME-$VERSION}"
 
 KERNEL=$(</proc/sys/kernel/osrelease) # uname -r
 echo -e "Linux Kernel:\t\t\t$KERNEL"
@@ -284,7 +285,7 @@ for i in "${!ARGS[@]}"; do
 				# done
 			# done
 			for s in m; do # tt t s m l h
-				time ./Mlucas -s $s -core "${args[index]}" |& tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|assert\|info\|fft length\|fft radices'
+				time stdbuf -oL ./Mlucas -s $s -core "${args[index]}" |& tee -a "test.${CORES:+${CORES[i]}c.}${threads[j]}t.$j.log" | grep -i 'error\|warn\|assert\|info\|fft length\|fft radices'
 			done
 			if [[ ! -e mlucas.cfg ]]; then
 				>mlucas.cfg
@@ -356,20 +357,20 @@ for i in "${!ARGS[@]}"; do
 	mapfile -t aradices <<<"${RADICES[i]}"
 	iters=()
 	printf "\n#%'d\tWorkers/Runs: %'d\tThreads: %s\n" $((i + 1)) ${#args[*]} "${THREADS[i]// /, }"
-	echo "[$(date)]" >>bench.txt
+	printf "[%($date_fmt)T]\n" -1 >>bench.txt
 	if [[ -n $ffts ]]; then
 		for j in "${!ffts[@]}"; do
 			printf '\n\tTiming FFT length: %sK (%s)\n\n' "${ffts[j]}" "$(numfmt --from=iec --to=iec "${ffts[j]}K")"
 			radices=(${aradices[j]})
 			for k in "${!args[@]}"; do
-				./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]} == 1 || (threads[0] < threads[1] && k == 0) || (threads[0] > threads[1] && k < ${#args[*]} - 1) ? 0 : 1]}" -core "${args[k]}" >&"${files[k]}" &
+				stdbuf -oL ./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]} == 1 || (threads[0] < threads[1] && k == 0) || (threads[0] > threads[1] && k < ${#args[*]} - 1) ? 0 : 1]}" -core "${args[k]}" >&"${files[k]}" &
 			done
 			wait
 			grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
 			if grep -iq 'fatal\|halt' "${files[@]::${#args[*]}}"; then
 				echo
 				for k in "${!args[@]}"; do
-					./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]} == 1 || (threads[0] < threads[1] && k == 0) || (threads[0] > threads[1] && k < ${#args[*]} - 1) ? 0 : 1]}" -core "${args[k]}" -shift $RANDOM >&"${files[k]}" &
+					stdbuf -oL ./Mlucas -fft "${ffts[j]}" -iters 1000 -radset "${radices[${#threads[*]} == 1 || (threads[0] < threads[1] && k == 0) || (threads[0] > threads[1] && k < ${#args[*]} - 1) ? 0 : 1]}" -core "${args[k]}" -shift $RANDOM >&"${files[k]}" &
 				done
 				wait
 				grep -ih 'error\|warn\|assert\|clocks' "${files[@]::${#args[*]}}"
@@ -515,7 +516,7 @@ for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-core argument: %s)\n" $((i + 1)) "${RUNS[i]}"
 	pushd "run$i" >/dev/null
 	echo -e "\n\tStarting Mlucas\n"
-	nohup nice ../Mlucas -core "${RUNS[i]}" -maxalloc "$maxalloc" &
+	nohup nice ../Mlucas -core "${RUNS[i]}" -maxalloc "$maxalloc" >>'Mlucas.out' &
 	sleep 1
 	popd >/dev/null
 done
@@ -556,7 +557,13 @@ cat <<EOF >Mlucas.sh
 # Start Mlucas and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/Mlucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then cd ${DIR@Q} && ./jobs.sh; else pgrep -x Mlucas >/dev/null && killall -9 Mlucas; fi
+NOW=\${EPOCHSECONDS:-\$(date +%s)}
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
+	cd ${DIR@Q} && ./jobs.sh
+else
+	pgrep -x Mlucas >/dev/null && killall -9 Mlucas
+fi
 EOF
 chmod +x Mlucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

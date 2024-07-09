@@ -1,24 +1,21 @@
 # Google Colaboratory and GIMPS
 Google offers a service known as [Colaboratory](https://research.google.com/colaboratory/faq.html) (Colab), which allows anyone with an internet connection free access to high-performance TPU, GPU and CPU-powered [Jupyter Notebooks](https://en.wikipedia.org/wiki/Project_Jupyter#Jupyter_Notebook).
 This service can be used to run Distributed Computing projects such as the [Great Internet Mersenne Prime Search](https://www.mersenne.org/) (GIMPS) for free.
-GIMPS can be run on some Nvidia, AMD and Intel GPUs using the [GpuOwl](https://github.com/preda/gpuowl) program or a CPU using the [Prime95](https://www.mersenne.org/download/) program.
+GIMPS can be run on some Nvidia, AMD and Intel GPUs using the [GpuOwl](https://github.com/preda/gpuowl) program or a CPU using the [Prime95/MPrime](https://www.mersenne.org/download/) program.
 
-This repository contains two Jupyter Notebooks, a “CPU” only notebook (`Colab CPU MPrime.ipynb`) and a “GPU and CPU” notebook (`Colab GPU GpuOwl.ipynb`). The “CPU” only notebook runs Prime95, while the “GPU and CPU” notebook runs both GpuOwl and Prime95 since they can run simultaneously to “crunch” more prime numbers. Previous versions of the GPU notebook ran CUDALucas.
+This repository contains two Jupyter Notebooks, a “CPU” only notebook (`Colab CPU MPrime.ipynb`) and a “GPU and CPU” notebook (`Colab GPU GpuOwl.ipynb`). The “CPU” only notebook runs MPrime, while the “GPU and CPU” notebook runs both GpuOwl and MPrime since they can run simultaneously to “crunch” more prime numbers. Previous versions of the GPU notebook ran CUDALucas.
 Each notebook makes use of Google Drive storage, which is provided to all Google accounts. See here for a [“TPU” only notebook](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime/wiki/Usage-and-Arguments) which runs TensorPrime.
-
-> [!IMPORTANT]
-> The “GPU and CPU” notebook does not currently work, as [OpenCL is broken on Colab](https://github.com/googlecolab/colabtools/issues/3592) and GpuOwl uses OpenCL. Users can temporarily switch back to the older version of the notebook [`Colab GPU CUDALucas.ipynb`](Colab%20GPU%20CUDALucas.ipynb), which runs CUDALucas. CUDALucas is slower than GpuOwl, but it uses CUDA, which still works on Colab.
 
 ## How to Use
 **Please Note:** you must keep each notebook **OPEN** in your browser to prevent it from disconnecting due to being perceived as idle. [Pin the tab(s)](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open) or move them to a dedicated window for easy access to your notebook(s).
 
-1. **Choose a Persistent Storage Option** Recommend Method: Copy the source of our respective [“GPU and CPU” notebook](Colab%20GPU%20GpuOwl.ipynb) and/or [“CPU” notebook](Colab%20CPU%20MPrime.ipynb), pasting them into one or more [new notebooks](http://colab.research.google.com/#create=true) in Colab. Then, uniquely name and save the notebook(s) (<kbd>Ctrl</kbd> + <kbd>s</kbd>). Then, on the far left, click “📁”, the “Mount Drive” folder button and select “CONNECT TO GOOGLE DRIVE”. Your Drive storage should automatically remount each time you run the notebook(s). You may need to repeat this last part after a while. See the official [video](https://video.twimg.com/tweet_video/EQbtltjVAAA2qTs.mp4) for a walkthrough.
+1. **Choose a Persistent Storage Option** Recommend Method: Copy the source of our respective [“GPU and CPU” notebook](Colab%20GPU%20GpuOwl.ipynb) and/or [“CPU” notebook](Colab%20CPU%20MPrime.ipynb), pasting them into one or more [new notebooks](http://colab.research.google.com/#create=true) in Colab. Then, uniquely name and save the notebook(s) (<kbd>Ctrl</kbd> + <kbd>s</kbd>). Then, on the far left, click “📁”, the “Mount Drive” folder button and select “Connect to Google Drive”. Your Drive storage should automatically remount each time you run the notebook(s). You may need to repeat this last part after a while. See the official [video](https://video.twimg.com/tweet_video/EQbtltjVAAA2qTs.mp4) for a walkthrough.
 <details>
     <summary>Alternative Method</summary>
     Open “GPU and CPU” notebook: <a href="https://colab.research.google.com/github/tdulcet/Distributed-Computing-Scripts/blob/master/google-colab/Colab%20GPU%20GpuOwl.ipynb"> <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="GPU-CPU-Notebook"></a> and/or the “CPU” only notebook: <a href="https://colab.research.google.com/github/tdulcet/Distributed-Computing-Scripts/blob/master/google-colab/Colab%20CPU%20MPrime.ipynb"> <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="CPU-Notebook"></a> in Colab. Then, uniquely name and save a copy to your Drive (<kbd>Ctrl</kbd> + <kbd>s</kbd>) to avoid a warning each time you run the notebook. *WARNINGS*: This method will continually require an authorization step each time you run the notebook(s). After step 4 below, follow the link Google provides to authorize the login to your Drive and copy-and-paste the authorization string into the textbox Google provides within the notebook's output box.
 </details>
 
-2. **If Running the GPU** notebook, you must enable the GPU runtime. On the upper left, click “Runtime” → “Change runtime type”, under “Hardware accelerator” select “GPU” and click “SAVE”.
+2. **If Running the GPU** notebook, you must enable the GPU runtime. On the upper left, click “Runtime” → “Change runtime type”, under “Hardware accelerator” select one of the GPUs and then click “Save”.
 
 3. Leave the default options to run anonymously. Alternatively, fill in your GIMPS/PrimeNet account user ID and set any other desired options. Each instance of a notebook type needs to have a unique `computer_number` value. Note that the PRP worktypes can use several GiB of your Drive storage. Every lower value will halve Drive storage requirements for PRP tests, but double the certification cost. Set the highest `prp_proof_power` value that you have available Drive storage for (see below for the space needed for several proof powers and exponents).
 
@@ -34,7 +31,7 @@ A user may optionally perform other steps to gain more insight into GIMPS and/or
 
 1. Create a GIMPS/PrimeNet account [here](https://www.mersenne.org/update/) and [join](https://www.mersenne.org/jteam/) the “Portland State University” team!
 
-2. Set the `debug` option to view the last 100 lines of output and the status from the respective GIMPS program. Alternatively, you may access the `cpu1.out`…`cpuN.out`, `1/gpu.out`…`N/gpu.out`, and `1/primenet.out`…`N/primenet.out` files, where `N` is the `computer_number` value, in your Google Drive under the `GIMPS` and `mprime_gpu`/`mprime_cpu` or `gpuowl` folders to see the full Prime95 and/or GpuOwl output respectively.
+2. Set the `debug` option to view the last 100 lines of output and the status from the respective GIMPS program. Alternatively, you may access the `cpu1.out`…`cpuN.out`, `1/gpu.out`…`N/gpu.out`, and `1/primenet.out`…`N/primenet.out` files, where `N` is the `computer_number` value, in your Google Drive under the `GIMPS` and `mprime_gpu`/`mprime_cpu` or `gpuowl` folders to see the full MPrime and/or GpuOwl output respectively.
 
 ## Required Tools, Restrictions
 Anyone with an internet connection and a free Google/Gmail account with just [~50 MiB of free space](https://www.google.com/settings/storage) on Google Drive can use both our notebooks to “crunch” primes.
@@ -83,7 +80,7 @@ Proof Power | Proof Power Multiplier | Certification Cost | Exp 50M | Exp 100M |
 \- | 2 | 1⁄4096 | 143 | 286.1 | 429.1 | 572.2 | 715.2 | 858.3 | 950.4 | 2861
 12 | 1 | 1⁄4096 | 77.48 | 154.9 | 232.4 | 309.9 | 387.4 | 464.9 | 514.8 | 1549
 
-*Italic* - Prime95 default proof power and multiplier, uses a maximum of 6 GB (5.587 GiB) per exponent\
+*Italic* - Prime95/MPrime default proof power and multiplier, uses a maximum of 6 GiB per exponent\
 **Bold** - Optimal proof power, 9 for exponents above 26.6M, 10 above 106.5M and 11 above 414.2M\
 † GpuOwl default proof power, uses 8 or 9 for all exponents depending on version
 
