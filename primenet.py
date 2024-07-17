@@ -3058,7 +3058,7 @@ def parse_gpu_log_file(adapter, adir, p):
 
 
 def parse_mfaktx_output_file(adapter, adir, p):
-    pass  # TODO could reuse part of https://gist.github.com/tdulcet/19b89559f6b4f2cc2434547cc7528379
+    return 0,1.0,0,0,0,0,0  # TODO could reuse part of https://gist.github.com/tdulcet/19b89559f6b4f2cc2434547cc7528379
 
 
 def get_progress_assignment(adapter, adir, assignment):
@@ -4686,12 +4686,18 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
         args["sf"] = ar["bitlo"]
         args["ef"] = ar["bithi"]
         if result_type == PRIMENET.AR_TF_FACTOR:
+            factor = int(math.prod(map(int, ar["factors"])))
             buf += "{0} has factor(s): {1} (TF:{2}:{3})".format(
                 exponent_to_str(assignment),
                 ar["factors"],
                 ar["bitlo"],
                 ar["bithi"],
             )
+            args["f"] = factor
+            num = int(assignment.k) * assignment.b**assignment.n + assignment.c
+            for factor in ar["factors"]:
+                if num % int(factor):
+                    adapter.warning("Bad factor for {0} found: {1}".format(exponent_to_str(assignment), factor))
         else:
             buf += "{0} has no factors from 2^{1}-2^{2} (TF:{1}:{2})".format(
                 exponent_to_str(assignment),
@@ -4972,10 +4978,10 @@ def convert_mfactx_results_to_json(adapter, resultsfile):
             num_factors, exponent, tf_from, tf_to, name, version, subversion = match.groups()
             key = (exponent, tf_from, tf_to)
             line_json = exponent_result_jsons.get(key, dict(result_json_template))
-            line_json.update({"exponent": exponent,
+            line_json.update({"exponent": int(exponent),
                               "status": "F" if num_factors else "NF",
-                              "bitlo": tf_from,
-                              "bithi": tf_to,
+                              "bitlo": int(tf_from),
+                              "bithi": int(tf_to),
                               "rangecomplete": True,
                               "program": {"name": name,
                                           "version": version,
@@ -4988,10 +4994,10 @@ def convert_mfactx_results_to_json(adapter, resultsfile):
                 exponent, factor, tf_from, tf_to, name, version, subversion = match.groups()
                 key = (exponent, tf_from, tf_to)
                 line_json = exponent_result_jsons.get(key, dict(result_json_template))
-                line_json.update({"exponent": exponent,
+                line_json.update({"exponent": int(exponent),
                                   "status": "F",
-                                  "bitlo": tf_from,
-                                  "bithi": tf_to,
+                                  "bitlo": int(tf_from),
+                                  "bithi": int(tf_to),
                                   "program": {"name": name,
                                               "version": version,
                                               "subversion": subversion}
