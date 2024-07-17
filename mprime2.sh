@@ -108,7 +108,13 @@ cat <<EOF >mprime.sh
 # Start MPrime if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/mprime.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -A$N -d >>'mprime$N.out' &) else pgrep -x mprime >/dev/null && killall mprime; fi
+NOW=\${EPOCHSECONDS:-\$(date +%s)}
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
+	pgrep -x mprime >/dev/null || (cd ${DIR@Q} && exec nohup ./mprime -A$N -d >>'mprime$N.out' &)
+else
+	pgrep -x mprime >/dev/null && killall mprime
+fi
 EOF
 chmod +x mprime.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

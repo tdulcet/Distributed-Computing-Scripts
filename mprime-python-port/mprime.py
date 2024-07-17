@@ -112,7 +112,13 @@ with open("mprime.sh", "w", encoding="utf-8") as f:
 # Start MPrime if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # {shlex.quote(DIR)}/mprime.sh
 
-if who -s | awk '{{ print $2 }}' | (cd /dev && xargs -r stat -c '%U %X') | awk '{{if ('"${{EPOCHSECONDS:-$(date +%s)}}"'-$2<{TIME}) {{ print $1"\t"'"${{EPOCHSECONDS:-$(date +%s)}}"'-$2; ++count }}}} END{{if (count>0) {{ exit 1 }}}}' >/dev/null; then pgrep -x mprime >/dev/null || (cd {shlex.quote(DIR)} && exec nohup ./mprime -d >> 'mprime.out' &); else pgrep -x mprime >/dev/null && killall mprime; fi
+NOW=${{EPOCHSECONDS:-$(date +%s)}}
+
+if who -s | awk '{{ print $2 }}' | (cd /dev && xargs -r stat -c '%U %X') | awk '{{if ('"$NOW"'-$2<{TIME}) {{ print $1"\t"'"$NOW"'-$2; ++count }}}} END{{if (count>0) {{ exit 1 }}}}' >/dev/null; then
+	pgrep -x mprime >/dev/null || (cd {shlex.quote(DIR)} && exec nohup ./mprime -d >> 'mprime.out' &)
+else
+	pgrep -x mprime >/dev/null && killall mprime
+fi
 """)
 st = os.stat("mprime.sh")
 os.chmod("mprime.sh", st.st_mode | stat.S_IEXEC)

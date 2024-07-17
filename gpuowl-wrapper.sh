@@ -8,15 +8,17 @@ set -e
 
 # GpuOwl directories
 
-# 1. Current version of GpuOwl (master branch)
-#    Supports PRP tests and standalone P-1 stage 1 (requires MPrime for stage 2)
-DIR1="gpuowl-master"
-# 2. GpuOwl v7.2-112
-#    Supports PRP tests combined with P-1
-DIR2="gpuowl-7.2"
-# 3. GpuOwl v6.11 (v6 branch)
-#    Supports LL and standalone P-1 tests
-DIR3="gpuowl-6"
+DIR=(
+	# 1. Current version of GpuOwl (master branch)
+	#    Supports PRP tests and standalone P-1 stage 1 (requires MPrime for stage 2)
+	[1]="gpuowl-master"
+	# 2. GpuOwl v7.2-112
+	#    Supports PRP tests combined with P-1
+	[2]="gpuowl-7.2"
+	# 3. GpuOwl v6.11 (v6 branch)
+	#    Supports LL and standalone P-1 tests
+	[3]="gpuowl-6"
+)
 
 # GpuOwl arguments
 
@@ -271,9 +273,9 @@ while true; do
 					exit 1
 					;;
 			esac
-			dir="DIR$temp"
-			args="ARGS${temp}[@]"
-			args=("${!args}" "${ARGS[@]}")
+			dir=${DIR[temp]}
+			declare -n aargs="ARGS${temp}"
+			args=("${aargs[@]}" "${ARGS[@]}")
 			if [[ -n $PROOF_POWER ]]; then
 				proof_power=$PROOF_POWER
 				# Best proof powers adapted from Prime95/MPrime
@@ -283,8 +285,8 @@ while true; do
 				fi
 				args+=(-proof "$proof_power")
 			fi
-			echo -e "with GpuOwl $(<"$(if [[ -d ${!dir}/src ]]; then echo ${!dir}/src/version.inc; else echo ${!dir}/version.inc; fi)").\n"
-			gpuowl=(nice "./${!dir}/gpuowl" "${args[@]}")
+			echo -e "with GpuOwl $(<"$(if [[ -d ${dir}/src ]]; then echo ${dir}/src/version.inc; else echo ${dir}/version.inc; fi)").\n"
+			gpuowl=(nice "./${dir}/gpuowl" "${args[@]}")
 			if [[ -z $RESTART ]]; then
 				exec "${gpuowl[@]}"
 			else

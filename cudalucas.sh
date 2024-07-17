@@ -180,10 +180,14 @@ cat <<EOF >CUDALucas.sh
 # Start CUDALucas and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/CUDALucas.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
+NOW=\${EPOCHSECONDS:-\$(date +%s)}
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
 	pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >>'cudalucas.out' &)
 	pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && nohup python3 -OO primenet.py >>'primenet.out' &)
-else pgrep -x CUDALucas >/dev/null && killall CUDALucas; fi
+else
+	pgrep -x CUDALucas >/dev/null && killall CUDALucas
+fi
 EOF
 chmod +x CUDALucas.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

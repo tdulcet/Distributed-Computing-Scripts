@@ -276,10 +276,14 @@ cat <<EOF >gpuowl.sh
 # Start GpuOwl and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/gpuowl.sh
 
-if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2<$TIME) { print \$1"\t"'"\${EPOCHSECONDS:-\$(date +%s)}"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
+NOW=\${EPOCHSECONDS:-\$(date +%s)}
+
+if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
 	pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl >>'gpuowl.out' &)
 	pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO primenet.py >>'primenet.out' &)
-else pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl; fi
+else
+	pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl
+fi
 EOF
 chmod +x gpuowl.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"

@@ -323,9 +323,8 @@ PrimeNet program/script:
 * Check for new results to submit and proof files to upload when the results file is updated.
 * Improve the performance.
 * Support reporting interim residues.
-* Calculate the rolling average.
 * Support downloading certification assignments.
-	Requires support from one of more of the GIMPS programs.
+	* Waiting on support from one of more of the GIMPS programs.
 * Localize the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 * Add an optional GUI using [Tk](https://en.wikipedia.org/wiki/Tk_(software)) and the [tkinter library](https://docs.python.org/3/library/tkinter.html)
