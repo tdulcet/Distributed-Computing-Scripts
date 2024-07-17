@@ -114,6 +114,12 @@ Options:
                         to use the same worktype for all workers or once for
                         each worker to use different worktypes. Not all
                         worktypes are supported by all the GIMPS programs.
+  --cert-work           Get PRP proof certification work, Default: none. Not
+                        yet supported by any of the GIMPS programs.
+  --cert-limit=CERT_CPU_LIMIT
+                        PRP proof certification work limit in percentage of
+                        CPU or GPU time, Default: 10%. Requires the --cert-
+                        work option.
   --min-exp=MIN_EXP     Minimum exponent to get from PrimeNet (2 -
                         999,999,999)
   --max-exp=MAX_EXP     Maximum exponent to get from PrimeNet (2 -

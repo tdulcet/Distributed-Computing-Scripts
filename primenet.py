@@ -63,6 +63,7 @@ import shutil
 import smtplib
 import struct
 import sys
+import tempfile
 import textwrap
 import threading
 import time
@@ -170,10 +171,11 @@ except ImportError:
 
         def disk_usage(path):
             _, total, free = ctypes.c_ulonglong(), ctypes.c_ulonglong(), ctypes.c_ulonglong()
-            if sys.version_info >= (3,) or isinstance(path, unicode):
-                fun = ctypes.windll.kernel32.GetDiskFreeSpaceExW
-            else:
-                fun = ctypes.windll.kernel32.GetDiskFreeSpaceExA
+            fun = (
+                ctypes.windll.kernel32.GetDiskFreeSpaceExW
+                if sys.version_info >= (3,) or isinstance(path, unicode)
+                else ctypes.windll.kernel32.GetDiskFreeSpaceExA
+            )
             if not fun(path, ctypes.byref(_), ctypes.byref(total), ctypes.byref(free)):
                 raise ctypes.WinError()
             used = total.value - free.value
@@ -191,6 +193,74 @@ if sys.platform == "win32":  # Windows
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
+    class GROUP_AFFINITY(ctypes.Structure):
+        _fields_ = (("Mask", wintypes.WPARAM), ("Group", wintypes.WORD), ("Reserved", wintypes.WORD * 3))
+
+    class PROCESSOR_RELATIONSHIP(ctypes.Structure):
+        _fields_ = (
+            ("Flags", wintypes.BYTE),
+            ("EfficiencyClass", wintypes.BYTE),
+            ("Reserved", wintypes.BYTE * 20),
+            ("GroupCount", wintypes.WORD),
+            ("GroupMask", GROUP_AFFINITY * 1),
+        )
+
+    class union(ctypes.Union):
+        _fields_ = (("GroupMask", GROUP_AFFINITY), ("GroupMasks", GROUP_AFFINITY * 1))
+
+    class NUMA_NODE_RELATIONSHIP(ctypes.Structure):
+        _fields_ = (
+            ("NodeNumber", wintypes.DWORD),
+            ("Reserved", wintypes.BYTE * 18),
+            ("GroupCount", wintypes.WORD),
+            ("union", union),
+        )
+
+        _anonymous_ = ("union",)
+
+    class CACHE_RELATIONSHIP(ctypes.Structure):
+        _fields_ = (
+            ("Level", wintypes.BYTE),
+            ("Associativity", wintypes.BYTE),
+            ("LineSize", wintypes.WORD),
+            ("CacheSize", wintypes.DWORD),
+            ("Type", wintypes.DWORD),
+            ("Reserved", wintypes.BYTE * 18),
+            ("GroupCount", wintypes.WORD),
+            ("union", union),
+        )
+
+        _anonymous_ = ("union",)
+
+    class PROCESSOR_GROUP_INFO(ctypes.Structure):
+        _fields_ = (
+            ("MaximumProcessorCount", wintypes.BYTE),
+            ("ActiveProcessorCount", wintypes.BYTE),
+            ("Reserved", wintypes.BYTE * 38),
+            ("ActiveProcessorMask", wintypes.WPARAM),
+        )
+
+    class GROUP_RELATIONSHIP(ctypes.Structure):
+        _fields_ = (
+            ("MaximumGroupCount", wintypes.WORD),
+            ("ActiveGroupCount", wintypes.WORD),
+            ("Reserved", wintypes.BYTE * 20),
+            ("GroupInfo", PROCESSOR_GROUP_INFO * 1),
+        )
+
+    class union(ctypes.Union):
+        _fields_ = (
+            ("Processor", PROCESSOR_RELATIONSHIP),
+            ("NumaNode", NUMA_NODE_RELATIONSHIP),
+            ("Cache", CACHE_RELATIONSHIP),
+            ("Group", GROUP_RELATIONSHIP),
+        )
+
+    class SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(ctypes.Structure):
+        _fields_ = (("Relationship", wintypes.DWORD), ("Size", wintypes.DWORD), ("union", union))
+
+        _anonymous_ = ("union",)
+
     class ProcessorCore(ctypes.Structure):
         _fields_ = (("Flags", wintypes.BYTE),)
 
@@ -206,7 +276,7 @@ if sys.platform == "win32":  # Windows
             ("Type", wintypes.DWORD),
         )
 
-    class Union(ctypes.Union):
+    class union(ctypes.Union):
         _fields_ = (
             ("ProcessorCore", ProcessorCore),
             ("NumaNode", NumaNode),
@@ -215,9 +285,9 @@ if sys.platform == "win32":  # Windows
         )
 
     class SYSTEM_LOGICAL_PROCESSOR_INFORMATION(ctypes.Structure):
-        _fields_ = (("ProcessorMask", ctypes.POINTER(ctypes.c_ulong)), ("Relationship", wintypes.DWORD), ("Union", Union))
+        _fields_ = (("ProcessorMask", wintypes.WPARAM), ("Relationship", wintypes.DWORD), ("union", union))
 
-        _anonymous_ = ("Union",)
+        _anonymous_ = ("union",)
 
     class MEMORYSTATUSEX(ctypes.Structure):
         _fields_ = (
@@ -252,6 +322,53 @@ elif sys.platform == "darwin":  # macOS
         value = ctype()
         libc.sysctlbyname(name, ctypes.byref(value), ctypes.byref(size), None, 0)
         return value.value
+elif sys.platform.startswith("linux"):
+    try:
+        # Python 3.10+
+        from platform import freedesktop_os_release
+    except ImportError:
+        def freedesktop_os_release():
+            line_re = re.compile(r"""^([a-zA-Z_][a-zA-Z0-9_]*)=('([^']*)'|"((?:[^$"`]|\\[$"`\\])*)"|.*)$""")
+            quote_unescape_re = re.compile(r'\\([$"`\\])')
+            unescape_re = re.compile(r"\\(.)")
+            info = {}
+            for candidate in ("/etc/os-release", "/usr/lib/os-release"):
+                if os.path.isfile(candidate):
+                    with open(candidate) as file:
+                        for line in file:
+                            if not line or line.startswith("#"):
+                                continue
+                            match = line_re.match(line)
+                            if match:
+                                info[match.group(1)] = (
+                                    match.group(3)
+                                    if match.group(3) is not None
+                                    else quote_unescape_re.sub(r"\1", match.group(4))
+                                    if match.group(4) is not None
+                                    else unescape_re.sub(r"\1", match.group(2))
+                                )
+                    break
+            return info
+
+    libc = ctypes.CDLL(find_library("c"))
+
+    class sysinfo(ctypes.Structure):
+        _fields_ = (
+            ("uptime", ctypes.c_long),
+            ("loads", ctypes.c_ulong * 3),
+            ("totalram", ctypes.c_ulong),
+            ("freeram", ctypes.c_ulong),
+            ("sharedram", ctypes.c_ulong),
+            ("bufferram", ctypes.c_ulong),
+            ("totalswap", ctypes.c_ulong),
+            ("freeswap", ctypes.c_ulong),
+            ("procs", ctypes.c_ushort),
+            ("pad", ctypes.c_ushort),
+            ("totalhigh", ctypes.c_ulong),
+            ("freehigh", ctypes.c_ulong),
+            ("mem_unit", ctypes.c_uint),
+            ("_f", ctypes.c_char * (20 - 2 * ctypes.sizeof(ctypes.c_int) - ctypes.sizeof(ctypes.c_long))),
+        )
 
 
 try:
@@ -279,14 +396,15 @@ else:
     readline.parse_and_bind("tab: complete")
 
 try:
+    # Python 3.5+
+    from json.decoder import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError
+
+try:
     # import certifi
     import requests
-    from requests.exceptions import (
-        ConnectionError,
-        HTTPError,
-        RequestException,
-        Timeout,
-    )
+    from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
 except ImportError:
     import subprocess
 
@@ -524,10 +642,10 @@ class Assignment(object):
 suffix_power_char = ("", "K", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q")
 suffix_power = {"k": 1, "K": 1, "M": 2, "G": 3, "T": 4, "P": 5, "E": 6, "Z": 7, "Y": 8, "R": 9, "Q": 10}
 
-# yes_regex = re.compile(locale.nl_langinfo(locale.YESEXPR))
-yes_regex = re.compile(r"^[yY]")
-# no_regex = re.compile(locale.nl_langinfo(locale.NOEXPR))
-no_regex = re.compile(r"^[nN]")
+# YES_RE = re.compile(locale.nl_langinfo(locale.YESEXPR))
+YES_RE = re.compile(r"^[yY]")
+# NO_RE = re.compile(locale.nl_langinfo(locale.NOEXPR))
+NO_RE = re.compile(r"^[nN]")
 
 # Python 2
 if hasattr(__builtins__, "raw_input"):
@@ -540,8 +658,8 @@ def ask_yn(astr, val):
         temp = input("{0} ({1}): ".format(astr, "Y" if val else "N")).strip()
         if not temp:
             return val
-        yes_res = yes_regex.match(temp)
-        no_res = no_regex.match(temp)
+        yes_res = YES_RE.match(temp)
+        no_res = NO_RE.match(temp)
         if yes_res or no_res:
             return bool(yes_res)
 
@@ -683,11 +801,12 @@ def setup():
     )
     day_night_memory = ask_float("Configured day/night P-1 stage 2 memory in GiB", options.day_night_memory / 1024, 0)
     archive_dir = ask_str("Optional directory to archive PRP proof files after upload", options.archive_dir or "")
+    cert_cpu = ask_int("PRP proof certification work limit in percentage of CPU or GPU time", options.cert_cpu_limit, 1, 100)
 
     if not ask_ok_cancel():
         return
-    threshold = 1.5 * 1000**3
-    athreshold = threshold / 1024**3
+    athreshold = 1.5
+    threshold = athreshold * 1024**3
     if (not options.worker_disk_space or options.worker_disk_space >= athreshold) and disk and disk < athreshold:
         print(
             wrapper.fill(
@@ -703,6 +822,8 @@ def setup():
     config.set(SEC.PrimeNet, "ProofArchiveDir", archive_dir)
     options.day_night_memory = int(day_night_memory * 1024)
     config.set(SEC.PrimeNet, "Memory", str(options.day_night_memory))
+    # options.cert_cpu_limit = cert_cpu
+    config.set(SEC.PrimeNet, "CertDailyCPULimit", str(cert_cpu))
 
     num_thread = ask_int("Number of workers (CPU cores or GPUs)", options.num_workers, 1)
 
@@ -757,6 +878,8 @@ def setup():
             )
         )
 
+    cert_work = ask_yn("Get occasional PRP proof certification work", False if options.cert_work is None else options.cert_work)
+
     if not ask_ok_cancel():
         return
     if options.num_workers != num_thread:
@@ -764,6 +887,9 @@ def setup():
         config.set(SEC.PrimeNet, "NumWorkers", str(num_thread))
 
     options.work_preference = work_pref
+
+    # options.cert_work = cert_work
+    config.set(SEC.PrimeNet, "CertWork", str(cert_work))
 
     work = ask_float("Days of work to queue up", options.days_of_work, 1, 90)
     end_dates = ask_int(
@@ -864,6 +990,8 @@ attr_to_copy = {
         "archive_dir": "ProofArchiveDir",
         "user_id": "username",
         "password": "password",
+        "cert_work": "CertWork",
+        "cert_cpu_limit": "CertDailyCPULimit",
         "min_exp": "GetMinExponent",
         "max_exp": "GetMaxExponent",
         "gpuowl": "gpuowl",
@@ -1085,7 +1213,7 @@ if sys.version_info >= (3, 3):
                 adigits = len(num)
                 logging.info(
                     "The exponent {0} has {1:n} decimal digits: {2}".format(
-                        exponent, adigits, "{0}…{1}".format(num[:10], num[-10:]) if adigits > 30 else num
+                        exponent, adigits, "{0}…{1}".format(num[:20], num[-20:]) if adigits > 50 else num
                     )
                 )
         else:
@@ -1269,28 +1397,28 @@ def output_assignment(assignment):
 
     if assignment.work_type in {PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK}:
         test = "Test" if assignment.work_type == PRIMENET.WORK_TYPE_FIRST_LL else "DoubleCheck"
-        temp += [assignment.n]
+        temp.append(assignment.n)
         if assignment.sieve_depth != 99.0 or assignment.pminus1ed != 1:
-            temp += ["{0:.0f}".format(assignment.sieve_depth), assignment.pminus1ed]
+            temp += ("{0:.0f}".format(assignment.sieve_depth), assignment.pminus1ed)
     elif assignment.work_type == PRIMENET.WORK_TYPE_PRP:
         test = "PRP" + ("DC" if assignment.prp_dblchk else "")
-        temp += ["{0:.0f}".format(assignment.k), assignment.b, assignment.n, assignment.c]
+        temp += ("{0:.0f}".format(assignment.k), assignment.b, assignment.n, assignment.c)
         if assignment.sieve_depth != 99.0 or assignment.tests_saved > 0.0 or assignment.prp_base or assignment.prp_residue_type:
-            temp += ["{0:g}".format(assignment.sieve_depth), "{0:g}".format(assignment.tests_saved)]
+            temp += ("{0:g}".format(assignment.sieve_depth), "{0:g}".format(assignment.tests_saved))
             if assignment.prp_base or assignment.prp_residue_type:
-                temp += [assignment.prp_base, assignment.prp_residue_type]
+                temp += (assignment.prp_base, assignment.prp_residue_type)
         if assignment.known_factors:
             temp.append('"' + ",".join(map(str, assignment.known_factors)) + '"')
     elif assignment.work_type == PRIMENET.WORK_TYPE_PFACTOR:
         test = "Pfactor"
-        temp += [
+        temp += (
             "{0:.0f}".format(assignment.k),
             assignment.b,
             assignment.n,
             assignment.c,
             "{0:g}".format(assignment.sieve_depth),
             "{0:g}".format(assignment.tests_saved),
-        ]
+        )
         if assignment.known_factors:
             temp.append('"' + ",".join(map(str, assignment.known_factors)) + '"')
     elif assignment.work_type == PRIMENET.WORK_TYPE_FACTOR:
@@ -1302,16 +1430,16 @@ def output_assignment(assignment):
         ]
     elif assignment.work_type == PRIMENET.WORK_TYPE_PMINUS1:
         test = "Pminus1"
-        temp += ["{0:.0f}".format(assignment.k), assignment.b, assignment.n, assignment.c, assignment.B1, assignment.B2]
+        temp += ("{0:.0f}".format(assignment.k), assignment.b, assignment.n, assignment.c, assignment.B1, assignment.B2)
         if assignment.sieve_depth > 0.0:
-            temp += ["{0:.0f}".format(assignment.sieve_depth)]
+            temp.append("{0:.0f}".format(assignment.sieve_depth))
         if assignment.B2_start > assignment.B1:
-            temp += [assignment.B2_start]
+            temp.append(assignment.B2_start)
         if assignment.known_factors:
             temp.append('"' + ",".join(map(str, assignment.known_factors)) + '"')
     elif assignment.work_type == PRIMENET.WORK_TYPE_CERT:
         test = "Cert"
-        temp += ["{0:.0f}".format(assignment.k), assignment.b, assignment.n, assignment.c, assignment.cert_squarings]
+        temp += ("{0:.0f}".format(assignment.k), assignment.b, assignment.n, assignment.c, assignment.cert_squarings)
 
     if assignment.work_type != PRIMENET.WORK_TYPE_PMINUS1:
         if assignment.B1:
@@ -1603,6 +1731,51 @@ def generate_application_str():
     return "{0},{1},v{2}".format(aplatform, name, version)
 
 
+def get_os():
+    result = {}
+    machine = None
+
+    if sys.platform == "win32":
+        result["os"] = "Windows"
+        release, version, csd, _ptype = platform.win32_ver()
+        if release:
+            result["release"] = release
+            result["build"] = version
+            if csd != "SP0":
+                result["service-pack"] = csd
+    elif sys.platform == "darwin":
+        result["os"] = "macOS"
+        release, _versioninfo, machine = platform.mac_ver()
+        if release:
+            result["release"] = release
+    elif sys.platform.startswith("linux"):
+        result["os"] = "Linux"
+        try:
+            info = freedesktop_os_release()
+        except OSError:
+            pass
+        else:
+            if info:
+                result["name"] = info["NAME"]
+                if "VERSION" in info:
+                    result["version"] = info["VERSION"]
+                else:
+                    result["distribution"] = info["PRETTY_NAME"]
+        # Python 2.6 - 3.7
+        if "name" not in result and hasattr(platform, "linux_distribution"):
+            distname, version, _id = platform.linux_distribution()
+            if distname:
+                result["name"] = distname
+                result["version"] = version
+
+    if not machine:
+        machine = platform.machine()
+    if machine:
+        result["architecture"] = machine
+
+    return result
+
+
 def get_cpu_model():
     """Returns the CPU model name of the system."""
     output = ""
@@ -1635,16 +1808,30 @@ def get_cpu_cores_threads():
         # wmic cpu get NumberOfCores,NumberOfLogicalProcessors
         # Get-CimInstance Win32_Processor | Select NumberOfCores,NumberOfLogicalProcessors
         return_length = wintypes.DWORD()
+        # Windows 7 or greater
+        if hasattr(kernel32, "GetLogicalProcessorInformationEx"):
+            RelationAll = 0xFFFF
+            if (
+                not kernel32.GetLogicalProcessorInformationEx(RelationAll, None, ctypes.byref(return_length))
+                and ctypes.get_last_error() == 122  # ERROR_INSUFFICIENT_BUFFER
+            ):
+                buffer = ctypes.create_string_buffer(return_length.value)
+                if kernel32.GetLogicalProcessorInformationEx(RelationAll, buffer, ctypes.byref(return_length)):
+                    offset = 0
+                    while offset < return_length.value:
+                        ptr = SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX.from_buffer(buffer, offset)
+                        if ptr.Relationship == 0:  # RelationProcessorCore
+                            cores += 1
+                        offset += ptr.Size
         # ERROR_INSUFFICIENT_BUFFER
-        if not kernel32.GetLogicalProcessorInformation(None, ctypes.byref(return_length)) and ctypes.get_last_error() == 122:
+        elif not kernel32.GetLogicalProcessorInformation(None, ctypes.byref(return_length)) and ctypes.get_last_error() == 122:
             buffer = (
                 SYSTEM_LOGICAL_PROCESSOR_INFORMATION * (return_length.value // ctypes.sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION))
             )()
             if kernel32.GetLogicalProcessorInformation(buffer, ctypes.byref(return_length)):
-                # RelationProcessorCore
-                cores = sum(1 for ptr in buffer if ptr.Relationship == 0)
+                cores = sum(1 for ptr in buffer if ptr.Relationship == 0)  # RelationProcessorCore
         # raise ctypes.WinError()
-        threads = int(os.getenv("NUMBER_OF_PROCESSORS", 0))
+        threads = int(os.getenv("NUMBER_OF_PROCESSORS", "0"))
     elif sys.platform == "darwin":
         cores = sysctl_value(b"hw.physicalcpu_max", ctypes.c_int)
         threads = sysctl_value(b"hw.logicalcpu_max", ctypes.c_int)
@@ -1705,11 +1892,9 @@ def get_physical_memory():
             memory = output >> 20
     elif sys.platform.startswith("linux"):
         # os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
-        with open("/proc/meminfo") as f:
-            for line in f:
-                if line.startswith("MemTotal:"):
-                    memory = int(line.split()[1]) >> 10
-                    break
+        info = sysinfo()
+        if not libc.sysinfo(ctypes.byref(info)):
+            memory = (info.totalram * info.mem_unit) >> 20
     return memory
 
 
@@ -1721,8 +1906,25 @@ def get_cpu_cache_sizes():
         # Get-CimInstance Win32_Processor | Select L2CacheSize,L3CacheSize
         # Get-CimInstance Win32_CacheMemory | Select CacheType,InstalledSize,Level
         return_length = wintypes.DWORD()
+        # Windows 7 or greater
+        if hasattr(kernel32, "GetLogicalProcessorInformationEx"):
+            RelationAll = 0xFFFF
+            if (
+                not kernel32.GetLogicalProcessorInformationEx(RelationAll, None, ctypes.byref(return_length))
+                and ctypes.get_last_error() == 122  # ERROR_INSUFFICIENT_BUFFER
+            ):
+                buffer = ctypes.create_string_buffer(return_length.value)
+                if kernel32.GetLogicalProcessorInformationEx(RelationAll, buffer, ctypes.byref(return_length)):
+                    offset = 0
+                    while offset < return_length.value:
+                        ptr = SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX.from_buffer(buffer, offset)
+                        offset += ptr.Size
+                        if ptr.Relationship == 2:  # RelationCache
+                            if ptr.Cache.Type == 1:  # CacheInstruction
+                                continue
+                            cache_sizes[ptr.Cache.Level] = ptr.Cache.CacheSize
         # ERROR_INSUFFICIENT_BUFFER
-        if not kernel32.GetLogicalProcessorInformation(None, ctypes.byref(return_length)) and ctypes.get_last_error() == 122:
+        elif not kernel32.GetLogicalProcessorInformation(None, ctypes.byref(return_length)) and ctypes.get_last_error() == 122:
             buffer = (
                 SYSTEM_LOGICAL_PROCESSOR_INFORMATION * (return_length.value // ctypes.sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION))
             )()
@@ -1732,6 +1934,7 @@ def get_cpu_cache_sizes():
                         if ptr.Cache.Type == 1:  # CacheInstruction
                             continue
                         cache_sizes[ptr.Cache.Level] = ptr.Cache.Size
+        # raise ctypes.WinError()
     elif sys.platform == "darwin":
         for level, cache in enumerate((b"hw.l1dcachesize", b"hw.l2cachesize", b"hw.l3cachesize"), 1):
             output = sysctl_value(cache, ctypes.c_int)
@@ -1815,8 +2018,12 @@ def send_request(guid, args):
         rc = int(result["pnErrorResult"])
         if rc:
             resmsg = errors.get(rc, "Unknown error code")
-            logging.error("PrimeNet error {0}: {1}".format(rc, resmsg))
-            logging.error(result["pnErrorDetail"])
+            if args["t"] == "ga" and args.get("get_cert_work"):
+                logging.debug("PrimeNet error {0}: {1}".format(rc, resmsg))
+                logging.debug(result["pnErrorDetail"])
+            else:
+                logging.error("PrimeNet error {0}: {1}".format(rc, resmsg))
+                logging.error(result["pnErrorDetail"])
         elif result["pnErrorDetail"] != "SUCCESS":
             logging.info("PrimeNet success code with additional info:")
             logging.info(result["pnErrorDetail"])
@@ -1841,13 +2048,7 @@ def get_exponent(n):
         r.raise_for_status()
         json = r.json()
 
-    except Timeout:
-        logging.exception("")
-        return None
-    except HTTPError:
-        logging.exception("")
-        return None
-    except ConnectionError:
+    except RequestException:
         logging.exception("")
         return None
     return json
@@ -2039,7 +2240,7 @@ https://www.mersenne.ca/M{0}
 # Adapted from Mihai Preda's script: https://github.com/preda/gpuowl/blob/d8bfa25366bef4178dbd2059e2ba2a3bf3b6e0f0/pm1/pm1.py
 
 # Table of values of Dickman's "rho" function for argument from 2 in steps of 1/20.
-rhotab = [
+rhotab = (
     0.306852819440055,
     0.282765004395792,
     0.260405780162154,
@@ -2321,7 +2522,7 @@ rhotab = [
     1.70375305656048e-21,
     1.37713892323882e-21,
     2.2354265870871718e-27,
-]
+)
 
 
 def rho(x):
@@ -2508,12 +2709,23 @@ else:
         return sum(b << i * 8 for i, b in enumerate(bytearray(abytes)))
 
 
-def unpack(aformat, file):
+def unpack(aformat, file, noraise=False):
     size = struct.calcsize(aformat)
     buffer = file.read(size)
     if len(buffer) != size:
-        return None
+        if noraise and not buffer:
+            return None
+        raise EOFError
     return struct.unpack(aformat, buffer)
+
+
+def read_residue_mlucas(file, nbytes):
+    file.seek(nbytes, 1)  # os.SEEK_CUR
+
+    res64, res35m1, res36m1 = unpack("<Q5s5s", file)
+    # res35m1 = from_bytes(res35m1)
+    # res36m1 = from_bytes(res36m1)
+    return res64, res35m1, res36m1
 
 
 def parse_work_unit_mlucas(adapter, filename, exponent, astage):
@@ -2524,51 +2736,29 @@ def parse_work_unit_mlucas(adapter, filename, exponent, astage):
 
     try:
         with open(filename, "rb") as f:
-            result = unpack("<BB8s", f)
-            if result is None:
-                return None
-            t, m, tmp = result
+            t, m, tmp = unpack("<BB8s", f)
             nsquares = from_bytes(tmp)
 
             p = 1 << exponent if m == MODULUS_TYPE_FERMAT else exponent
 
             nbytes = (p + 7) // 8 if m == MODULUS_TYPE_MERSENNE else (p >> 3) + 1 if m == MODULUS_TYPE_FERMAT else 0
-            f.seek(nbytes, 1)  # os.SEEK_CUR
 
-            result = unpack("<Q5s5s", f)
-            if result is None:
-                return None
-            _res64, _res35m1, _res36m1 = result
-            # _res35m1 = from_bytes(_res35m1)
-            # _res36m1 = from_bytes(_res36m1)
+            _res64, _res35m1, _res36m1 = read_residue_mlucas(f, nbytes)
 
-            result = unpack("<3sQ", f)
+            result = unpack("<3sQ", f, True)
             kblocks = _res_shift = None
             if result is not None:
                 kblocks, _res_shift = result
                 kblocks = from_bytes(kblocks)
 
             if t == TEST_TYPE_PRP or (t == TEST_TYPE_PRIMALITY and m == MODULUS_TYPE_FERMAT):
-                result = unpack("<I", f)
-                if result is None:
-                    return None
-                (_prp_base,) = result
+                (_prp_base,) = unpack("<I", f)
 
-                f.seek(nbytes, 1)  # os.SEEK_CUR
+                _i1, _i2, _i3 = read_residue_mlucas(f, nbytes)
 
-                result = unpack("<Q5s5s", f)
-                if result is None:
-                    return None
-                _i1, _i2, _i3 = result
-                # _i2 = from_bytes(_i2)
-                # _i3 = from_bytes(_i3)
+                (_gcheck_shift,) = unpack("<Q", f)
 
-                result = unpack("<Q", f)
-                if result is None:
-                    return None
-                (_gcheck_shift,) = result
-
-            result = unpack("<II", f)
+            result = unpack("<II", f, True)
             if result is not None:
                 _nerr_roe, _nerr_gcheck = result
 
@@ -2598,6 +2788,8 @@ def parse_work_unit_mlucas(adapter, filename, exponent, astage):
 
             if kblocks is not None:
                 fftlen = kblocks << 10
+    except EOFError:
+        return None
     except (IOError, OSError):
         logging.exception("Error reading {0!r} file.".format(filename))
         return None
@@ -2613,10 +2805,7 @@ def parse_work_unit_cudalucas(adapter, filename, p):
         with open(filename, "rb") as f:
             f.seek(end * 4)
 
-            result = unpack("=IIIIIIIIII", f)
-            if result is None:
-                return None
-            q, n, j, _offset, total_time, _time_adj, _iter_adj, _, magic_number, _checksum = result
+            q, n, j, _offset, total_time, _time_adj, _iter_adj, _, magic_number, _checksum = unpack("=IIIIIIIIII", f)
             if p != q:
                 adapter.debug("Error: Expecting the exponent {0}, but found {1}".format(p, q))
                 return None
@@ -2631,6 +2820,8 @@ def parse_work_unit_cudalucas(adapter, filename, p):
             avg_msec_per_iter = (total_time / j) / 1000
             stage = "LL"
             pct_complete = j / (q - 2)
+    except EOFError:
+        return None
     except (IOError, OSError):
         logging.exception("Error reading {0!r} file.".format(filename))
         return None
@@ -3078,7 +3269,17 @@ def get_progress_assignment(adapter, adir, assignment):
 
 def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
     """Computes the progress of a given assignment."""
-    percent = iteration / (s2 or bits or (assignment.n if assignment.work_type == PRIMENET.WORK_TYPE_PRP else assignment.n - 2))
+    percent = iteration / (
+        s2
+        or bits
+        or (
+            assignment.n
+            if assignment.work_type == PRIMENET.WORK_TYPE_PRP
+            else assignment.cert_squarings
+            if assignment.work_type == PRIMENET.WORK_TYPE_CERT
+            else assignment.n - 2
+        )
+    )
     if msec_per_iter is None:
         return percent, None, msec_per_iter
     if assignment.n != p:
@@ -3100,11 +3301,17 @@ def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
         time_left = msec_per_iter * assignment.n * 0.0175  # TODO
     else:
         time_left = msec_per_iter * (
-            (assignment.n if assignment.work_type == PRIMENET.WORK_TYPE_PRP else assignment.n - 2) - iteration
+            (
+                assignment.n
+                if assignment.work_type == PRIMENET.WORK_TYPE_PRP
+                else assignment.cert_squarings
+                if assignment.work_type == PRIMENET.WORK_TYPE_CERT
+                else assignment.n - 2
+            )
+            - iteration
         )
     rolling_average = config.getint(SEC.Internals, "RollingAverage") if config.has_option(SEC.Internals, "RollingAverage") else 1000
-    rolling_average = max(rolling_average, 10)
-    rolling_average = min(rolling_average, 4000)
+    rolling_average = min(4000, max(10, rolling_average))
     time_left *= (24 / options.cpu_hours) * (1000 / rolling_average)
     return percent, time_left / 1000, msec_per_iter
 
@@ -3191,8 +3398,7 @@ def adjust_rolling_average(dirs):
         ):
             arolling_average = (complete_time - time_to_complete) / options.num_workers / delta * rolling_average
             if arolling_average <= 50000:
-                arolling_average = max(arolling_average, rolling_average // 2)
-                arolling_average = min(arolling_average, 2 * rolling_average)
+                arolling_average = min(2 * rolling_average, max(rolling_average // 2, arolling_average))
 
                 pct = delta / (30 * 24 * 60 * 60)
                 rolling_average = int((1.0 - pct) * rolling_average + pct * arolling_average + 0.5)
@@ -3200,8 +3406,7 @@ def adjust_rolling_average(dirs):
                     "Updating 30-day rolling average to {0} (using {1:%} of {2})".format(rolling_average, pct, arolling_average)
                 )
 
-                rolling_average = max(rolling_average, 20)
-                rolling_average = min(rolling_average, 4000)
+                rolling_average = min(4000, max(20, rolling_average))
             else:
                 logging.debug("The rolling average is too large ({0} > 50000), not updating 30-day value".format(arolling_average))
         else:
@@ -3234,7 +3439,7 @@ def output_status(dirs, cpu_num=None):
         now = datetime.now()
         for assignment in assignments:
             time_left = work_estimate(adapter, adir, i if cpu_num is None else cpu_num, assignment)
-            bits = max(int(assignment.sieve_depth), 32)
+            bits = max(32, int(assignment.sieve_depth))
             all_and_prp_cnt = False
             aprob = 0.0
             if assignment.work_type == PRIMENET.WORK_TYPE_FIRST_LL:
@@ -3406,13 +3611,15 @@ def checksum_md5(filename):
     """Returns the MD5 checksum of the given file."""
     amd5 = md5()
     with open(filename, "rb") as f:
-        for chunk in iter(lambda: f.read(128 * amd5.block_size), b""):
+        for chunk in iter(lambda: f.read(256 * amd5.block_size), b""):
             amd5.update(chunk)
     return amd5.hexdigest()
 
 
 def upload_proof(adapter, filename):
     """Upload a proof file to the PrimeNet server."""
+    max_chunk_size = config.getfloat(SEC.PrimeNet, "UploadChunkSize") if config.has_option(SEC.PrimeNet, "UploadChunkSize") else 5
+    max_chunk_size = int(min(max(max_chunk_size, 1), 8) * 1024 * 1024)
     try:
         with open(filename, "rb") as f:
             header = f.readline().rstrip()
@@ -3438,58 +3645,54 @@ def upload_proof(adapter, filename):
             if header != b"NUMBER" or not number.startswith(b"M"):
                 adapter.error("Error getting number from proof header")
                 return False
-    except (IOError, OSError):
-        logging.exception("Cannot open proof file {0!r}".format(filename))
-        return False
-    exponent, _, _ = number[1:].partition(b"/")
-    exponent = int(exponent)
-    adapter.info("Proof file exponent is {0}".format(exponent))
-    fileSize = os.path.getsize(filename)
-    adapter.info(
-        "Filesize of {0!r} is {1}B{2}".format(
-            filename, outputunit(fileSize), " ({0}B)".format(outputunit(fileSize, True)) if fileSize >= 1000 else ""
+        exponent, _, _factors = number[1:].partition(b"/")
+        exponent = int(exponent)
+        adapter.info("Proof file exponent is {0}".format(exponent))
+        filesize = os.path.getsize(filename)
+        adapter.info(
+            "Filesize of {0!r} is {1}B{2}".format(
+                filename, outputunit(filesize), " ({0}B)".format(outputunit(filesize, True)) if filesize >= 1000 else ""
+            )
         )
-    )
-    fileHash = checksum_md5(filename)
-    adapter.info("MD5 of {0!r} is {1}".format(filename, fileHash))
+        fileHash = checksum_md5(filename)
+        adapter.info("MD5 of {0!r} is {1}".format(filename, fileHash))
 
-    while True:
-        args = {"UserID": options.user_id, "Exponent": exponent, "FileSize": fileSize, "FileMD5": fileHash}
-        r = session.get(primenet_baseurl + "proof_upload/", params=args, timeout=180)
-        json = r.json()
-        if "error_status" in json:
-            if json["error_status"] == 409:
-                adapter.error("Proof {0!r} already uploaded".format(filename))
+        while True:
+            args = {"UserID": options.user_id, "Exponent": exponent, "FileSize": filesize, "FileMD5": fileHash}
+            r = session.get(primenet_baseurl + "proof_upload/", params=args, timeout=180)
+            json = r.json()
+            if "error_status" in json:
+                if json["error_status"] == 409:
+                    adapter.error("Proof {0!r} already uploaded".format(filename))
+                    adapter.error(str(json))
+                    return True
+                adapter.error("Unexpected error during {0!r} upload".format(filename))
                 adapter.error(str(json))
-                return True
-            adapter.error("Unexpected error during {0!r} upload".format(filename))
-            adapter.error(str(json))
-            return False
-        r.raise_for_status()
-        if "URLToUse" not in json:
-            adapter.error("For proof {0!r}, server response missing URLToUse:".format(filename))
-            adapter.error(str(json))
-            return False
-        if "need" not in json:
-            adapter.error("For proof {0!r}, server response missing need list:".format(filename))
-            adapter.error(str(json))
-            return False
+                return False
+            r.raise_for_status()
+            if "URLToUse" not in json:
+                adapter.error("For proof {0!r}, server response missing URLToUse:".format(filename))
+                adapter.error(str(json))
+                return False
+            if "need" not in json:
+                adapter.error("For proof {0!r}, server response missing need list:".format(filename))
+                adapter.error(str(json))
+                return False
 
-        origUrl = json["URLToUse"]
-        baseUrl = "https" + origUrl[4:] if origUrl.startswith("http:") else origUrl
-        pos, end = next((int(a), b) for a, b in json["need"].items())
-        if pos > end or end >= fileSize:
-            adapter.error("For proof {0!r}, need list entry bad:".format(filename))
-            adapter.error(str(json))
-            return False
+            origUrl = json["URLToUse"]
+            baseUrl = "https" + origUrl[4:] if origUrl.startswith("http:") else origUrl
+            pos, end = next((int(a), b) for a, b in json["need"].items())
+            if pos > end or end >= filesize:
+                adapter.error("For proof {0!r}, need list entry bad:".format(filename))
+                adapter.error(str(json))
+                return False
 
-        if pos:
-            adapter.info("Resuming from offset {0:n}".format(pos))
+            if pos:
+                adapter.info("Resuming from offset {0:n}".format(pos))
 
-        with open(filename, "rb") as f:
             while pos < end:
                 f.seek(pos)
-                size = min(end - pos + 1, 5 * 1024 * 1024)
+                size = min(end - pos + 1, max_chunk_size)
                 chunk = f.read(size)
                 args = {"FileMD5": fileHash, "DataOffset": pos, "DataSize": len(chunk), "DataMD5": md5(chunk).hexdigest()}
                 response = session.post(baseUrl, params=args, files={"Data": (None, chunk)}, timeout=180)
@@ -3512,10 +3715,16 @@ def upload_proof(adapter, filename):
                     adapter.error(str(json))
                     return False
                 pos = start
-                if pos > end or end >= fileSize:
+                if pos > end or end >= filesize:
                     adapter.error("For proof {0!r}, need list entry bad:".format(filename))
                     adapter.error(str(json))
                     return False
+    except RequestException:
+        logging.exception("")
+        return False
+    except (IOError, OSError):
+        logging.exception("Cannot open proof file {0!r}".format(filename))
+        return False
 
 
 def upload_proofs(adapter, adir, cpu_num):
@@ -3567,6 +3776,152 @@ def aupload_proofs(dirs):
         upload_proofs(adapter, adir, cpu_num)
 
 
+def get_proof_data(assignment_aid, file):
+    max_chunk_size = (
+        int(config.getfloat(SEC.PrimeNet, "DownloadChunkSize") * 1024 * 1024)
+        if config.has_option(SEC.PrimeNet, "DownloadChunkSize")
+        else None
+    )
+    args = {"aid": assignment_aid}
+    try:
+        r = session.get(primenet_baseurl + "proof_get_data/", params=args, timeout=180, stream=True)
+        r.raise_for_status()
+        amd5 = next(r.iter_content(chunk_size=32))
+        for chunk in r.iter_content(chunk_size=max_chunk_size):
+            if chunk:
+                file.write(chunk)
+    except RequestException:
+        logging.exception("")
+        return None
+    return amd5
+
+
+IS_HEX_RE = re.compile(br"^[0-9a-fA-F]*$")
+
+
+def download_cert(adapter, adir, filename, assignment):
+    adapter.info("Downloading CERT starting value for {0} to {1!r}".format(exponent_to_str(assignment), filename))
+    with tempfile.NamedTemporaryFile("wb", dir=adir, delete=False) as f:
+        amd5 = get_proof_data(assignment.uid, f)
+    if not amd5 or not IS_HEX_RE.match(amd5):
+        adapter.error("Error getting CERT starting value")
+        os.remove(f.name)
+        return False
+    size = os.path.getsize(f.name)
+    adapter.info("Download was {0}B{1}".format(outputunit(size), " ({0}B)".format(outputunit(size, True)) if size >= 1000 else ""))
+    amd5 = amd5.decode().upper()
+    residue_md5 = checksum_md5(f.name).upper()
+    if amd5 != residue_md5:
+        adapter.error("MD5 of downloaded starting value {0} does not match {1}".format(residue_md5, amd5))
+        os.remove(f.name)
+        return False
+    os.rename(f.name, filename)
+    return True
+
+
+def download_certs(adapter, adir, tasks):
+    for assignment in tasks:
+        if isinstance(assignment, Assignment) and assignment.work_type == PRIMENET.WORK_TYPE_CERT:
+            filename = os.path.join(adir, "{0}.cert".format(exponent_to_str(assignment)))
+            if not os.path.exists(filename):
+                start_time = timeit.default_timer()
+                if download_cert(adapter, adir, filename, assignment):
+                    end_time = timeit.default_timer()
+                    adapter.debug("Successfully downloaded in {0}".format(timedelta(seconds=end_time - start_time)))
+                else:
+                    echk = (
+                        config.getint(SEC.Internals, "CertErrorCount") if config.has_option(SEC.Internals, "CertErrorCount") else 0
+                    ) + 1
+                    config.set(SEC.Internals, "CertErrorCount", str(echk))
+                    if echk < 8:
+                        adapter.info("Will retry downloading CERT later")
+                    else:
+                        adapter.info("Abandoning CERT of M{0}".format(assignment.n))
+                        unreserve([adir], assignment.n)
+                        config.remove_option(SEC.Internals, "CertErrorCount")
+
+
+def get_cert_work(adapter, adir, cpu_num, current_time, progress, tasks):
+    if not options.cert_work or options.days_of_work <= 0 or options.cpu_hours <= 12:
+        return
+    max_cert_assignments = 3 if options.cert_cpu_limit >= 50 else 1
+    cert_assignments = sum(
+        1 for assignment in tasks if isinstance(assignment, Assignment) and assignment.work_type == PRIMENET.WORK_TYPE_CERT
+    )
+    workfile = os.path.join(adir, options.worktodo_file)
+    if cert_assignments >= max_cert_assignments:
+        adapter.debug(
+            "{0:n} ≥ {1:n} CERT assignments already in {2!r}, not getting new work".format(
+                cert_assignments, max_cert_assignments, workfile
+            )
+        )
+        return
+
+    section = "Worker #{0}".format(cpu_num + 1) if options.num_workers > 1 else SEC.Internals
+    cpu_limit_remaining = (
+        config.getfloat(section, "CertDailyCPURemaining")
+        if config.has_option(section, "CertDailyCPURemaining")
+        else options.cert_cpu_limit
+    )
+    last_update = (
+        config.getint(SEC.Internals, "CertDailyRemainingLastUpdate")
+        if config.has_option(SEC.Internals, "CertDailyRemainingLastUpdate")
+        else 0
+    )
+    days = max(0, (current_time - last_update) / (24 * 60 * 60))
+    cpu_limit_remaining += days * options.cert_cpu_limit
+    cpu_limit_remaining = min(cpu_limit_remaining, options.cert_cpu_limit)
+    config.set(section, "CertDailyCPURemaining", str(cpu_limit_remaining))
+    if cpu_limit_remaining <= 0:
+        adapter.debug("CERT daily work limit already used, not getting new work")
+        return
+
+    assignment = next((assignment for assignment in tasks if isinstance(assignment, Assignment)), None)
+    percent = None
+    if progress is not None:
+        percent, _time_left, _, _ = progress
+    if options.cert_cpu_limit < 50 and (
+        (assignment is not None and assignment.work_type in {PRIMENET.WORK_TYPE_PMINUS1, PRIMENET.WORK_TYPE_PFACTOR})
+        or (percent is not None and percent > 0.85)
+    ):
+        return
+
+    if config.has_option(SEC.PrimeNet, "CertWorker") and config.getint(SEC.PrimeNet, "CertWorker") != cpu_num + 1:
+        return
+    min_exp = config.getint(SEC.PrimeNet, "CertMinExponent") if config.has_option(SEC.PrimeNet, "CertMinExponent") else 50000000
+    max_exp = config.getint(SEC.PrimeNet, "CertMaxExponent") if config.has_option(SEC.PrimeNet, "CertMaxExponent") else None
+    cert_quantity = config.getint(SEC.PrimeNet, "CertQuantity") if config.has_option(SEC.PrimeNet, "CertQuantity") else 1
+    new_tasks = []  # changed = False
+    for num_certs in range(1, 5 + 1):
+        test = get_assignment(adapter, cpu_num, get_cert_work=max(1, options.cert_cpu_limit), min_exp=min_exp, max_exp=max_exp)
+        if test is None:
+            break
+        if assignment.work_type != PRIMENET.WORK_TYPE_CERT:
+            adapter.error("Received unknown work type (expected 200): {0}".format(assignment.work_type))
+            break
+        tasks.append(test)  # appendleft
+        new_task = output_assignment(test)
+        adapter.debug("New assignment: {0!r}".format(new_task))
+        new_tasks.append(new_task)  # changed = True
+
+        # TODO: Something better here
+        cpu_quota_used = test.cert_squarings / 110000
+        cpu_quota_used *= 2.1 ** log2(test.n / 97300000)
+        cpu_limit_remaining -= cpu_quota_used
+        config.set(section, "CertDailyCPURemaining", str(cpu_limit_remaining))
+
+        if cpu_limit_remaining <= 0:
+            break
+        if test.n < 50000000:
+            continue
+        if num_certs < cert_quantity:
+            continue
+        if options.cert_cpu_limit < 50:
+            break
+    if new_tasks:  # changed
+        write_list_file(workfile, new_tasks, "a")  # write_workfile(adir, tasks)
+
+
 # TODO -- have people set their own program options for commented out portions
 def program_options(send=False, start=-1, retry_count=0):
     """Sets the program options on the PrimeNet server."""
@@ -3583,7 +3938,7 @@ def program_options(send=False, start=-1, retry_count=0):
         if send:
             options_changed = False
             if len(set(work_preference)) == 1 if tnum < 0 else len(set(work_preference)) != 1:
-                args["w"] = work_preference[max(tnum, 0)]
+                args["w"] = work_preference[max(0, tnum)]
                 options_changed = True
             if tnum < 0:
                 args["nw"] = options.num_workers
@@ -3912,7 +4267,7 @@ def update_assignment(adapter, cpu_num, assignment, task):
     return assignment, task
 
 
-def get_assignment(adapter, cpu_num, assignment_num=None, retry_count=0):
+def get_assignment(adapter, cpu_num, assignment_num=None, get_cert_work=None, min_exp=None, max_exp=None, retry_count=0):
     """Get a new assignment from the PrimeNet server."""
     if retry_count >= 5:
         adapter.info("Retry count exceeded.")
@@ -3924,13 +4279,14 @@ def get_assignment(adapter, cpu_num, assignment_num=None, retry_count=0):
     args["c"] = cpu_num
     args["a"] = "" if assignment_num is None else assignment_num
     if assignment_num is None:
-        # args["cert"] =
+        if get_cert_work:
+            args["cert"] = get_cert_work
         if options.worker_disk_space:
-            args["disk"] = "{0:f}".format(options.worker_disk_space * 1024**3 / 1000**3)
-        if options.min_exp:
-            args["min"] = options.min_exp
-        if options.max_exp:
-            args["max"] = options.max_exp
+            args["disk"] = "{0:f}".format(options.worker_disk_space)
+        if min_exp:
+            args["min"] = min_exp
+        if max_exp:
+            args["max"] = max_exp
     adapter.debug("Fetching using v5 API")
     supported = frozenset([
         PRIMENET.WORK_TYPE_PFACTOR,
@@ -3938,9 +4294,10 @@ def get_assignment(adapter, cpu_num, assignment_num=None, retry_count=0):
         PRIMENET.WORK_TYPE_DBLCHK,
         PRIMENET.WORK_TYPE_PRP,
         PRIMENET.WORK_TYPE_FACTOR,
+        PRIMENET.WORK_TYPE_CERT,
     ])
     retry = False
-    if assignment_num != 0:
+    if (assignment_num is None or assignment_num) and not get_cert_work:
         adapter.info("Getting assignment from server")
     r = send_request(guid, args)
     if r is None:
@@ -3962,8 +4319,8 @@ def get_assignment(adapter, cpu_num, assignment_num=None, retry_count=0):
             if not retry:
                 return None
     if retry:
-        return get_assignment(adapter, cpu_num, assignment_num, retry_count + 1)
-    if assignment_num == 0:
+        return get_assignment(adapter, cpu_num, assignment_num, get_cert_work, min_exp, max_exp, retry_count + 1)
+    if assignment_num is not None and not assignment_num:
         return int(r["a"])
     assignment = Assignment(int(r["w"]))
     assignment.uid = r["k"]
@@ -4160,7 +4517,7 @@ def primenet_fetch(adapter, cpu_num, num_to_get):
     else:
         tests = []
         for _i in range(num_to_get):
-            test = get_assignment(adapter, cpu_num)
+            test = get_assignment(adapter, cpu_num, min_exp=options.min_exp, max_exp=options.max_exp)
             if test is None:
                 break
             tests.append(test)
@@ -4196,11 +4553,11 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             )
     amax = config.getint(SEC.PrimeNet, "MaxExponents") if config.has_option(SEC.PrimeNet, "MaxExponents") else 15
     num_cache = min(num_cache, amax)
-    num_to_get = num_cache - num_existing
 
-    if num_to_get <= 0:
+    if num_cache <= num_existing:
         adapter.debug("{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(num_existing, num_cache, workfile))
         return []
+    num_to_get = num_cache - num_existing
     adapter.debug(
         "Found {0:n} < {1:n} assignments in {2!r}, getting {3:n} new assignment{4}".format(
             num_existing, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""
@@ -4217,7 +4574,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             assignment, new_task = update_assignment(adapter, cpu_num, assignment, new_task)
             assignments[i] = assignment
             new_tasks.append(new_task)
-        tasks += assignments
+        tasks.extend(assignments)
     write_list_file(workfile, new_tasks, "a")
     output_status([adir], cpu_num)
     if num_fetched < num_to_get:
@@ -4519,10 +4876,10 @@ It was stalled for {3}.
     return percent, cur_time_left, msec_per_iter, p
 
 
-lucas_regex = re.compile(
+LUCAS_RE = re.compile(
     r"^M\( ([0-9]{6,}) \)(P|C, (0x[0-9a-f]{16})), offset = ([0-9]+), n = ([0-9]{3,})K, (CUDALucas v[^\s,]+)(?:, AID: ([0-9A-F]{32}))?$"
 )
-pm1_regex = re.compile(
+PM1_RE = re.compile(
     r"^M([0-9]{6,}) (?:has a factor: ([0-9]+)|found no factor) \(P-1, B1=([0-9]+), B2=([0-9]+), e=([0-9]+), n=([0-9]{3,})K(?:, aid=([0-9A-F]{32}))? (CUDAPm1 v[^\s)]+)\)$"
 )
 
@@ -4534,8 +4891,8 @@ def cuda_result_to_json(resultsfile, sendline):
     # sendline example: 'M( 108928711 )C, 0x810d83b6917d846c, offset = 106008371, n = 6272K, CUDALucas v2.06, AID: 02E4F2B14BB23E2E4B95FC138FC715A8'
     # sendline example: 'M( 108928711 )P, offset = 106008371, n = 6272K, CUDALucas v2.06, AID: 02E4F2B14BB23E2E4B95FC138FC715A8'
     ar = {}
-    lucas_res = lucas_regex.match(sendline)
-    pm1_res = pm1_regex.match(sendline)
+    lucas_res = LUCAS_RE.match(sendline)
+    pm1_res = PM1_RE.match(sendline)
 
     if lucas_res:
         exponent, status, res64, shift_count, fft_length, aprogram, aid = lucas_res.groups()
@@ -4591,9 +4948,12 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
     ar["script"] = {
         "name": "primenet.py",  # os.path.basename(sys.argv[0])
         "version": VERSION,
-        "interpreter": "Python",
-        "interpreter-implementation": platform.python_implementation(),
-        "interpreter-version": platform.python_version(),
+        "interpreter": {
+            "interpreter": "Python",
+            "implementation": platform.python_implementation(),
+            "version": platform.python_version(),
+        },
+        "os": get_os(),
     }
     message = json.dumps(ar, ensure_ascii=False)
 
@@ -4608,6 +4968,7 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
         assignment.n = int(ar["exponent"])
     if "known-factors" in ar:
         assignment.known_factors = tuple(map(int, ar["known-factors"]))
+
     worktype = ar["worktype"]
     if worktype == "LL":
         result_type = PRIMENET.AR_LL_PRIME if ar["status"] == "P" else PRIMENET.AR_LL_RESULT
@@ -4620,10 +4981,12 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
         # ar['status'] == 'NF'
     elif worktype in {"TF"}:
         result_type = PRIMENET.AR_TF_FACTOR if ar["status"] == "F" else PRIMENET.AR_TF_NOFACTOR
-        # ar['status'] == 'NF'
+    elif worktype == "Cert":
+        result_type = PRIMENET.AR_CERT
     else:
         adapter.error("Unsupported worktype {0}".format(worktype))
         return False
+
     user = ar.get("user", options.user_id)
     computer = ar.get("computer", options.computer_id)
     buf = "" if not user else "UID: {0}, ".format(user) if not computer else "UID: {0}/{1}, ".format(user, computer)
@@ -4743,11 +5106,26 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
                 else "",
                 port,
             )
-    # elif result_type == PRIMENET.AR_CERT:
+    elif result_type == PRIMENET.AR_CERT:
+        args["d"] = 1
+        args.update((("A", "{0:.0f}".format(assignment.k)), ("b", assignment.b), ("c", assignment.c)))
+        args["s3"] = ar["sha3-hash"]
+        error_count = ar.get("error-code", "0" * 8)
+        buf += "{0} certification hash value {1}. Wh{2}: -,{3}{4}".format(
+            exponent_to_str(assignment),
+            ar["sha3-hash"],
+            port,
+            "{0},".format(ar["shift-count"]) if "shift-count" in ar else "",
+            error_count,
+        )
+        args["ec"] = error_count
+        if "shift-count" in ar:
+            args["sc"] = ar["shift-count"]
     if "fft-length" in ar:
         args["fftlen"] = ar["fft-length"]
     if assignment.uid:
         buf += ", AID: {0}".format(assignment.uid)
+
     if result_type in {PRIMENET.AR_LL_PRIME, PRIMENET.AR_PRP_PRIME}:
         adigits = digits(assignment)
         no_report = options.no_report_100m and adigits >= 100000000
@@ -4851,6 +5229,7 @@ Python version: {14}
             )
         if no_report:
             return True
+
     adapter.info("Sending result to server: {0}".format(buf))
     result = send_request(guid, args)
     if result is None:
@@ -4941,7 +5320,7 @@ def submit_one_line(adapter, adir, resultsfile, sendline, assignments):
         try:
             ar = json.loads(sendline)
             is_json = True
-        except json.decoder.JSONDecodeError:
+        except JSONDecodeError:
             logging.exception("Unable to decode entry in {0!r}: {1}".format(resultsfile, sendline))
             # Mlucas
             if "Program: E" in sendline:
@@ -5194,6 +5573,19 @@ parser.add_option(
 Provide once to use the same worktype for all workers or once for each worker to use different worktypes. Not all worktypes are supported by all the GIMPS programs.""".format(
         PRIMENET.WP_PRP_FIRST
     ),
+)
+parser.add_option(
+    "--cert-work",
+    action="store_true",
+    dest="cert_work",
+    help="Get PRP proof certification work, Default: %default. Not yet supported by any of the GIMPS programs.",
+)
+parser.add_option(
+    "--cert-work-limit",
+    dest="cert_cpu_limit",
+    type="int",
+    default=10,
+    help="PRP proof certification work limit in percentage of CPU or GPU time, Default: %default%. Requires the --cert-work option.",
 )
 parser.add_option("--min-exp", dest="min_exp", type="int", help="Minimum exponent to get from PrimeNet (2 - 999,999,999)")
 parser.add_option("--max-exp", dest="max_exp", type="int", help="Maximum exponent to get from PrimeNet (2 - 999,999,999)")
@@ -5600,6 +5992,12 @@ if not options.dirs and options.cpu >= options.num_workers:
         "CPU core or GPU number ({0:n}) must be less than the number of workers ({1:n})".format(options.cpu, options.num_workers)
     )
 
+if options.cert_work:
+    parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
+
+if not 1 <= options.cert_cpu_limit <= 100:
+    parser.error("Proof certification work limit must be between 1 and 100%")
+
 if options.gpuowl and options.cudalucas:
     parser.error("This program can only be used with GpuOwl/PRPLL or CUDALucas")
 
@@ -5772,6 +6170,32 @@ while True:
     checkin = options.timeout <= 0 or current_time >= last_time + options.hours_between_checkins * 60 * 60
     last_time = last_time if checkin else None
 
+    if config.has_option(SEC.PrimeNet, "CertGetFrequency"):
+        cert_freq = config.getfloat(SEC.PrimeNet, "CertGetFrequency")
+    elif options.cert_cpu_limit >= 50:
+        cert_freq = 0.5
+    else:
+        cert_freq = (
+            3
+            if options.num_cores >= 20
+            else 4
+            if options.num_cores >= 12
+            else 6
+            if options.num_cores >= 7
+            else 8
+            if options.num_cores >= 3
+            else 12
+            if options.num_cores >= 2
+            else 24
+        )
+    cert_freq = max(0.25, cert_freq)
+    cert_last_update = (
+        config.getint(SEC.Internals, "CertDailyRemainingLastUpdate")
+        if config.has_option(SEC.Internals, "CertDailyRemainingLastUpdate")
+        else 0
+    )
+    cert_work = current_time >= cert_last_update + cert_freq * 60 * 60
+
     # Carry on with Loarer's style of primenet
     if options.password:
         logging.warning("The legacy manual testing feature is deprecated and will be removed in a future version of this program")
@@ -5796,10 +6220,12 @@ while True:
         adapter = logging.LoggerAdapter(logger, {"cpu_num": i} if options.dirs else None)
         cpu_num = i if options.dirs else options.cpu
         if not options.password or primenet_login:
-            tasks = list(read_workfile(adapter, adir))
+            tasks = list(read_workfile(adapter, adir))  # deque
             submit_work(adapter, adir, cpu_num, tasks)
             registered = register_assignments(adapter, adir, cpu_num, tasks)
             progress = update_progress_all(adapter, adir, cpu_num, last_time, tasks, None, checkin or registered)
+            if cert_work and not options.password:
+                get_cert_work(adapter, adir, cpu_num, current_time, progress, tasks)
             got = get_assignments(adapter, adir, cpu_num, progress, tasks)
             if got and not options.password:
                 adapter.debug(
@@ -5808,12 +6234,18 @@ while True:
                     )
                 )
                 update_progress_all(adapter, adir, cpu_num, None, got, progress)
+
+            # download_certs(adapter, adir, tasks)
+
         if options.timeout <= 0:
             upload_proofs(adapter, adir, cpu_num)
 
     start_time = config.getint(SEC.Internals, "RollingStartTime") if config.has_option(SEC.Internals, "RollingStartTime") else 0
     if current_time >= start_time + 6 * 60 * 60:
         adjust_rolling_average(dirs)
+
+    if cert_work:
+        config.set(SEC.Internals, "CertDailyRemainingLastUpdate", str(int(current_time)))
 
     if checkin and not options.password:
         config.set(SEC.Internals, "LastEndDatesSent", str(int(current_time)))
