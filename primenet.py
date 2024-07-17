@@ -1589,7 +1589,7 @@ def generate_application_str():
         aplatform = "Mac OS X" + (" 64-bit" if is_64bit else "")
     else:
         aplatform = platform.system() + ("64" if is_64bit else "")
-    program = PROGRAMS[0 if options.prime95 else 3 if options.cudalucas else 2 if options.gpuowl else 1]
+    program = PROGRAMS[0 if options.prime95 else 5 if options.mfakto else 4 if options.mfaktc else 3 if options.cudalucas else 2 if options.gpuowl else 1]
     if options.prime95:
         return "{0},{1[name]},v{1[version]},build {1[build]}".format(aplatform, program)
     name = program["name"]
@@ -4680,7 +4680,25 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
             proof = ar["proof"]
             args["pp"] = proof["power"]
             args["ph"] = proof["md5"]
-    elif result_type in {PRIMENET.AR_P1_FACTOR, PRIMENET.AR_P1_NOFACTOR}:  # TODO TF needs this block? what's happening here
+    elif result_type in {PRIMENET.AR_TF_FACTOR, PRIMENET.AR_TF_NOFACTOR}:
+        args["d"] = 1 if ar["rangecomplete"] else 0
+        args.update((("A", "{0:.0f}".format(assignment.k)), ("b", assignment.b), ("c", assignment.c)))
+        args["sf"] = ar["bitlo"]
+        args["ef"] = ar["bithi"]
+        if result_type == PRIMENET.AR_TF_FACTOR:
+            buf += "{0} has factor(s): {1} (TF:{2}:{3})".format(
+                exponent_to_str(assignment),
+                ar["factors"],
+                ar["bitlo"],
+                ar["bithi"],
+            )
+        else:
+            buf += "{0} has no factors from 2^{1}-2^{2} (TF:{1}:{2})".format(
+                exponent_to_str(assignment),
+                ar["bitlo"],
+                ar["bithi"],
+            )
+    elif result_type in {PRIMENET.AR_P1_FACTOR, PRIMENET.AR_P1_NOFACTOR}:
         args["d"] = (
             1
             if result_type == PRIMENET.AR_P1_FACTOR
@@ -4939,6 +4957,77 @@ def submit_one_line(adapter, adir, resultsfile, sendline, assignments):
     return sent
 
 
+MFAKTX_FACTOR_RES_RE = re.compile(r"^M([0-9]{6,}) (?:has a factor: ([0-9]+)) \[TF:([0-9]+):([0-9]+):(mfakt[co]) ([0-9.]+) ([^\]]+)\]$")
+MFAKTX_RANGE_RES_RE = re.compile(r"^(?:no factor for |found ([\d]+) factor for )M([0-9]{6,}) from 2\^([0-9]+) to 2\^([0-9]+) \[(mfakt[co]) ([0-9.]+) ([^\]]+)\]$")
+
+
+def convert_mfactx_results_to_json(adapter, resultsfile):
+    lines = readonly_list_file(resultsfile)
+    # need to create a dict to associate factors with their TF level finished message
+    exponent_result_jsons = {}
+    result_json_template = {"worktype": "TF", "rangecomplete": False}
+    for line in lines:
+        match = MFAKTX_RANGE_RES_RE.match(line)
+        if match:
+            num_factors, exponent, tf_from, tf_to, name, version, subversion = match.groups()
+            key = (exponent, tf_from, tf_to)
+            line_json = exponent_result_jsons.get(key, dict(result_json_template))
+            line_json.update({"exponent": exponent,
+                              "status": "F" if num_factors else "NF",
+                              "bitlo": tf_from,
+                              "bithi": tf_to,
+                              "rangecomplete": True,
+                              "program": {"name": name,
+                                          "version": version,
+                                          "subversion": subversion}
+                              })
+            exponent_result_jsons[key] = line_json
+        else:
+            match = MFAKTX_FACTOR_RES_RE.match(line)
+            if match:
+                exponent, factor, tf_from, tf_to, name, version, subversion = match.groups()
+                key = (exponent, tf_from, tf_to)
+                line_json = exponent_result_jsons.get(key, dict(result_json_template))
+                line_json.update({"exponent": exponent,
+                                  "status": "F",
+                                  "bitlo": tf_from,
+                                  "bithi": tf_to,
+                                  "program": {"name": name,
+                                              "version": version,
+                                              "subversion": subversion}
+                                  })
+                if key not in exponent_result_jsons:
+                    # haven't parsed a range line yet, so we're not sure the range is done
+                    line_json["rangecomplete"] = False
+                    line_json["factors"] = [factor]
+                else:
+                    line_json.get("factors", []).append(factor)
+                exponent_result_jsons[key] = line_json
+            else:
+                adapter.error("Unexpected line encountered in {0}, {1}".format(resultsfile, line))
+
+    # If an exponent has contiguous TF levels that are all "rangecomplete", we can merge the lines
+    merged_line_jsons = []
+    sorted_keys = sorted(exponent_result_jsons)
+    i = 0
+    while i < len(sorted_keys):
+        this_line = exponent_result_jsons[sorted_keys[i]]
+        if i == len(sorted_keys) - 1:
+            merged_line_jsons.append(this_line)
+            break
+        next_line = exponent_result_jsons[sorted_keys[i+1]]
+        if this_line["exponent"] == next_line["exponent"] \
+                and this_line["bithi"] == next_line["bitlo"] \
+                and this_line["rangecomplete"] == next_line["rangecomplete"]:
+            this_line["bithi"] = next_line["bithi"]
+            if "factors" in this_line or "factors" in next_line:
+                this_line["factors"] = this_line.get("factors", []) + next_line.get("factors", [])
+            i += 1
+        merged_line_jsons.append(this_line)
+        i += 1
+    return [json.dumps(line, ensure_ascii=False) for line in merged_line_jsons]
+
+
 RESULTPATTERN = re.compile(r"Prime95|Program: E|Mlucas|CUDALucas v|CUDAPm1 v|gpuowl|prpll|mfaktc|mfakto")
 
 
@@ -4950,7 +5039,10 @@ def submit_work(adapter, adir, cpu_num, tasks):
     # Only submit completed work, i.e. the exponent must not exist in worktodo file any more
     # appended line by line, no lock needed
     resultsfile = os.path.join(adir, options.results_file)
-    results = readonly_list_file(resultsfile)
+    if options.mfaktc or options.mfakto:
+        results = convert_mfactx_results_to_json(adapter, resultsfile)
+    else:
+        results = readonly_list_file(resultsfile)
     # EWM: Note that readonly_list_file does not need the file(s) to exist - nonexistent files simply yield 0-length rs-array entries.
     # remove nonsubmittable lines from list of possibles
 
