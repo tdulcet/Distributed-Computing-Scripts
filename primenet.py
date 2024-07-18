@@ -1319,6 +1319,20 @@ def parse_assignment(task):
         assignment.n = int(n)
         assignment.tf_from = float(tf_from)
         assignment.tests_saved = float(tf_to)
+    elif work_type in {"PFactor", "Pfactor"}:
+        found = PFactor_RE.match(task)
+        if not found:
+            return None
+        _, _, k, b, n, c, sieve_depth, tests_saved, known_factors = found.groups()
+        assignment.work_type = PRIMENET.WORK_TYPE_PFACTOR
+        assignment.k = float(k)
+        assignment.b = int(b)
+        assignment.n = int(n)
+        assignment.c = int(c)
+        assignment.sieve_depth = float(sieve_depth)
+        assignment.tests_saved = float(tests_saved)
+        if known_factors:
+            assignment.known_factors = tuple(map(int, known_factors.split(",")))
     elif work_type in {"PMinus1", "Pminus1"}:
         found = PMinus1_RE.match(task)
         if not found:
