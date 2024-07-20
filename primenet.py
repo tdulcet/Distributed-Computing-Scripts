@@ -425,7 +425,7 @@ PROGRAMS = (
     {"name": "Mlucas", "version": "21.0.1"},
     {"name": "GpuOwl", "version": "7.5"},
     {"name": "CUDALucas", "version": "2.06"},
-    {"name": "mfaktc", "version": "0.21"},
+    {"name": "mfaktc", "version": "0.23"},
     {"name": "mfakto", "version": "0.15", "build": 7},
 )
 # People to e-mail when a new prime is found
@@ -3078,14 +3078,14 @@ def pct_complete_mfakt(exp, bits, num_classes, cur_class):
 
         class_counter = sum(1 for i in range(cur_class) if class_needed(exp, k_min, i, more_classes))
 
-        return class_counter / max_class_number
+        return class_counter / max_class_number, max_class_number
 
     # This should never happen
-    return cur_class / num_classes
+    return cur_class / num_classes, num_classes
 
 
-# "%s%u %d %d %d %s: %d %d %08X", NAME_NUMBERS, exp, bit_min, bit_max, NUM_CLASSES, MFAKTC_VERSION, cur_class, num_factors, i
-MFAKTC_TF_RE = re.compile(br"^M(\d+) (\d+) (\d+) (\d+) ([^\s:]+): (\d+) (\d+) ([\dA-F]{8})$")
+# "%s%u %d %d %d %s: %d %d %08X", NAME_NUMBERS, exp, bit_min, bit_max, NUM_CLASSES, MFAKTC_VERSION, cur_class, num_factors, factors_string, class_time, i
+MFAKTC_TF_RE = re.compile(br'^M(\d+) (\d+) (\d+) (\d+) ([^\s:]+): (\d+) (\d+) (0|(?:"\d+")(?:,"\d+")?) (\d+) ([\dA-F]{8})$')
 
 
 def parse_work_unit_mfaktc(filename, p):
@@ -3100,20 +3100,28 @@ def parse_work_unit_mfaktc(filename, p):
     mfaktc_tf = MFAKTC_TF_RE.match(header)
 
     if mfaktc_tf:
-        exp, bit_min, _bit_max, num_classes, _version, cur_class, _num_factors, _i = mfaktc_tf.groups()
+        exp, bit_min, bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, class_time, i = mfaktc_tf.groups()
     else:
         return None
 
     n = int(exp)
-    bits = int(bit_min)
+    bit_min = int(bit_min)
+    bit_max = int(bit_max)
+    ms_per_class = int(class_time)
+    msec_per_iter = None
 
     if p != n:
         return None
 
-    stage = "TF{0}".format(bits)
-    pct_complete = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
+    stage = "TF{0}".format(bit_min)
+    pct_complete, max_class = pct_complete_mfakt(n, bit_min, int(num_classes), int(cur_class))
+    assignment_ghd = tf_ghd_credit(n, bit_min, bit_max)
+    iteration = pct_complete * assignment_ghd
+    if ms_per_class:
+        iter_per_class = assignment_ghd / max_class
+        msec_per_iter = ms_per_class / iter_per_class
 
-    return stage, pct_complete
+    return iteration, msec_per_iter, stage, pct_complete
 
 
 # "%u %d %d %d %s: %d %d %08X\n", exp, bit_min, bit_max, mystuff.num_classes, MFAKTO_VERSION, cur_class, num_factors, i
@@ -3143,7 +3151,7 @@ def parse_work_unit_mfakto(filename, p):
         return None
 
     stage = "TF{0}".format(bits)
-    pct_complete = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
+    pct_complete, max_classes = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
 
     return stage, pct_complete
 
@@ -3420,14 +3428,24 @@ def parse_gpu_log_file(adapter, adir, p):
     return iteration, msec_per_iter, stage, pct_complete, fftlen, bits, buffs
 
 
+def tf_ghd_credit(exponent, bit_min, bit_max):
+    ghd = 0
+    for i in range(math.floor(bit_min), math.ceil(bit_max)):
+        ghd += 0.016968 * pow(2.0, i - 47.0)
+    ghd *= 1680.0 / exponent
+    return ghd
+
+
 def parse_mfaktc_output_file(adapter, adir, p):
     """Parse the mfaktc output file for the progress of the assignment."""
     savefile = os.path.join(adir, "M{0}.ckp".format(p))
     stage = pct_complete = None
+    iteration = 0
+    msec_per_iter = None
     if os.path.exists(savefile):
         result = parse_work_unit_mfaktc(savefile, p)
         if result is not None:
-            stage, pct_complete = result
+            iteration, msec_per_iter, stage, pct_complete = result
     else:
         adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
 
@@ -3435,7 +3453,7 @@ def parse_mfaktc_output_file(adapter, adir, p):
     if not os.path.exists(outputfile):
         adapter.debug("mfaktc file {0!r} does not exist".format(outputfile))
 
-    return 0, 1.0, stage, pct_complete, None, 0, 0
+    return iteration, msec_per_iter, stage, pct_complete, None, 0, 0
 
 
 def parse_mfakto_output_file(adapter, adir, p):
@@ -3483,6 +3501,8 @@ def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
             if assignment.work_type == PRIMENET.WORK_TYPE_PRP
             else assignment.cert_squarings
             if assignment.work_type == PRIMENET.WORK_TYPE_CERT
+            else tf_ghd_credit(assignment.n, assignment.sieve_depth, assignment.factor_to)
+            if assignment.work_type == PRIMENET.WORK_TYPE_FACTOR
             else assignment.n - 2
         )
     )
@@ -3504,7 +3524,7 @@ def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
         # assume P-1 time is 1.75% of a PRP test (from Prime95)
         time_left = msec_per_iter * assignment.n * 0.0175
     elif assignment.work_type == PRIMENET.WORK_TYPE_FACTOR:
-        time_left = msec_per_iter * assignment.n * 0.0175  # TODO
+        time_left = msec_per_iter * (tf_ghd_credit(assignment.n, assignment.sieve_depth, assignment.factor_to) - iteration)
     else:
         time_left = msec_per_iter * (
             (
@@ -3692,6 +3712,8 @@ def output_status(dirs, cpu_num=None):
                 work_type_str = "P-1 B1={0}".format(assignment.B1)
             elif assignment.work_type == PRIMENET.WORK_TYPE_PFACTOR:
                 work_type_str = "P-1"
+            elif assignment.work_type == PRIMENET.WORK_TYPE_FACTOR:
+                work_type_str = "TF"
             elif assignment.work_type == PRIMENET.WORK_TYPE_CERT:
                 work_type_str = "Certify"
             prob += aprob
@@ -3822,6 +3844,24 @@ def checksum_md5(filename):
         for chunk in iter(lambda: f.read(256 * amd5.block_size), b""):
             amd5.update(chunk)
     return amd5.hexdigest()
+
+
+crc32_table = []
+for i in range(256):
+    crc = i << 24
+    for _j in range(8):
+        if crc & 0x80000000:
+            crc = (crc << 1) ^ 0x04C11DB7
+        else:
+            crc <<= 1
+    crc32_table.append(crc & 0xFFFFFFFF)
+
+
+def checkpoint_checksum(buffer):
+    chksum = 0
+    for b in bytearray(buffer):
+        chksum = ((chksum << 8) ^ crc32_table[(chksum >> 24) ^ b]) & 0xFFFFFFFF
+    return chksum
 
 
 def upload_proof(adapter, filename):
@@ -4975,7 +5015,13 @@ def update_progress(adapter, cpu_num, assignment, progress, msec_per_iter, p, no
             assignment.n,
             percent,
             iteration,
-            s2 or bits or (assignment.n if assignment.work_type == PRIMENET.WORK_TYPE_PRP else assignment.n - 2),
+            s2 or
+            bits or
+            (assignment.n
+             if assignment.work_type == PRIMENET.WORK_TYPE_PRP
+             else tf_ghd_credit(assignment.n, assignment.sieve_depth, assignment.factor_to)
+             if assignment.work_type == PRIMENET.WORK_TYPE_FACTOR
+             else assignment.n - 2),
         )
     )
     if stage is None and percent > 0:
@@ -5543,81 +5589,6 @@ def submit_one_line(adapter, adir, resultsfile, sendline, assignments):
     return sent
 
 
-MFAKTX_FACTOR_RES_RE = re.compile(
-    r"^M([0-9]{6,}) (?:has a factor: ([0-9]+)) \[TF:([0-9]+):([0-9]+):(mfakt[co]) ([0-9.]+) ([^\]]+)\]$"
-)
-MFAKTX_RANGE_RES_RE = re.compile(
-    r"^(?:no factor for |found ([0-9]+) factor for )M([0-9]{6,}) from 2\^([0-9]+) to 2\^([0-9]+) \[(mfakt[co]) ([0-9.]+) ([^\]]+)\]$"
-)
-
-
-def convert_mfactx_results_to_json(adapter, resultsfile):
-    lines = readonly_list_file(resultsfile)
-    # need to create a dict to associate factors with their TF level finished message
-    exponent_result_jsons = {}
-    result_json_template = {"worktype": "TF", "rangecomplete": False}
-    for line in lines:
-        match = MFAKTX_RANGE_RES_RE.match(line)
-        if match:
-            num_factors, exponent, tf_from, tf_to, name, version, subversion = match.groups()
-            key = (exponent, tf_from, tf_to)
-            line_json = exponent_result_jsons.get(key, dict(result_json_template))
-            line_json.update({
-                "exponent": int(exponent),
-                "status": "F" if num_factors else "NF",
-                "bitlo": int(tf_from),
-                "bithi": int(tf_to),
-                "rangecomplete": True,
-                "program": {"name": name, "version": version, "subversion": subversion},
-            })
-            exponent_result_jsons[key] = line_json
-        else:
-            match = MFAKTX_FACTOR_RES_RE.match(line)
-            if match:
-                exponent, factor, tf_from, tf_to, name, version, subversion = match.groups()
-                key = (exponent, tf_from, tf_to)
-                line_json = exponent_result_jsons.get(key, dict(result_json_template))
-                line_json.update({
-                    "exponent": int(exponent),
-                    "status": "F",
-                    "bitlo": int(tf_from),
-                    "bithi": int(tf_to),
-                    "program": {"name": name, "version": version, "subversion": subversion},
-                })
-                if key not in exponent_result_jsons:
-                    # haven't parsed a range line yet, so we're not sure the range is done
-                    line_json["rangecomplete"] = False
-                    line_json["factors"] = [factor]
-                else:
-                    line_json.get("factors", []).append(factor)
-                exponent_result_jsons[key] = line_json
-            else:
-                adapter.error("Unexpected line encountered in {0}, {1}".format(resultsfile, line))
-
-    # If an exponent has contiguous TF levels that are all "rangecomplete", we can merge the lines
-    merged_line_jsons = []
-    sorted_keys = sorted(exponent_result_jsons)
-    i = 0
-    while i < len(sorted_keys):
-        this_line = exponent_result_jsons[sorted_keys[i]]
-        if i == len(sorted_keys) - 1:
-            merged_line_jsons.append(this_line)
-            break
-        next_line = exponent_result_jsons[sorted_keys[i + 1]]
-        if (
-            this_line["exponent"] == next_line["exponent"]
-            and this_line["bithi"] == next_line["bitlo"]
-            and this_line["rangecomplete"] == next_line["rangecomplete"]
-        ):
-            this_line["bithi"] = next_line["bithi"]
-            if "factors" in this_line or "factors" in next_line:
-                this_line["factors"] = this_line.get("factors", []) + next_line.get("factors", [])
-            i += 1
-        merged_line_jsons.append(this_line)
-        i += 1
-    return [json.dumps(line, ensure_ascii=False) for line in merged_line_jsons]
-
-
 RESULTPATTERN = re.compile(r"Prime95|Program: E|Mlucas|CUDALucas v|CUDAPm1 v|gpuowl|prpll|mfakt[co]")
 
 
@@ -5629,10 +5600,7 @@ def submit_work(adapter, adir, cpu_num, tasks):
     # Only submit completed work, i.e. the exponent must not exist in worktodo file any more
     # appended line by line, no lock needed
     resultsfile = os.path.join(adir, options.results_file)
-    if options.mfaktc or options.mfakto:
-        results = convert_mfactx_results_to_json(adapter, resultsfile)
-    else:
-        results = readonly_list_file(resultsfile)
+    results = readonly_list_file(resultsfile)
     # EWM: Note that readonly_list_file does not need the file(s) to exist - nonexistent files simply yield 0-length rs-array entries.
     # remove nonsubmittable lines from list of possibles
 
