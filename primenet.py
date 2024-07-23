@@ -3510,7 +3510,7 @@ def compute_progress(assignment, iteration, msec_per_iter, p, bits, s2):
     )
     if msec_per_iter is None:
         return percent, None, msec_per_iter
-    if assignment.n != p:
+    if assignment.n != p and assignment.work_type != PRIMENET.WORK_TYPE_FACTOR:
         msec_per_iter *= assignment.n * log2(assignment.n) * log2(log2(assignment.n)) / (p * log2(p) * log2(log2(p)))
     if bits:
         time_left = msec_per_iter * (bits - iteration)
