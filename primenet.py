@@ -370,6 +370,57 @@ elif sys.platform.startswith("linux"):
             ("_f", ctypes.c_char * (20 - 2 * ctypes.sizeof(ctypes.c_int) - ctypes.sizeof(ctypes.c_long))),
         )
 
+elif sys.platform.startswith("linux"):
+    try:
+        # Python 3.10+
+        from platform import freedesktop_os_release
+    except ImportError:
+
+        def freedesktop_os_release():
+            line_re = re.compile(r"""^([a-zA-Z_][a-zA-Z0-9_]*)=('([^']*)'|"((?:[^$"`]|\\[$"`\\])*)"|.*)$""")
+            quote_unescape_re = re.compile(r'\\([$"`\\])')
+            unescape_re = re.compile(r"\\(.)")
+            info = {}
+            for candidate in ("/etc/os-release", "/usr/lib/os-release"):
+                if os.path.isfile(candidate):
+                    with open(candidate) as file:
+                        # lexer = shlex.shlex(file, posix=True)
+                        # lexer.whitespace_split = True
+                        for line in file:
+                            if not line or line.startswith("#"):
+                                continue
+                            match = line_re.match(line)
+                            if match:
+                                info[match.group(1)] = (
+                                    match.group(3)
+                                    if match.group(3) is not None
+                                    else quote_unescape_re.sub(r"\1", match.group(4))
+                                    if match.group(4) is not None
+                                    else unescape_re.sub(r"\1", match.group(2))
+                                )
+                    break
+            return info
+
+    libc = ctypes.CDLL(find_library("c"))
+
+    class sysinfo(ctypes.Structure):
+        _fields_ = (
+            ("uptime", ctypes.c_long),
+            ("loads", ctypes.c_ulong * 3),
+            ("totalram", ctypes.c_ulong),
+            ("freeram", ctypes.c_ulong),
+            ("sharedram", ctypes.c_ulong),
+            ("bufferram", ctypes.c_ulong),
+            ("totalswap", ctypes.c_ulong),
+            ("freeswap", ctypes.c_ulong),
+            ("procs", ctypes.c_ushort),
+            ("pad", ctypes.c_ushort),
+            ("totalhigh", ctypes.c_ulong),
+            ("freehigh", ctypes.c_ulong),
+            ("mem_unit", ctypes.c_uint),
+            ("_f", ctypes.c_char * (20 - 2 * ctypes.sizeof(ctypes.c_int) - ctypes.sizeof(ctypes.c_long))),
+        )
+
 
 try:
     # Windows
@@ -379,6 +430,7 @@ except ImportError:
     def beep():
         """Emits a beep sound."""
         print("\a")
+
 else:
 
     def beep():
@@ -418,7 +470,7 @@ if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(0)
 charset.add_charset("utf-8", charset.QP, charset.QP, "utf-8")
 
-VERSION = "2.1"
+VERSION = "2.2"
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = (
     {"name": "Prime95", "version": "30.19", "build": 20},
@@ -770,9 +822,7 @@ def setup():
         1,
         5,
     )
-    if program == 3:
-        outputfile = ask_str("CUDALucas output filename", options.cudalucas or "")
-    elif program in {4, 5}:
+    if program in {4, 5}:
         outputfile = ask_str("mfaktc/mfakto output filename", options.mfaktc or options.mfakto or "")
     hours = ask_int("Hours per day you expect the GIMPS program will run", options.cpu_hours, 1, 24)
 
@@ -786,8 +836,8 @@ def setup():
         options.gpuowl = True
         config.set(SEC.PrimeNet, "gpuowl", str(True))
     elif program == 3:
-        options.cudalucas = outputfile
-        config.set(SEC.PrimeNet, "cudalucas", outputfile)
+        options.cudalucas = True
+        config.set(SEC.PrimeNet, "cudalucas", str(True))
     elif program == 4:
         options.mfaktc = outputfile
         config.set(SEC.PrimeNet, "mfaktc", outputfile)
@@ -1224,6 +1274,7 @@ if sys.version_info >= (3, 3):
                 )
             )
         return adigits
+
 else:
 
     def digits(assignment):
@@ -2761,6 +2812,7 @@ if hasattr(int, "from_bytes"):
     def from_bytes(abytes, byteorder="little"):
         """Converts a byte sequence to a corresponding value."""
         return int.from_bytes(abytes, byteorder)
+
 else:
 
     def from_bytes(abytes, byteorder="little"):
@@ -3248,57 +3300,6 @@ def parse_cuda_output_file(adapter, adir, p):
     else:
         adapter.debug("Save/Checkpoint file {0!r} does not exist".format(savefile))
 
-    # appended line by line, no lock needed
-    outputfile = os.path.join(adir, options.cudalucas)
-    if not os.path.exists(outputfile):
-        adapter.debug("CUDALucas file {0!r} does not exist".format(outputfile))
-        return iteration, avg_msec_per_iter, stage, pct_complete, fftlen, bits, buffs
-
-    w = readonly_list_file(outputfile)
-    found = 0
-    num_regex = re.compile(r"\bM([0-9]{6,})\b")
-    iter_regex = re.compile(r"\b[0-9]{5,}\b")
-    ms_per_regex = re.compile(r"\b[0-9]+\.[0-9]{1,5}\b")
-    eta_regex = re.compile(r"\b(?:(?:([0-9]+):)?([0-9]{1,2}):)?([0-9]{1,2}):([0-9]{2})\b")
-    fft_regex = re.compile(r"\b([0-9]{3,})K\b")
-    list_msec_per_iter = []
-    # get the 5 most recent Iter line
-    for line in reversed(list(w)):
-        num_res = num_regex.search(line)
-        iter_res = iter_regex.search(line)
-        ms_res = ms_per_regex.findall(line)
-        eta_res = eta_regex.findall(line)
-        fft_res = fft_regex.search(line)
-        if num_res and iter_res and ms_res and eta_res and fft_res:
-            num = int(num_res.group(1))
-            if num != p:
-                if not found:
-                    adapter.debug("Looking for the exponent {0}, but found {1}".format(p, num))
-                break
-            found += 1
-            aiteration = int(iter_res.group())
-            # keep the last iteration to compute the percent of progress
-            if found == 1:
-                iteration = aiteration
-                d, h, m, s = eta_res[1]
-                time_left = int(s) + int(m) * 60
-                if h:
-                    time_left += int(h) * 60 * 60
-                if d:
-                    time_left += int(d) * 60 * 60 * 24
-                avg_msec_per_iter = time_left * 1000 / (p - iteration)
-                fftlen = int(fft_res.group(1)) << 10
-            elif aiteration > iteration:
-                break
-            list_msec_per_iter.append(float(ms_res[1]))
-            if found == 5:
-                break
-    if not found:
-        # iteration is 0, but don't know the estimated speed yet
-        return iteration, avg_msec_per_iter, stage, pct_complete, fftlen, bits, buffs
-    # take the median of the last grepped lines
-    msec_per_iter = median_low(list_msec_per_iter)
-    adapter.debug("Current {0:.6n} msec/iter estimation, Average {1:.6n} msec/iter".format(msec_per_iter, avg_msec_per_iter))
     return iteration, avg_msec_per_iter, stage, pct_complete, fftlen, bits, buffs
 
 
@@ -4823,7 +4824,8 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             new_tasks.append(new_task)
         tasks.extend(assignments)
     write_list_file(workfile, new_tasks, "a")
-    output_status([adir], cpu_num)
+    if len(tasks) <= 5:
+        output_status([adir], cpu_num)
     if num_fetched < num_to_get:
         adapter.error(
             "Failed to get requested number of new assignments, {0:n} requested, {1:n} successfully retrieved".format(
@@ -5072,7 +5074,13 @@ def update_progress_all(adapter, adir, cpu_num, last_time, tasks, progress, chec
         modified = True
         file = os.path.join(
             adir,
-            options.mfakto or options.mfaktc or options.cudalucas or ("gpuowl.log" if options.gpuowl else "p{0}.stat".format(p)),
+            "{0}.ckp".format(p)
+            if options.mfaktc
+            else "c{0}".format(p)
+            if options.cudalucas
+            else "gpuowl.log"
+            if options.gpuowl
+            else "p{0}.stat".format(p)
         )
         if os.path.exists(file) and last_time is not None:
             mtime = os.path.getmtime(file)
@@ -5234,9 +5242,6 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
     elif worktype in {"P-1", "PM1"}:
         result_type = PRIMENET.AR_P1_FACTOR if ar["status"] == "F" else PRIMENET.AR_P1_NOFACTOR
         # ar['status'] == 'NF'
-    elif worktype == "TF":
-        result_type = PRIMENET.AR_TF_FACTOR if ar["status"] == "F" else PRIMENET.AR_TF_NOFACTOR
-        # ar['status'] == 'NF'
     elif worktype == "Cert":
         result_type = PRIMENET.AR_CERT
     else:
@@ -5329,7 +5334,8 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
         if "b2" in ar or "B2" in ar:
             args["B2"] = ar["B2"] if "B2" in ar else ar["b2"]
         if result_type == PRIMENET.AR_P1_FACTOR:
-            factor = int(ar["factors"][0])
+            factors = tuple(map(int, ar["factors"]))
+            factor = factors[0]
             buf += "{0} has a factor: {1} (P-1, B1={2}{3})".format(
                 exponent_to_str(assignment),
                 factor,
@@ -5340,8 +5346,11 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
             )
             args["f"] = factor
             num = int(assignment.k) * assignment.b**assignment.n + assignment.c
-            for factor in ar["factors"]:
-                if num % int(factor):
+            for factor in factors:
+                adapter.info(
+                    "The factor {0} has {1:n} decimal digits and {2:.6n} bits".format(factor, len(str(factor)), log2(factor))
+                )
+                if num % factor:
                     adapter.warning("Bad factor for {0} found: {1}".format(exponent_to_str(assignment), factor))
         else:
             buf += "{0} completed P-1, B1={1}{2}, Wh{3}: -".format(
@@ -5696,13 +5705,13 @@ parser.add_option(
 )
 
 # all other options are saved to local.ini
-parser.add_option("-i", "--workfile", dest="worktodo_file", default="worktodo.txt", help="Work file filename, Default: “%default”")
+parser.add_option("-i", "--work-file", dest="worktodo_file", default="worktodo.txt", help="Work file filename, Default: “%default”")
 parser.add_option(
-    "-r", "--resultsfile", dest="results_file", default="results.txt", help="Results file filename, Default: “%default”"
+    "-r", "--results-file", dest="results_file", default="results.txt", help="Results file filename, Default: “%default”"
 )
 parser.add_option("-L", "--logfile", dest="logfile", default="primenet.log", help="Log file filename, Default: “%default”")
 parser.add_option(
-    "-l", "--localfile", dest="localfile", default="local.ini", help="Local configuration file filename, Default: “%default”"
+    "-l", "--local-file", dest="localfile", default="local.ini", help="Local configuration file filename, Default: “%default”"
 )
 parser.add_option(
     "--archive-proofs", dest="archive_dir", help="Directory to archive PRP proof files after upload, Default: %default"
@@ -5763,16 +5772,16 @@ parser.add_option("--min-exp", dest="min_exp", type="int", help="Minimum exponen
 parser.add_option("--max-exp", dest="max_exp", type="int", help="Maximum exponent to get from PrimeNet (2 - 999,999,999)")
 
 parser.add_option(
-    "-g", "--gpuowl", "--prpll", action="store_true", dest="gpuowl", help="Get assignments for GpuOwl or PRPLL instead of Mlucas."
+    "-g",
+    "--gpuowl",
+    "--prpll",
+    action="store_true",
+    help="Get assignments for GpuOwl or PRPLL instead of Mlucas. PRPLL is not yet fully supported.",
 )
-parser.add_option(
-    "--cudalucas",
-    dest="cudalucas",
-    help="Get assignments for CUDALucas instead of Mlucas. Provide the CUDALucas output filename as the argument.",
-)
+parser.add_option("--cudalucas", action="store_true", help="Get assignments for CUDALucas instead of Mlucas.")
 parser.add_option("--mfaktc", dest="mfaktc", help="Get assignments for mfaktc. Provide the mfaktc output filename as the argument.")
 parser.add_option("--mfakto", dest="mfakto", help="Get assignments for mfakto. Provide the mfakto output filename as the argument.")
-parser.add_option("--prime95", action="store_true", dest="prime95", help=optparse.SUPPRESS_HELP)
+parser.add_option("--prime95", action="store_true", help=optparse.SUPPRESS_HELP)
 parser.add_option(
     "--num-workers", dest="num_workers", type="int", default=1, help="Number of workers (CPU Cores/GPUs), Default: %default"
 )
@@ -6087,6 +6096,7 @@ worktypes = {
     "WorldRecordPRP": PRIMENET.WP_PRP_WORLD_RECORD,
     "100MdigitPRP": PRIMENET.WP_PRP_100M,
 }
+# {"PRP": 150, "PM1": 4, "LL_DC": 101, "PRP_DC": 151, "PRP_WORLD_RECORD": 152, "PRP_100M": 153, "PRP_P1": 154}
 # this and the above line of code enables us to use words or numbers on the cmdline
 supported = frozenset(
     [PRIMENET.WP_GPU_FACTOR]
@@ -6158,6 +6168,12 @@ if not options.dirs and options.cpu >= options.num_workers:
     parser.error(
         "CPU core or GPU number ({0:n}) must be less than the number of workers ({1:n})".format(options.cpu, options.num_workers)
     )
+
+if options.cert_work:
+    parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
+
+if not 1 <= options.cert_cpu_limit <= 100:
+    parser.error("Proof certification work limit must be between 1 and 100%")
 
 if options.cert_work:
     parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")

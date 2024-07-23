@@ -79,13 +79,13 @@ Options:
                         results files from the GIMPS program. Provide once for
                         each worker. It automatically sets the --cpu-num
                         option for each directory.
-  -i WORKTODO_FILE, --workfile=WORKTODO_FILE
+  -i WORKTODO_FILE, --work-file=WORKTODO_FILE
                         Work file filename, Default: “worktodo.txt”
-  -r RESULTS_FILE, --resultsfile=RESULTS_FILE
+  -r RESULTS_FILE, --results-file=RESULTS_FILE
                         Results file filename, Default: “results.txt”
   -L LOGFILE, --logfile=LOGFILE
                         Log file filename, Default: “primenet.log”
-  -l LOCALFILE, --localfile=LOCALFILE
+  -l LOCALFILE, --local-file=LOCALFILE
                         Local configuration file filename, Default:
                         “local.ini”
   --archive-proofs=ARCHIVE_DIR
@@ -116,7 +116,7 @@ Options:
                         worktypes are supported by all the GIMPS programs.
   --cert-work           Get PRP proof certification work, Default: none. Not
                         yet supported by any of the GIMPS programs.
-  --cert-limit=CERT_CPU_LIMIT
+  --cert-work-limit=CERT_CPU_LIMIT
                         PRP proof certification work limit in percentage of
                         CPU or GPU time, Default: 10%. Requires the --cert-
                         work option.
@@ -126,9 +126,8 @@ Options:
                         999,999,999)
   -g, --gpuowl, --prpll
                         Get assignments for GpuOwl or PRPLL instead of Mlucas.
-  --cudalucas=CUDALUCAS
-                        Get assignments for CUDALucas instead of Mlucas.
-                        Provide the CUDALucas output filename as the argument.
+                        PRPLL is not yet fully supported.
+  --cudalucas           Get assignments for CUDALucas instead of Mlucas.
   --num-workers=NUM_WORKERS
                         Number of workers (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu-num=CPU
