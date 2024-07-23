@@ -526,6 +526,7 @@ class PRIMENET:
     WP_ECM_FERMAT = 6  # ECM of Fermat numbers
     WP_ECM_CUNNINGHAM = 7  # ECM of Cunningham numbers --- not supported
     WP_ECM_COFACTOR = 8  # ECM of Mersenne cofactors
+    WP_GPU_FACTOR = 12  # Trial Factoring on Mersennes at wavefront exponents
     WP_LL_FIRST = 100  # LL first time tests
     WP_LL_DBLCHK = 101  # LL double checks
     WP_LL_WORLD_RECORD = 102  # LL test of world record Mersenne
@@ -828,8 +829,8 @@ def setup():
     num_thread = ask_int("Number of workers (CPU cores or GPUs)", options.num_workers, 1)
 
     print("""Use the following values to select a worktype:
-	2 - Trial factoring
 	4 - P-1 factoring
+	12 - Trial factoring LMH
 	100 - First time LL tests
 	101 - Double-check LL tests
 	102 - World record LL tests
@@ -847,8 +848,8 @@ def setup():
 ┌──────────┬────────┬────────┬───────┬───────────┬─────────┬───────────────┐
 │ Worktype │ Mlucas │ GpuOwl │ PRPLL │ CUDALucas │ CUDAPm1 │ mfaktc/mfakto │
 ├──────────┴────────┴────────┴───────┴───────────┴─────────┴───────────────┤
-│ 2                                                          ✔             │
 │ 4          ✔        ✔                            ✔                       │
+│ 12                                                         ✔             │
 │ 100        ✔        ✔*               ✔                                   │
 │ 101        ✔        ✔*               ✔                                   │
 │ 102        ✔        ✔*               ✔                                   │
@@ -3712,8 +3713,6 @@ def output_status(dirs, cpu_num=None):
                 work_type_str = "P-1 B1={0}".format(assignment.B1)
             elif assignment.work_type == PRIMENET.WORK_TYPE_PFACTOR:
                 work_type_str = "P-1"
-            elif assignment.work_type == PRIMENET.WORK_TYPE_FACTOR:
-                work_type_str = "TF"
             elif assignment.work_type == PRIMENET.WORK_TYPE_CERT:
                 work_type_str = "Certify"
             prob += aprob
@@ -6090,7 +6089,7 @@ worktypes = {
 }
 # this and the above line of code enables us to use words or numbers on the cmdline
 supported = frozenset(
-    [PRIMENET.WP_FACTOR]
+    [PRIMENET.WP_GPU_FACTOR]
     if options.mfaktc or options.mfakto
     else (
         [PRIMENET.WP_PFACTOR, PRIMENET.WP_LL_FIRST, PRIMENET.WP_LL_DBLCHK, PRIMENET.WP_LL_WORLD_RECORD, PRIMENET.WP_LL_100M]
