@@ -823,7 +823,7 @@ def setup():
         5,
     )
     if program in {4, 5}:
-        outputfile = ask_str("mfaktc/mfakto output filename", options.mfaktc or options.mfakto or "")
+        outputfile = ask_str("mfaktc/mfakto output filename (json)", options.mfaktc or options.mfakto or "results.json.txt")
     hours = ask_int("Hours per day you expect the GIMPS program will run", options.cpu_hours, 1, 24)
 
     if not ask_ok_cancel():
@@ -5242,6 +5242,8 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
     elif worktype in {"P-1", "PM1"}:
         result_type = PRIMENET.AR_P1_FACTOR if ar["status"] == "F" else PRIMENET.AR_P1_NOFACTOR
         # ar['status'] == 'NF'
+    elif worktype == "TF":
+        result_type = PRIMENET.AR_TF_FACTOR if ar["status"] == "F" else PRIMENET.AR_TF_NOFACTOR
     elif worktype == "Cert":
         result_type = PRIMENET.AR_CERT
     else:
@@ -6086,6 +6088,7 @@ PROGRAM = PROGRAMS[5 if options.mfakto else 4 if options.mfaktc else 3 if option
 # Convert mnemonic-form worktypes to corresponding numeric value, check
 # worktype value vs supported ones:
 worktypes = {
+    "GPUTF": PRIMENET.WP_GPU_FACTOR,
     "Pfactor": PRIMENET.WP_PFACTOR,
     "SmallestAvail": PRIMENET.WP_LL_FIRST,
     "DoubleCheck": PRIMENET.WP_LL_DBLCHK,
@@ -6099,7 +6102,7 @@ worktypes = {
 # {"PRP": 150, "PM1": 4, "LL_DC": 101, "PRP_DC": 151, "PRP_WORLD_RECORD": 152, "PRP_100M": 153, "PRP_P1": 154}
 # this and the above line of code enables us to use words or numbers on the cmdline
 supported = frozenset(
-    [PRIMENET.WP_GPU_FACTOR]
+    [PRIMENET.WP_GPU_FACTOR, PRIMENET.WP_FACTOR, PRIMENET.WP_FACTOR_LMH]
     if options.mfaktc or options.mfakto
     else (
         [PRIMENET.WP_PFACTOR, PRIMENET.WP_LL_FIRST, PRIMENET.WP_LL_DBLCHK, PRIMENET.WP_LL_WORLD_RECORD, PRIMENET.WP_LL_100M]
