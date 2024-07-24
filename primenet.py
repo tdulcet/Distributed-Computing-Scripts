@@ -3153,14 +3153,14 @@ def parse_work_unit_mfaktc(filename, p):
     mfaktc_tf = MFAKTC_TF_RE.match(header)
 
     if mfaktc_tf:
-        exp, bit_min, bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, class_time, i = mfaktc_tf.groups()
+        exp, bit_min, bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, bit_level_time, i = mfaktc_tf.groups()
     else:
         return None
 
     n = int(exp)
     bit_min = int(bit_min)
     bit_max = int(bit_max)
-    ms_per_class = int(class_time)
+    ms_elapsed = int(bit_level_time)
     msec_per_iter = None
 
     if p != n:
@@ -3170,9 +3170,8 @@ def parse_work_unit_mfaktc(filename, p):
     pct_complete, max_class = pct_complete_mfakt(n, bit_min, int(num_classes), int(cur_class))
     assignment_ghd = tf_ghd_credit(n, bit_min, bit_max)
     iteration = pct_complete * assignment_ghd
-    if ms_per_class:
-        iter_per_class = assignment_ghd / max_class
-        msec_per_iter = ms_per_class / iter_per_class
+    if ms_elapsed:
+        msec_per_iter = ms_elapsed / iteration
 
     return iteration, msec_per_iter, stage, pct_complete
 
