@@ -822,8 +822,6 @@ def setup():
         1,
         5,
     )
-    if program in {4, 5}:
-        outputfile = ask_str("mfaktc/mfakto output filename (json)", options.mfaktc or options.mfakto or "results.json.txt")
     hours = ask_int("Hours per day you expect the GIMPS program will run", options.cpu_hours, 1, 24)
 
     if not ask_ok_cancel():
@@ -839,11 +837,11 @@ def setup():
         options.cudalucas = True
         config.set(SEC.PrimeNet, "cudalucas", str(True))
     elif program == 4:
-        options.mfaktc = outputfile
-        config.set(SEC.PrimeNet, "mfaktc", outputfile)
+        options.mfaktc = True
+        config.set(SEC.PrimeNet, "mfaktc", str(True))
     elif program == 5:
-        options.mfakto = outputfile
-        config.set(SEC.PrimeNet, "mfakto", outputfile)
+        options.mfakto = True
+        config.set(SEC.PrimeNet, "mfakto", str(True))
 
     disk = ask_float(
         "Configured disk space limit per worker to store the proof interim residues files for PRP tests in GiB/worker (0 to not send)",
@@ -880,7 +878,7 @@ def setup():
 
     print("""Use the following values to select a worktype:
 	4 - P-1 factoring
-	12 - Trial factoring LMH
+	12 - Trial factoring GPU
 	100 - First time LL tests
 	101 - Double-check LL tests
 	102 - World record LL tests
@@ -895,11 +893,11 @@ def setup():
 	161 - Double-check PRP on Mersenne cofactors
 """)
     print("""Not all worktypes are supported by all the GIMPS programs:
-┌──────────┬────────┬────────┬───────┬───────────┬─────────┬───────────────┐
-│ Worktype │ Mlucas │ GpuOwl │ PRPLL │ CUDALucas │ CUDAPm1 │ mfaktc/mfakto │
-├──────────┴────────┴────────┴───────┴───────────┴─────────┴───────────────┤
-│ 4          ✔        ✔                            ✔                       │
-│ 12                                                         ✔             │
+┌──────────┬────────┬────────┬───────┬───────────┬───────────────┬─────────┐
+│ Worktype │ Mlucas │ GpuOwl │ PRPLL │ CUDALucas │ mfaktc/mfakto │ CUDAPm1 │
+├──────────┴────────┴────────┴───────┴───────────┴───────────────┴─────────┤
+│ 4          ✔        ✔                                            ✔       │
+│ 12                                               ✔                       │
 │ 100        ✔        ✔*               ✔                                   │
 │ 101        ✔        ✔*               ✔                                   │
 │ 102        ✔        ✔*               ✔                                   │
@@ -925,7 +923,12 @@ def setup():
         work_pref.append(
             ask_str(
                 "Type of work to get",
-                options.work_preference[i] if i < len(options.work_preference) else str(PRIMENET.WP_PRP_FIRST),
+                getattr(opts_no_defaults, "work_preference")[i]
+                if hasattr(opts_no_defaults, "work_preference")
+                   and i < len(opts_no_defaults.work_preference)
+                else str(PRIMENET.WP_GPU_FACTOR) if program in {4, 5}
+                else str(PRIMENET.WP_LL_DBLCHK) if program in {3}
+                else str(PRIMENET.WP_PRP_FIRST),
             )
         )
 
@@ -5608,7 +5611,9 @@ def submit_work(adapter, adir, cpu_num, tasks):
     results_sent = frozenset(readonly_list_file(sentfile))
     # Only submit completed work, i.e. the exponent must not exist in worktodo file any more
     # appended line by line, no lock needed
-    resultsfile = os.path.join(adir, options.results_file)
+    resultsfile = os.path.join(adir, options.results_file if options.results_file
+                                     else "results.json.txt" if (options.mfaktc or options.mfakto or options.prime95)
+                                     else "results.txt")
     results = readonly_list_file(resultsfile)
     # EWM: Note that readonly_list_file does not need the file(s) to exist - nonexistent files simply yield 0-length rs-array entries.
     # remove nonsubmittable lines from list of possibles
@@ -5708,7 +5713,7 @@ parser.add_option(
 # all other options are saved to local.ini
 parser.add_option("-i", "--work-file", dest="worktodo_file", default="worktodo.txt", help="Work file filename, Default: “%default”")
 parser.add_option(
-    "-r", "--results-file", dest="results_file", default="results.txt", help="Results file filename, Default: “%default”"
+    "-r", "--results-file", dest="results_file", help="Results file filename, Default: “results.json.txt” or “results.txt”, depending on the program"
 )
 parser.add_option("-L", "--logfile", dest="logfile", default="primenet.log", help="Log file filename, Default: “%default”")
 parser.add_option(
