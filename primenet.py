@@ -4811,8 +4811,8 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             )
     else:
         adapter.debug(
-            "No time estimate available for current {0:n} assignment{1}, so we'll only fetch {2:n} for now, instead of {3:n} days of work".format(
-                num_existing, "s" if num_existing else "", num_cache, options.days_of_work))
+            "No time estimate available for current {0:n} assignment{1}, so we'll only fetch {2:n} for now, instead of {3:n} day{4} of work".format(
+                num_existing, "s" if num_existing != 1 else "", num_cache, options.days_of_work, "s" if options.days_of_work != 1 else ""))
     if config.has_option(SEC.PrimeNet, "MaxExponents"):
         amax = config.getint(SEC.PrimeNet, "MaxExponents")
         if amax < num_cache:
