@@ -4789,10 +4789,15 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
     num_cache = options.num_cache
     if not num_cache:
         num_cache = 10 if options.mfaktc or options.mfakto else 1
-        adapter.debug("num_cache wasn't set, choosing {0:n} assignments to start".format(num_cache))
+        adapter.debug("Config option num_cache wasn't set, defaulting to {0:n} assignment{1}".format(num_cache, "s" if num_cache != 1 else ""))
     if options.password:
         num_cache += 1
     num_existing = len(assignments)
+    if num_existing > num_cache:
+        adapter.debug(
+            "Number of existing assignments ({0:n}) was higher than num_cache ({1:n}), num_cache increased to {0:n}".format(
+            num_existing, num_cache))
+        num_cache = num_existing
     num_cache = max(num_existing, num_cache)
     if time_left is not None:
         time_left = timedelta(seconds=time_left)
@@ -4800,26 +4805,30 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
         if time_left <= days_work:
             num_cache = math.ceil(num_existing * days_work / time_left)
             adapter.debug(
-                "Time left is {0} and smaller than days_of_work ({1}), so num_cache is increased to {2:n}".format(
+                "Time left is {0} and smaller than days_of_work ({1}), so num_cache increased to {2:n}".format(
                     time_left, days_work, num_cache
                 )
             )
+    else:
+        adapter.debug(
+            "No time estimate available for current {0:n} assignment{1}, so we'll only fetch {2:n} for now, instead of {3:n} days of work".format(
+                num_existing, "s" if num_existing else "", num_cache, options.days_of_work))
     if config.has_option(SEC.PrimeNet, "MaxExponents"):
         amax = config.getint(SEC.PrimeNet, "MaxExponents")
         if amax < num_cache:
             adapter.debug(
-                "Config option MaxExponents ({0:n}) smaller than num_cache ({1:n}), requesting a maximum of {0:n} assignments".format(amax, num_cache, workfile))
+                "Config option MaxExponents ({0:n}) is smaller than num_cache ({1:n}), num_cache decreased to {0:n}".format(
+                    amax, num_cache, workfile))
             num_cache = amax
 
     if num_cache <= num_existing:
-        adapter.debug("{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(num_existing, num_cache, workfile))
+        adapter.debug("{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(
+            num_existing, num_cache, workfile))
         return []
     num_to_get = num_cache - num_existing
     adapter.debug(
         "Found {0:n} < {1:n} assignments in {2!r}, getting {3:n} new assignment{4}".format(
-            num_existing, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""
-        )
-    )
+            num_existing, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""))
 
     assignments = primenet_fetch(adapter, cpu_num, num_to_get)
     new_tasks = []
