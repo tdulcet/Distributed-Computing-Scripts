@@ -4786,7 +4786,10 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
     _percent = time_left = None
     if progress is not None:
         _percent, time_left, _, _ = progress  # unpack update_progress output
-    num_cache = options.num_cache + 1
+    num_cache = options.num_cache
+    if not num_cache:
+        num_cache = 10 if options.mfaktc or options.mfakto else 1
+        adapter.debug("num_cache wasn't set, choosing {0:n} assignments to start".format(num_cache))
     if options.password:
         num_cache += 1
     num_existing = len(assignments)
