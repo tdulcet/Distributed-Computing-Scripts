@@ -5325,7 +5325,16 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
             args["pp"] = proof["power"]
             args["ph"] = proof["md5"]
     elif result_type in {PRIMENET.AR_TF_FACTOR, PRIMENET.AR_TF_NOFACTOR}:
-        args["d"] = 1 if ar["rangecomplete"] else 0
+        args["d"] = (
+            1
+            if ar["rangecomplete"]
+            and not any(
+                task.k == assignment.k and task.b == assignment.b and task.n == assignment.n and task.c == assignment.c
+                for task in tasks
+                if isinstance(task, Assignment)
+            )
+            else 0
+        )
         args["sf"] = ar["bitlo"]
         if result_type == PRIMENET.AR_TF_FACTOR:
             factor = int(ar["factors"][0])
