@@ -4795,14 +4795,18 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
         time_left = timedelta(seconds=time_left)
         days_work = timedelta(days=options.days_of_work)
         if time_left <= days_work:
-            num_cache += 1
+            num_cache = math.ceil(num_existing * days_work / time_left)
             adapter.debug(
-                "Time left is {0} and smaller than days_of_work ({1}), so num_cache is increased by one to {2:n}".format(
+                "Time left is {0} and smaller than days_of_work ({1}), so num_cache is increased to {2:n}".format(
                     time_left, days_work, num_cache
                 )
             )
-    amax = config.getint(SEC.PrimeNet, "MaxExponents") if config.has_option(SEC.PrimeNet, "MaxExponents") else 15
-    num_cache = min(num_cache, amax)
+    if config.has_option(SEC.PrimeNet, "MaxExponents"):
+        amax = config.getint(SEC.PrimeNet, "MaxExponents")
+        if amax < num_cache:
+            adapter.debug(
+                "Config option MaxExponents ({0:n}) smaller than num_cache ({1:n}), requesting a maximum of {0:n} assignments".format(amax, num_cache, workfile))
+            num_cache = amax
 
     if num_cache <= num_existing:
         adapter.debug("{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(num_existing, num_cache, workfile))
