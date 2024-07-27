@@ -322,11 +322,13 @@ elif sys.platform == "darwin":  # macOS
         value = ctype()
         libc.sysctlbyname(name, ctypes.byref(value), ctypes.byref(size), None, 0)
         return value.value
+
 elif sys.platform.startswith("linux"):
     try:
         # Python 3.10+
         from platform import freedesktop_os_release
     except ImportError:
+
         def freedesktop_os_release():
             line_re = re.compile(r"""^([a-zA-Z_][a-zA-Z0-9_]*)=('([^']*)'|"((?:[^$"`]|\\[$"`\\])*)"|.*)$""")
             quote_unescape_re = re.compile(r'\\([$"`\\])')
@@ -923,11 +925,12 @@ def setup():
         work_pref.append(
             ask_str(
                 "Type of work to get",
-                getattr(opts_no_defaults, "work_preference")[i]
-                if hasattr(opts_no_defaults, "work_preference")
-                   and i < len(opts_no_defaults.work_preference)
-                else str(PRIMENET.WP_GPU_FACTOR) if program in {4, 5}
-                else str(PRIMENET.WP_LL_DBLCHK) if program in {3}
+                options.work_preference[i]
+                if hasattr(opts_no_defaults, "work_preference") and i < len(options.work_preference)
+                else str(PRIMENET.WP_GPU_FACTOR)
+                if options.mfaktc or options.mfakto
+                else str(PRIMENET.WP_LL_DBLCHK)
+                if options.cudalucas
                 else str(PRIMENET.WP_PRP_FIRST),
             )
         )
@@ -2130,43 +2133,43 @@ def get_exponent(n):
 
 
 FACTOR_LIMITS = (
-    (86, 1071000000),
-    (85, 842000000),
-    (84, 662000000),
-    (83, 516800000),
-    (82, 408400000),
-    (81, 322100000),
-    (80, 253500000),
-    (79, 199500000),
-    (78, 153400000),
-    (77, 120000000),
-    (76, 96830000),
-    (75, 77910000),
-    (74, 60940000),
-    (73, 48800000),
-    (72, 38300000),
-    (71, 29690000),
-    (70, 23390000),
-    (69, 13380000),
-    (68, 8250000),
-    (67, 6515000),
-    (66, 5160000),
-    (65, 3960000),
-    (64, 2950000),
-    (63, 2360000),
-    (62, 1930000),
-    (61, 1480000),
-    (60, 1000000),
+    (82, 1071000000),
+    (81, 842000000),
+    (80, 662000000),
+    (79, 516800000),
+    (78, 408400000),
+    (77, 322100000),
+    (76, 253500000),
+    (75, 199500000),
+    (74, 153400000),
+    (73, 120000000),
+    (72, 96830000),
+    (71, 77910000),
+    (70, 60940000),
+    (69, 48800000),
+    (68, 38300000),
+    (67, 29690000),
+    (66, 23390000),
+    (65, 13380000),
+    (64, 8250000),
+    (63, 6515000),
+    (62, 5160000),
+    (61, 3960000),
+    (60, 2950000),
+    (59, 2360000),
+    (58, 1930000),
+    (57, 1480000),
+    (56, 1000000),
 )
 
 
 def factor_limit(p):
-    test = 44
+    test = 40
     for bits, exponent in FACTOR_LIMITS:
         if p > exponent:
             test = bits
             break
-    return test
+    return test + 4
 
 
 def register_exponents(dirs):
@@ -3134,14 +3137,22 @@ def pct_complete_mfakt(exp, bits, num_classes, cur_class):
 
         class_counter = sum(1 for i in range(cur_class) if class_needed(exp, k_min, i, more_classes))
 
-        return class_counter / max_class_number, max_class_number
+        return class_counter / max_class_number
 
     # This should never happen
-    return cur_class / num_classes, num_classes
+    return cur_class / num_classes
 
 
-# "%s%u %d %d %d %s: %d %d %08X", NAME_NUMBERS, exp, bit_min, bit_max, NUM_CLASSES, MFAKTC_VERSION, cur_class, num_factors, factors_string, class_time, i
-MFAKTC_TF_RE = re.compile(br'^M(\d+) (\d+) (\d+) (\d+) ([^\s:]+): (\d+) (\d+) (0|(?:"\d+")(?:,"\d+")?) (\d+) ([\dA-F]{8})$')
+def tf_ghd_credit(exp, bit_min, bit_max):
+    ghzdays = sum(0.011160 * 2 ** (i - 48) for i in range(bit_min + 1, min(62, bit_max) + 1))
+    ghzdays += sum(0.017832 * 2 ** (i - 48) for i in range(max(62, bit_min) + 1, min(64, bit_max) + 1))
+    ghzdays += sum(0.016968 * 2 ** (i - 48) for i in range(max(64, bit_min) + 1, bit_max + 1))
+    ghzdays *= 1680 / exp
+    return ghzdays
+
+
+# "%s%u %d %d %d %s: %d %d %s %llu %08X", NAME_NUMBERS, exp, bit_min, bit_max, NUM_CLASSES, MFAKTC_VERSION, cur_class, num_factors, strlen(factors_string) ? factors_string : "0", bit_level_time, i
+MFAKTC_TF_RE = re.compile(rb'^M(\d+) (\d+) (\d+) (\d+) ([^\s:]+): (\d+) (\d+) (0|"\d+"(?:,"\d+")*) (\d+) ([\dA-F]{8})$')
 
 
 def parse_work_unit_mfaktc(filename, p):
@@ -3156,27 +3167,26 @@ def parse_work_unit_mfaktc(filename, p):
     mfaktc_tf = MFAKTC_TF_RE.match(header)
 
     if mfaktc_tf:
-        exp, bit_min, bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, bit_level_time, i = mfaktc_tf.groups()
+        exp, bit_min, bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, bit_level_time, _i = (
+            mfaktc_tf.groups()
+        )
     else:
         return None
 
     n = int(exp)
-    bit_min = int(bit_min)
-    bit_max = int(bit_max)
+    bits = int(bit_min)
     ms_elapsed = int(bit_level_time)
-    msec_per_iter = None
 
     if p != n:
         return None
 
-    stage = "TF{0}".format(bit_min)
-    pct_complete, max_class = pct_complete_mfakt(n, bit_min, int(num_classes), int(cur_class))
-    assignment_ghd = tf_ghd_credit(n, bit_min, bit_max)
-    iteration = pct_complete * assignment_ghd
-    if ms_elapsed:
-        msec_per_iter = ms_elapsed / iteration
+    pct_complete = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
+    assignment_ghd = tf_ghd_credit(n, bits, int(bit_max))
+    counter = pct_complete * assignment_ghd
+    avg_msec_per_iter = ms_elapsed / counter if ms_elapsed else None
+    stage = "TF{0}".format(bits)
 
-    return iteration, msec_per_iter, stage, pct_complete
+    return counter, avg_msec_per_iter, stage, pct_complete
 
 
 # "%u %d %d %d %s: %d %d %08X\n", exp, bit_min, bit_max, mystuff.num_classes, MFAKTO_VERSION, cur_class, num_factors, i
@@ -3206,7 +3216,7 @@ def parse_work_unit_mfakto(filename, p):
         return None
 
     stage = "TF{0}".format(bits)
-    pct_complete, max_classes = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
+    pct_complete = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
 
     return stage, pct_complete
 
@@ -3432,37 +3442,27 @@ def parse_gpu_log_file(adapter, adir, p):
     return iteration, msec_per_iter, stage, pct_complete, fftlen, bits, buffs
 
 
-def tf_ghd_credit(exponent, bit_min, bit_max):
-    ghd = 0
-    for i in range(math.floor(bit_min), math.ceil(bit_max)):
-        ghd += 0.016968 * pow(2.0, i - 47.0)
-    ghd *= 1680.0 / exponent
-    return ghd
-
-
 def parse_mfaktc_output_file(adapter, adir, p):
     """Parse the mfaktc output file for the progress of the assignment."""
     savefile = os.path.join(adir, "M{0}.ckp".format(p))
-    stage = pct_complete = None
     iteration = 0
-    msec_per_iter = None
+    avg_msec_per_iter = None
+    stage = pct_complete = None
     if os.path.exists(savefile):
         result = parse_work_unit_mfaktc(savefile, p)
         if result is not None:
-            iteration, msec_per_iter, stage, pct_complete = result
+            iteration, avg_msec_per_iter, stage, pct_complete = result
     else:
         adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
 
-    outputfile = os.path.join(adir, options.mfaktc)
-    if not os.path.exists(outputfile):
-        adapter.debug("mfaktc file {0!r} does not exist".format(outputfile))
-
-    return iteration, msec_per_iter, stage, pct_complete, None, 0, 0
+    return iteration, avg_msec_per_iter, stage, pct_complete, None, 0, 0
 
 
 def parse_mfakto_output_file(adapter, adir, p):
     """Parse the mfakto output file for the progress of the assignment."""
     savefile = os.path.join(adir, "M{0}.ckp".format(p))
+    iteration = 0
+    avg_msec_per_iter = None
     stage = pct_complete = None
     if os.path.exists(savefile):
         result = parse_work_unit_mfakto(savefile, p)
@@ -3471,11 +3471,7 @@ def parse_mfakto_output_file(adapter, adir, p):
     else:
         adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
 
-    outputfile = os.path.join(adir, options.mfakto)
-    if not os.path.exists(outputfile):
-        adapter.debug("mfakto file {0!r} does not exist".format(outputfile))
-
-    return 0, 1.0, stage, pct_complete, None, 0, 0
+    return iteration, avg_msec_per_iter, stage, pct_complete, None, 0, 0
 
 
 def get_progress_assignment(adapter, adir, assignment):
@@ -3711,7 +3707,7 @@ def output_status(dirs, cpu_num=None):
                         / (log2(assignment.k) + log2(assignment.b) * assignment.n)
                     )
             elif assignment.work_type == PRIMENET.WORK_TYPE_FACTOR:
-                work_type_str = "factor from 2^{0} to 2^{1}".format(assignment.sieve_depth, assignment.factor_to)
+                work_type_str = "factor from 2^{0.0f} to 2^{1.0f}".format(assignment.sieve_depth, assignment.factor_to)
             elif assignment.work_type == PRIMENET.WORK_TYPE_PMINUS1:
                 work_type_str = "P-1 B1={0}".format(assignment.B1)
             elif assignment.work_type == PRIMENET.WORK_TYPE_PFACTOR:
@@ -3846,24 +3842,6 @@ def checksum_md5(filename):
         for chunk in iter(lambda: f.read(256 * amd5.block_size), b""):
             amd5.update(chunk)
     return amd5.hexdigest()
-
-
-crc32_table = []
-for i in range(256):
-    crc = i << 24
-    for _j in range(8):
-        if crc & 0x80000000:
-            crc = (crc << 1) ^ 0x04C11DB7
-        else:
-            crc <<= 1
-    crc32_table.append(crc & 0xFFFFFFFF)
-
-
-def checkpoint_checksum(buffer):
-    chksum = 0
-    for b in bytearray(buffer):
-        chksum = ((chksum << 8) ^ crc32_table[(chksum >> 24) ^ b]) & 0xFFFFFFFF
-    return chksum
 
 
 def upload_proof(adapter, filename):
@@ -4789,46 +4767,54 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
     num_cache = options.num_cache
     if not num_cache:
         num_cache = 10 if options.mfaktc or options.mfakto else 1
-        adapter.debug("Config option num_cache wasn't set, defaulting to {0:n} assignment{1}".format(num_cache, "s" if num_cache != 1 else ""))
+        adapter.debug("num_cache was not set, defaulting to {0:n} assignment{1}".format(num_cache, "s" if num_cache != 1 else ""))
+    else:
+        num_cache += 1
     if options.password:
         num_cache += 1
     num_existing = len(assignments)
     if num_existing > num_cache:
         adapter.debug(
-            "Number of existing assignments ({0:n}) was higher than num_cache ({1:n}), num_cache increased to {0:n}".format(
-            num_existing, num_cache))
+            "Number of existing assignments ({0:n}) in {1!r} is greater than num_cache ({2:n}), so num_cache increased to {0:n}".format(
+                num_existing, workfile, num_cache
+            )
+        )
         num_cache = num_existing
-    num_cache = max(num_existing, num_cache)
     if time_left is not None:
         time_left = timedelta(seconds=time_left)
         days_work = timedelta(days=options.days_of_work)
         if time_left <= days_work:
-            num_cache = math.ceil(num_existing * days_work / time_left)
+            num_cache = max(num_cache, -(days_work * num_existing // -time_left))
             adapter.debug(
-                "Time left is {0} and smaller than days_of_work ({1}), so num_cache increased to {2:n}".format(
+                "Time left is {0} and less than days_of_work ({1}), so num_cache changed to {2:n}".format(
                     time_left, days_work, num_cache
                 )
             )
     else:
         adapter.debug(
-            "No time estimate available for current {0:n} assignment{1}, so we'll only fetch {2:n} for now, instead of {3:n} day{4} of work".format(
-                num_existing, "s" if num_existing != 1 else "", num_cache, options.days_of_work, "s" if options.days_of_work != 1 else ""))
+            "Unable to estimate time left for current assignment{0}, so only getting {1:n} for now, instead of {2:n} day{3} of work".format(
+                "s" if num_existing != 1 else "", num_cache, options.days_of_work, "s" if options.days_of_work != 1 else ""
+            )
+        )
     if config.has_option(SEC.PrimeNet, "MaxExponents"):
         amax = config.getint(SEC.PrimeNet, "MaxExponents")
         if amax < num_cache:
             adapter.debug(
-                "Config option MaxExponents ({0:n}) is smaller than num_cache ({1:n}), num_cache decreased to {0:n}".format(
-                    amax, num_cache, workfile))
+                "num_cache ({0:n}) is greater than config option MaxExponents ({1:n}), so num_cache decreased to {1:n}".format(
+                    num_cache, amax
+                )
+            )
             num_cache = amax
 
     if num_cache <= num_existing:
-        adapter.debug("{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(
-            num_existing, num_cache, workfile))
+        adapter.debug("{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(num_existing, num_cache, workfile))
         return []
     num_to_get = num_cache - num_existing
     adapter.debug(
         "Found {0:n} < {1:n} assignments in {2!r}, getting {3:n} new assignment{4}".format(
-            num_existing, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""))
+            num_existing, num_cache, workfile, num_to_get, "s" if num_to_get > 1 else ""
+        )
+    )
 
     assignments = primenet_fetch(adapter, cpu_num, num_to_get)
     new_tasks = []
@@ -5034,13 +5020,17 @@ def update_progress(adapter, cpu_num, assignment, progress, msec_per_iter, p, no
             assignment.n,
             percent,
             iteration,
-            s2 or
-            bits or
-            (assignment.n
-             if assignment.work_type == PRIMENET.WORK_TYPE_PRP
-             else tf_ghd_credit(assignment.n, assignment.sieve_depth, assignment.factor_to)
-             if assignment.work_type == PRIMENET.WORK_TYPE_FACTOR
-             else assignment.n - 2),
+            s2
+            or bits
+            or (
+                assignment.n
+                if assignment.work_type == PRIMENET.WORK_TYPE_PRP
+                else assignment.cert_squarings
+                if assignment.work_type == PRIMENET.WORK_TYPE_CERT
+                else tf_ghd_credit(assignment.n, assignment.sieve_depth, assignment.factor_to)
+                if assignment.work_type == PRIMENET.WORK_TYPE_FACTOR
+                else assignment.n - 2
+            ),
         )
     )
     if stage is None and percent > 0:
@@ -5092,13 +5082,13 @@ def update_progress_all(adapter, adir, cpu_num, last_time, tasks, progress, chec
         modified = True
         file = os.path.join(
             adir,
-            "{0}.ckp".format(p)
-            if options.mfaktc
+            "M{0}.ckp".format(p)
+            if options.mfaktc or options.mfakto
             else "c{0}".format(p)
             if options.cudalucas
             else "gpuowl.log"
             if options.gpuowl
-            else "p{0}.stat".format(p)
+            else "p{0}.stat".format(p),
         )
         if os.path.exists(file) and last_time is not None:
             mtime = os.path.getmtime(file)
@@ -5262,6 +5252,7 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
         # ar['status'] == 'NF'
     elif worktype == "TF":
         result_type = PRIMENET.AR_TF_FACTOR if ar["status"] == "F" else PRIMENET.AR_TF_NOFACTOR
+        # ar['status'] == 'NF'
     elif worktype == "Cert":
         result_type = PRIMENET.AR_CERT
     else:
@@ -5337,12 +5328,16 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
         )
         args["sf"] = ar["bitlo"]
         if result_type == PRIMENET.AR_TF_FACTOR:
-            factor = int(ar["factors"][0])
+            factors = tuple(map(int, ar["factors"]))
+            factor = factors[0]
             buf += "M{0} has a factor: {1} (TF:{2}-{3})".format(assignment.n, factor, ar["bitlo"], ar["bithi"])
             args["f"] = factor
             num = (1 << assignment.n) - 1
-            for factor in ar["factors"]:
-                if num % int(factor):
+            for factor in factors:
+                adapter.info(
+                    "The factor {0} has {1:n} decimal digits and {2:.6n} bits".format(factor, len(str(factor)), log2(factor))
+                )
+                if num % factor:
                     adapter.warning("Bad factor for M{0} found: {1}".format(assignment.n, factor))
         else:
             buf += "M{0} no factors from 2^{1} to 2^{2}, Wh{3}: -".format(assignment.n, ar["bitlo"], ar["bithi"], port)
@@ -5636,9 +5631,9 @@ def submit_work(adapter, adir, cpu_num, tasks):
     results_sent = frozenset(readonly_list_file(sentfile))
     # Only submit completed work, i.e. the exponent must not exist in worktodo file any more
     # appended line by line, no lock needed
-    resultsfile = os.path.join(adir, options.results_file if options.results_file
-                                     else "results.json.txt" if (options.mfaktc or options.mfakto or options.prime95)
-                                     else "results.txt")
+    resultsfile = os.path.join(
+        adir, options.results_file or ("results.json.txt" if options.mfaktc or options.mfakto else "results.txt")
+    )
     results = readonly_list_file(resultsfile)
     # EWM: Note that readonly_list_file does not need the file(s) to exist - nonexistent files simply yield 0-length rs-array entries.
     # remove nonsubmittable lines from list of possibles
@@ -5738,7 +5733,10 @@ parser.add_option(
 # all other options are saved to local.ini
 parser.add_option("-i", "--work-file", dest="worktodo_file", default="worktodo.txt", help="Work file filename, Default: “%default”")
 parser.add_option(
-    "-r", "--results-file", dest="results_file", help="Results file filename, Default: “results.json.txt” or “results.txt”, depending on the program"
+    "-r",
+    "--results-file",
+    dest="results_file",
+    help="Results file filename, Default: “results.json.txt” for mfaktc/mfakto or “results.txt” otherwise",
 )
 parser.add_option("-L", "--logfile", dest="logfile", default="primenet.log", help="Log file filename, Default: “%default”")
 parser.add_option(
@@ -5770,6 +5768,7 @@ parser.add_option(
     help="""Type of work, Default: {0}. Supported work preferences:
 2 (Trial factoring),
 4 (P-1 factoring),
+12 (Trial factoring GPU),
 100 (First time LL tests),
 101 (Double-check LL tests),
 102 (World record LL tests),
@@ -5810,8 +5809,8 @@ parser.add_option(
     help="Get assignments for GpuOwl or PRPLL instead of Mlucas. PRPLL is not yet fully supported.",
 )
 parser.add_option("--cudalucas", action="store_true", help="Get assignments for CUDALucas instead of Mlucas.")
-parser.add_option("--mfaktc", dest="mfaktc", help="Get assignments for mfaktc. Provide the mfaktc output filename as the argument.")
-parser.add_option("--mfakto", dest="mfakto", help="Get assignments for mfakto. Provide the mfakto output filename as the argument.")
+parser.add_option("--mfaktc", action="store_true", help="Get assignments for mfaktc instead of Mlucas.")
+parser.add_option("--mfakto", action="store_true", help="Get assignments for mfakto instead of Mlucas.")
 parser.add_option("--prime95", action="store_true", help=optparse.SUPPRESS_HELP)
 parser.add_option(
     "--num-workers", dest="num_workers", type="int", default=1, help="Number of workers (CPU Cores/GPUs), Default: %default"
@@ -6131,7 +6130,7 @@ worktypes = {
 # {"PRP": 150, "PM1": 4, "LL_DC": 101, "PRP_DC": 151, "PRP_WORLD_RECORD": 152, "PRP_100M": 153, "PRP_P1": 154}
 # this and the above line of code enables us to use words or numbers on the cmdline
 supported = frozenset(
-    [PRIMENET.WP_GPU_FACTOR, PRIMENET.WP_FACTOR, PRIMENET.WP_FACTOR_LMH]
+    [PRIMENET.WP_FACTOR, PRIMENET.WP_GPU_FACTOR]
     if options.mfaktc or options.mfakto
     else (
         [PRIMENET.WP_PFACTOR, PRIMENET.WP_LL_FIRST, PRIMENET.WP_LL_DBLCHK, PRIMENET.WP_LL_WORLD_RECORD, PRIMENET.WP_LL_100M]
