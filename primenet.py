@@ -3144,6 +3144,8 @@ def pct_complete_mfakt(exp, bits, num_classes, cur_class):
 
 
 def tf_ghd_credit(exp, bit_min, bit_max):
+    bit_min = int(bit_min)
+    bit_max = int(bit_max)
     ghzdays = sum(0.011160 * 2 ** (i - 48) for i in range(bit_min + 1, min(62, bit_max) + 1))
     ghzdays += sum(0.017832 * 2 ** (i - 48) for i in range(max(62, bit_min) + 1, min(64, bit_max) + 1))
     ghzdays += sum(0.016968 * 2 ** (i - 48) for i in range(max(64, bit_min) + 1, bit_max + 1))
