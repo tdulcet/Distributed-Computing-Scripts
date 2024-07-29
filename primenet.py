@@ -4785,11 +4785,24 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
     if time_left is not None:
         time_left = timedelta(seconds=time_left)
         days_work = timedelta(days=options.days_of_work)
+        days_work_assignments = -(days_work * num_existing // -time_left)
+        adapter.debug(
+            "Estimated assignments needed to fill days_of_work ({0}) is {1:n}".format(
+                options.days_of_work, days_work_assignments
+            )
+        )
         if time_left <= days_work:
-            num_cache = max(num_cache, -(days_work * num_existing // -time_left))
+            if days_work_assignments > num_cache:
+                num_cache = days_work_assignments
+                adapter.debug(
+                    "Work remaining ({0}) is less than days_of_work ({1}), so num_cache changed to {2:n}".format(
+                        time_left, options.days_of_work, num_cache
+                    )
+                )
+        else:
             adapter.debug(
-                "Time left is {0} and less than days_of_work ({1}), so num_cache changed to {2:n}".format(
-                    time_left, days_work, num_cache
+                "Work remaining ({0}) is more than days_of_work ({1}), so num_cache ({2:n}) has not been increased".format(
+                    time_left, options.days_of_work, num_cache
                 )
             )
     else:
@@ -4801,7 +4814,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
     if config.has_option(SEC.PrimeNet, "MaxExponents"):
         amax = config.getint(SEC.PrimeNet, "MaxExponents")
         if amax < num_cache:
-            adapter.debug(
+            adapter.info(
                 "num_cache ({0:n}) is greater than config option MaxExponents ({1:n}), so num_cache decreased to {1:n}".format(
                     num_cache, amax
                 )
