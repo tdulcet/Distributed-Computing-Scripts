@@ -5804,6 +5804,7 @@ parser.add_option(
     "--cert-work",
     action="store_true",
     dest="cert_work",
+    default=False,
     help="Get PRP proof certification work, Default: %default. Not yet supported by any of the GIMPS programs.",
 )
 parser.add_option(
@@ -6214,12 +6215,6 @@ if not options.dirs and options.cpu >= options.num_workers:
     parser.error(
         "CPU core or GPU number ({0:n}) must be less than the number of workers ({1:n})".format(options.cpu, options.num_workers)
     )
-
-if options.cert_work:
-    parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
-
-if not 1 <= options.cert_cpu_limit <= 100:
-    parser.error("Proof certification work limit must be between 1 and 100%")
 
 if options.cert_work:
     parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
