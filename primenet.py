@@ -5333,8 +5333,7 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
     elif result_type in {PRIMENET.AR_TF_FACTOR, PRIMENET.AR_TF_NOFACTOR}:
         args["d"] = (
             1
-            if ar["rangecomplete"]
-            and not any(
+            if not any(
                 task.k == assignment.k and task.b == assignment.b and task.n == assignment.n and task.c == assignment.c
                 for task in tasks
                 if isinstance(task, Assignment)
@@ -5342,9 +5341,11 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
             else 0
         )
         args["sf"] = ar["bitlo"]
+        if ar["rangecomplete"]:
+            args["ef"] = ar["bithi"]
         if result_type == PRIMENET.AR_TF_FACTOR:
             factors = tuple(map(int, ar["factors"]))
-            factor = factors[0]
+            factor = math.prod(factors)
             buf += "M{0} has a factor: {1} (TF:{2}-{3})".format(assignment.n, factor, ar["bitlo"], ar["bithi"])
             args["f"] = factor
             num = (1 << assignment.n) - 1
@@ -5356,7 +5357,6 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
                     adapter.warning("Bad factor for M{0} found: {1}".format(assignment.n, factor))
         else:
             buf += "M{0} no factors from 2^{1} to 2^{2}, Wh{3}: -".format(assignment.n, ar["bitlo"], ar["bithi"], port)
-            args["ef"] = ar["bithi"]
     elif result_type in {PRIMENET.AR_P1_FACTOR, PRIMENET.AR_P1_NOFACTOR}:
         args["d"] = (
             1
