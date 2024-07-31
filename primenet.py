@@ -5,7 +5,7 @@
 [*] Revised by Teal Dulcet and Daniel Connelly for CUDALucas (2020)
     Original Authorship(s):
      * # EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py
-            by teknohog and Mark Rose, with help rom Gord Palameta.
+            by teknohog and Mark Rose, with help from Gord Palameta.
      * # 2020: support for computer registration and assignment-progress via
             direct Primenet-v5-API calls by Loïc Le Loarer <loic@le-loarer.org>
 
