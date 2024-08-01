@@ -5349,9 +5349,15 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
             args["ef"] = ar["bithi"]
         if result_type == PRIMENET.AR_TF_FACTOR:
             factors = tuple(map(int, ar["factors"]))
-            factor = math.prod(factors)
-            buf += "M{0} has a factor: {1} (TF:{2}-{3})".format(assignment.n, factor, ar["bitlo"], ar["bithi"])
-            args["f"] = factor
+            args["f"] = ",".join(map(str, factors))
+            buf += "M{0} has {5}factor{4}: {1} (TF:{2}-{3})".format(
+                assignment.n,
+                args["f"],
+                ar["bitlo"],
+                ar["bithi"],
+                "s" if len(factors) != 1 else "",
+                "a " if len(factors) == 1 else "",
+            )
             num = (1 << assignment.n) - 1
             for factor in factors:
                 adapter.info(
@@ -5378,16 +5384,17 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
             args["B2"] = ar["B2"] if "B2" in ar else ar["b2"]
         if result_type == PRIMENET.AR_P1_FACTOR:
             factors = tuple(map(int, ar["factors"]))
-            factor = factors[0]
-            buf += "{0} has a factor: {1} (P-1, B1={2}{3})".format(
+            args["f"] = ",".join(map(str, factors))
+            buf += "{0} has {5}factor{4}: {1} (P-1, B1={2}{3})".format(
                 exponent_to_str(assignment),
-                factor,
+                args["f"],
                 args["B1"],
                 ", B2={0}{1}".format(args["B2"], ", E={0}".format(ar["brent-suyama"]) if "brent-suyama" in ar else "")
                 if "B2" in args
                 else "",
+                "s" if len(factors) != 1 else "",
+                "a " if len(factors) == 1 else "",
             )
-            args["f"] = factor
             num = int(assignment.k) * assignment.b**assignment.n + assignment.c
             for factor in factors:
                 adapter.info(
