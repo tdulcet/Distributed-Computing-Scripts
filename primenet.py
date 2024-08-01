@@ -6,12 +6,13 @@
     * An .exe version of this script (not requiring python) can be downloaded from:
         https://download.mersenne.ca/primenet.py/
 
-[*] Revised by Teal Dulcet and Daniel Connelly for CUDALucas (2020)
-    Original Authorship(s):
+[*] Authorship:
      * # EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py
             by teknohog and Mark Rose, with help from Gord Palameta.
+     * # 2020: revised for CUDALucas by Teal Dulcet and Daniel Connelly
      * # 2020: support for computer registration and assignment-progress via
             direct Primenet-v5-API calls by Loïc Le Loarer <loic@le-loarer.org>
+     * # 2024: support for mfaktc added by Tyler Busby and Teal Dulcet
 
 [*] List of supported v5 operations:
     * Update Computer Info (uc, register_instance) (Credit: Loarer & Dulcet)
