@@ -973,7 +973,7 @@ def setup():
         # options.no_report_100m = not report_100m
         config.set(SEC.PrimeNet, "no_report_100m", str(not report_100m))
 
-    if ask_yn("Do you want to set the optional e-mail/text message notification settings?", False):
+    if ask_yn("Do you want to set the optional e-mail/text message notification settings? (This requires an SMTP server)", False):
         smtp_server = ask_str("SMTP server (hostname and optional port), e.g., 'mail.example.com:465'", options.smtp or "")
         tls = ask_yn("Use a secure connection with SSL/TLS?", True if options.tls is None else options.tls)
         starttls = None
