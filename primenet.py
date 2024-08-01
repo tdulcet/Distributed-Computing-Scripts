@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 """Automatic assignment handler for Mlucas, GpuOwl/PRPLL, CUDALucas, CUDAPm1, mfaktc and mfakto.
 
+[*] Python can be downloaded from https://www.python.org/downloads/
+    * An .exe version of this script (not requiring python) can be downloaded from:
+        https://download.mersenne.ca/primenet.py/
+
 [*] Revised by Teal Dulcet and Daniel Connelly for CUDALucas (2020)
     Original Authorship(s):
      * # EWM: adapted from https://github.com/MarkRose/primetools/blob/master/mfloop.py
