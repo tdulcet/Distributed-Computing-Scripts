@@ -6105,6 +6105,9 @@ if options.debug > 1:
     requests_log.setLevel(logging.DEBUG)
     requests_log.propagate = True
 
+if (len(opts_no_defaults.__dict__) == 0 and not os.path.exists(os.path.join(workdir, options.localfile))):
+    parser.error("No command line arguments or local.ini files found. Run with --setup flag to configure the program.")
+
 # load local.ini and update options
 config = config_read()
 config_updated = merge_config_and_options(config, options)
