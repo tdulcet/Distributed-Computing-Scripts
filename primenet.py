@@ -6523,7 +6523,7 @@ while True:
             "s" if options.timeout != 3600 else "",
             options.hours_between_checkins,
             "s" if options.hours_between_checkins != 1 else "",
-            datetime.now() + timedelta(0, sleep_duration),
+            (datetime.now() + timedelta(0, sleep_duration)).strftime("%m/%d/%Y, %H:%M:%S"),
         ))
         try:
             time.sleep(sleep_duration)
