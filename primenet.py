@@ -850,7 +850,16 @@ def setup():
         options.mfakto = True
         config.set(SEC.PrimeNet, "mfakto", str(True))
 
-    config.set(SEC.PrimeNet, "MaxExponents", str(1000 if program in {4, 5} else 15))
+    if program in {4, 5}:
+        config.set(SEC.PrimeNet, "MaxExponents", str(1000))
+        if not options.results_file:
+            options.results_file = "results.json.txt"
+    else:
+        config.set(SEC.PrimeNet, "MaxExponents", str(15))
+        if not options.results_file:
+            options.results_file = "results.txt"
+    config.set(SEC.PrimeNet, "resultsfile", options.results_file)
+
 
     disk = ask_float(
         "Configured disk space limit per worker to store the proof interim residues files for PRP tests in GiB/worker (0 to not send)",
