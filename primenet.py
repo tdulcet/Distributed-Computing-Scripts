@@ -850,6 +850,8 @@ def setup():
         options.mfakto = True
         config.set(SEC.PrimeNet, "mfakto", str(True))
 
+    config.set(SEC.PrimeNet, "MaxExponents", str(1000 if program in {4, 5} else 15))
+
     disk = ask_float(
         "Configured disk space limit per worker to store the proof interim residues files for PRP tests in GiB/worker (0 to not send)",
         options.worker_disk_space,
@@ -4816,15 +4818,16 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
                 "s" if num_existing != 1 else "", num_cache, options.days_of_work, "s" if options.days_of_work != 1 else ""
             )
         )
-    if config.has_option(SEC.PrimeNet, "MaxExponents"):
-        amax = config.getint(SEC.PrimeNet, "MaxExponents")
-        if amax < num_cache:
-            adapter.info(
-                "num_cache ({0:n}) is greater than config option MaxExponents ({1:n}), so num_cache decreased to {1:n}".format(
-                    num_cache, amax
-                )
+
+    amax = config.getint(SEC.PrimeNet, "MaxExponents") if config.has_option(SEC.PrimeNet, "MaxExponents") \
+        else 1000 if options.mfaktc or options.mfakto else 15
+    if amax < num_cache:
+        adapter.info(
+            "num_cache ({0:n}) is greater than config option MaxExponents ({1:n}), so num_cache decreased to {1:n}".format(
+                num_cache, amax
             )
-            num_cache = amax
+        )
+        num_cache = amax
 
     if num_cache <= num_existing:
         adapter.debug("{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(num_existing, num_cache, workfile))
