@@ -6502,8 +6502,19 @@ while True:
     thread.start()
     elapsed = timeit.default_timer() - start
     if options.timeout > elapsed:
+        sleep_duration = options.timeout - elapsed
+        logging.info("Monitoring director{0}: {1}, will submit results and fetch work every {2:.01f} hour{3}, and "
+                     "report progress every {4} hour{5}. Next check at: {6}".format(
+            "y" if len(dirs) == 1 else "ies",
+            " ".join(dirs),
+            options.timeout / 3600,
+            "s" if options.timeout != 3600 else "",
+            options.hours_between_checkins,
+            "s" if options.hours_between_checkins != 1 else "",
+            datetime.now() + timedelta(0, sleep_duration),
+        ))
         try:
-            time.sleep(options.timeout - elapsed)
+            time.sleep(sleep_duration)
         except KeyboardInterrupt:
             break
     thread.join()
