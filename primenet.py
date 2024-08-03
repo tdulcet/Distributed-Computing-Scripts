@@ -1501,6 +1501,8 @@ def exponent_to_str(assignment):
         buf = "{0.k:.0f}*{0.b}^{0.n}{0.c:+}".format(assignment)
     elif assignment.b == 2 and assignment.c == -1:
         buf = "M{0.n}".format(assignment)
+        if assignment.work_type == PRIMENET.WORK_TYPE_FACTOR:
+            buf += "({0}-{1})".format(int(assignment.sieve_depth), int(assignment.factor_to))
     else:
         cnt = 0
         temp_n = assignment.n
