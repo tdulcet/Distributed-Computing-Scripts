@@ -5686,6 +5686,10 @@ def ping_server(ping_type=1):
     return None
 
 
+def is_pyinstaller():
+    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+
+
 #######################################################################################################
 #
 # Start main program here
@@ -6302,6 +6306,15 @@ if options.setup:
     register_instance(guid)
     if options.fromemail and options.smtp:
         test_msg(guid)
+    logging.info("\nSetup for this instance of {0} is now complete.\n"
+                 "To monitor the current directory for {2} results, run this program again as: \"{1}\"\n"
+                 "If your instance of {2} is in a different directory, run this program with: \"{1} -D <{2} dirpath>\"\n"
+                 "Then, start {2} as normal, and {0} will report results and fetch work periodically.\n"
+                 "For a list of all options run: \"{0} --help\"".format(
+        "primenet.exe" if is_pyinstaller() else "primenet.py",
+        "primenet.exe" if is_pyinstaller() else "python primenet.py",
+        PROGRAM["name"],
+    ))
     sys.exit(0)
 
 if options.timeout > options.hours_between_checkins * 60 * 60:
