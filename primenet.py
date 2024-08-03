@@ -55,7 +55,6 @@ import getpass
 import glob
 import json
 import locale
-import logging
 import logging.handlers
 import math
 import mimetypes
@@ -327,55 +326,6 @@ elif sys.platform == "darwin":  # macOS
         value = ctype()
         libc.sysctlbyname(name, ctypes.byref(value), ctypes.byref(size), None, 0)
         return value.value
-
-elif sys.platform.startswith("linux"):
-    try:
-        # Python 3.10+
-        from platform import freedesktop_os_release
-    except ImportError:
-
-        def freedesktop_os_release():
-            line_re = re.compile(r"""^([a-zA-Z_][a-zA-Z0-9_]*)=('([^']*)'|"((?:[^$"`]|\\[$"`\\])*)"|.*)$""")
-            quote_unescape_re = re.compile(r'\\([$"`\\])')
-            unescape_re = re.compile(r"\\(.)")
-            info = {}
-            for candidate in ("/etc/os-release", "/usr/lib/os-release"):
-                if os.path.isfile(candidate):
-                    with open(candidate) as file:
-                        for line in file:
-                            if not line or line.startswith("#"):
-                                continue
-                            match = line_re.match(line)
-                            if match:
-                                info[match.group(1)] = (
-                                    match.group(3)
-                                    if match.group(3) is not None
-                                    else quote_unescape_re.sub(r"\1", match.group(4))
-                                    if match.group(4) is not None
-                                    else unescape_re.sub(r"\1", match.group(2))
-                                )
-                    break
-            return info
-
-    libc = ctypes.CDLL(find_library("c"))
-
-    class sysinfo(ctypes.Structure):
-        _fields_ = (
-            ("uptime", ctypes.c_long),
-            ("loads", ctypes.c_ulong * 3),
-            ("totalram", ctypes.c_ulong),
-            ("freeram", ctypes.c_ulong),
-            ("sharedram", ctypes.c_ulong),
-            ("bufferram", ctypes.c_ulong),
-            ("totalswap", ctypes.c_ulong),
-            ("freeswap", ctypes.c_ulong),
-            ("procs", ctypes.c_ushort),
-            ("pad", ctypes.c_ushort),
-            ("totalhigh", ctypes.c_ulong),
-            ("freehigh", ctypes.c_ulong),
-            ("mem_unit", ctypes.c_uint),
-            ("_f", ctypes.c_char * (20 - 2 * ctypes.sizeof(ctypes.c_int) - ctypes.sizeof(ctypes.c_long))),
-        )
 
 elif sys.platform.startswith("linux"):
     try:
@@ -901,12 +851,14 @@ def setup():
 	101 - Double-check LL tests
 	102 - World record LL tests
 	104 - 100 million digit LL tests
+	106 - Double-check LL tests with zero shift count
 	150 - First time PRP tests
 	151 - Double-check PRP tests
 	152 - World record PRP tests
 	153 - 100 million digit PRP tests
 	154 - Smallest available first time PRP that needs P-1 factoring
 	155 - Double-check using PRP with proof
+	156 - Double-check using PRP with proof and nonzero shift count
 	160 - First time PRP on Mersenne cofactors
 	161 - Double-check PRP on Mersenne cofactors
 """)
@@ -916,16 +868,18 @@ def setup():
 ├──────────┴────────┴────────┴───────┴───────────┴───────────────┴─────────┤
 │ 4          ✔        ✔                                            ✔       │
 │ 12                                               ✔                       │
-│ 100        ✔        ✔*               ✔                                   │
-│ 101        ✔        ✔*               ✔                                   │
-│ 102        ✔        ✔*               ✔                                   │
-│ 104        ✔        ✔*               ✔                                   │
+│ 100        ✔        ✔*               ✔                       ✔                   │
+│ 101        ✔                         ✔                                   │
+│ 102        ✔        ✔*       ✔               ✔                                   │
+│ 104        ✔        ✔*               ✔                       ✔                   │
+│ 106                 ✔*       ✔       ✔            │
 │ 150        ✔        ✔        ✔                                           │
 │ 151        ✔        ✔        ✔                                           │
 │ 152        ✔        ✔        ✔                                           │
 │ 153        ✔        ✔        ✔                                           │
 │ 154        ✔        ✔*                                                   │
 │ 155                 ✔        ✔                                           │
+│ 156│
 │ 160        ✔                                                             │
 │ 161        ✔                                                             │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -953,6 +907,8 @@ def setup():
 
     cert_work = ask_yn("Get occasional PRP proof certification work", False if options.cert_work is None else options.cert_work)
 
+    cert_work = ask_yn("Get occasional PRP proof certification work", False if options.cert_work is None else options.cert_work)
+
     if not ask_ok_cancel():
         return
     if options.num_workers != num_thread:
@@ -961,8 +917,9 @@ def setup():
 
     options.work_preference = work_pref
 
-    # options.cert_work = cert_work
-    config.set(SEC.PrimeNet, "CertWork", str(cert_work))
+    if cert_work:
+        # options.cert_work = cert_work
+        config.set(SEC.PrimeNet, "CertWork", str(cert_work))
 
     work = ask_float("Days of work to queue up", options.days_of_work, 1, 90)
     end_dates = ask_int(
@@ -4288,9 +4245,7 @@ def register_instance(guid=None):
     args["m"] = options.memory  # number of megabytes of physical memory
     args["s"] = options.cpu_speed  # CPU frequency
     args["h"] = options.cpu_hours
-    args["r"] = 0  # pretend to run at 100%
-    if config.has_option(SEC.Internals, "RollingAverage"):
-        args["r"] = config.getint(SEC.Internals, "RollingAverage")
+    args["r"] = config.getint(SEC.Internals, "RollingAverage") if config.has_option(SEC.Internals, "RollingAverage") else 1000
     if options.cpu_l3_cache_size:
         args["L3"] = options.cpu_l3_cache_size
     if options.user_id:
@@ -4675,6 +4630,7 @@ def recover_assignments(dirs):
     for i, adir in enumerate(dirs):
         adapter = logging.LoggerAdapter(logger, {"cpu_num": i} if options.dirs else None)
         cpu_num = i if options.dirs else options.cpu
+        # A new parameter "all" can be used to return expired assignments
         num_to_get = get_assignment(adapter, cpu_num, 0)
         if num_to_get is None:
             adapter.error("Unable to determine the number of assignments to recover")
@@ -5078,7 +5034,7 @@ def update_progress(adapter, cpu_num, assignment, progress, msec_per_iter, p, no
     else:
         cur_time_left += time_left
         delta = timedelta(seconds=time_left)
-        adapter.debug("Finish estimated in {0} (using {1:.4n} msec/iter estimation)".format(delta, msec_per_iter))
+        adapter.debug("Finish estimated in {0} (using {1:n} msec/iter estimation)".format(delta, msec_per_iter))
     if checkin:
         send_progress(adapter, cpu_num, assignment, percent, stage, cur_time_left, now, fftlen)
     return percent, cur_time_left
@@ -5126,20 +5082,18 @@ def update_progress_all(adapter, adir, cpu_num, last_time, tasks, progress, chec
             mtime = os.path.getmtime(file)
             date = datetime.fromtimestamp(mtime)
             if last_time >= mtime:
-                adapter.info(
-                    "Log/Output file {0!r} has not been modified since the last progress update ({1:%c})".format(file, date)
-                )
+                adapter.info("Log/Save file {0!r} has not been modified since the last progress update ({1:%c})".format(file, date))
                 if not config.has_option(section, "stalled"):
                     send_msg(
                         "⚠️ {0} on {1} has stalled".format(PROGRAM["name"], options.computer_id),
                         """The {0} program on your {1!r} computer (worker #{2}) has not made any progress for {3} ({4:%c}).
 
-Below is the last up to 100 lines of the {5!r} log/output file:
+Below is the last up to 100 lines of the {5!r} log file:
 
 {6}
 
 This program will alert you when it has resumed.
-""".format(PROGRAM["name"], options.computer_id, cpu_num + 1, now - date, date, file, tail(file)),
+""".format(PROGRAM["name"], options.computer_id, cpu_num + 1, now - date, date, file, "N/A" if options.cudalucas else tail(file)),
                         priority="1 (Highest)",
                     )
                     config.set(section, "stalled", str(mtime))
@@ -5492,8 +5446,7 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
                         exp, "{0}.{1}owl".format(assignment.n, "ll." if result_type == PRIMENET.AR_LL_PRIME else "")
                     )
             elif options.cudalucas:  # CUDALucas
-                file = os.path.join(adir, options.cudalucas)
-                savefile = os.path.join(adir, "c{0}".format(assignment.n))
+                file = savefile = os.path.join(adir, "c{0}".format(assignment.n))
             else:  # Mlucas
                 file = os.path.join(adir, "p{0}.stat".format(assignment.n))
                 savefile = os.path.join(adir, "p{0}".format(assignment.n))
@@ -5513,11 +5466,11 @@ Result JSON format:
 
 > {9}
 
-Below is the last up to 100 lines of the log/output file for {10} (the program may have moved on to a different exponent):
+Below is the last up to 100 lines of the log file for {10} (the program may have moved on to a different exponent):
 
 {11}
 
-Attached is a zipped copy of the full log/output file and last savefile/checkpoint file for the user’s GIMPS program and the log file for the PrimeNet program.
+Attached is a zipped copy of the full log file and last savefile/checkpoint file for the user’s GIMPS program and the log file for the PrimeNet program.
 
 Exponent links: https://www.mersenne.org/M{12}, https://www.mersenne.ca/M{12}
 
@@ -5535,12 +5488,12 @@ Python version: {14}
                     buf,
                     message,
                     PROGRAM["name"],
-                    tail(file),
+                    "N/A" if options.cudalucas else tail(file),
                     assignment.n,
                     VERSION,
                     platform.python_version(),
                 ),
-                [file, savefile, logfile],
+                ([] if options.cudalucas else [file]) + [savefile, logfile],
                 cc=None if no_report or "known-factors" in ar else CCEMAILS,
                 priority="1 (Highest)",
                 azipfile="attachments.zip",
@@ -5812,12 +5765,14 @@ parser.add_option(
 101 (Double-check LL tests),
 102 (World record LL tests),
 104 (100M digit LL tests),
+106 (Double-check LL tests with zero shift count),
 150 (First time PRP tests),
 151 (Double-check PRP tests),
 152 (World record PRP tests),
 153 (100M digit PRP tests),
 154 (Smallest available first time PRP that needs P-1 factoring),
 155 (Double-check using PRP with proof),
+156 (Double-check using PRP with proof and nonzero shift count),
 160 (First time PRP on Mersenne cofactors),
 161 (Double-check PRP on Mersenne cofactors).
 Provide once to use the same worktype for all workers or once for each worker to use different worktypes. Not all worktypes are supported by all the GIMPS programs.""".format(
@@ -5965,13 +5920,19 @@ parser.add_option(
     "--unreserve-all",
     action="store_true",
     dest="unreserve_all",
-    help="Unreserve all assignments and exit. Quit GIMPS immediately. Requires that the instance is registered with PrimeNet.",
+    help="Unreserve all assignments and exit. Requires that the instance is registered with PrimeNet.",
 )
 parser.add_option(
     "--no-more-work",
     action="store_true",
-    dest="QuitGIMPS",
-    help="Prevent this program from getting new assignments and exit. Quit GIMPS after current work completes.",
+    dest="no_more_work",
+    help="Prevent this program from getting new assignments and exit.",
+)
+parser.add_option(
+    "--resume-work",
+    action="store_true",
+    dest="resume_work",
+    help="Resume getting new assignments after having previously run the --no-more-work option and exit.",
 )
 parser.add_option("--ping", action="store_true", dest="ping", help="Ping the PrimeNet server, show version information and exit.")
 parser.add_option("--setup", action="store_true", help="Prompt for all the options that are needed to setup this program and exit.")
@@ -6185,7 +6146,7 @@ supported = frozenset(
                 PRIMENET.WP_PRP_100M,
                 PRIMENET.WP_PRP_NO_PMINUS1,
             ]
-            + ([PRIMENET.WP_PRP_COFACTOR, PRIMENET.WP_PRP_COFACTOR_DBLCHK] if not options.gpuowl else [PRIMENET.WP_PRP_DC_PROOF])
+            + ([PRIMENET.WP_PRP_COFACTOR, PRIMENET.WP_PRP_COFACTOR_DBLCHK] if not options.gpuowl else [106, PRIMENET.WP_PRP_DC_PROOF])
             if not options.cudalucas
             else []
         )
@@ -6242,6 +6203,12 @@ if not options.dirs and options.cpu >= options.num_workers:
     parser.error(
         "CPU core or GPU number ({0:n}) must be less than the number of workers ({1:n})".format(options.cpu, options.num_workers)
     )
+
+if options.cert_work:
+    parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
+
+if not 1 <= options.cert_cpu_limit <= 100:
+    parser.error("Proof certification work limit must be between 1 and 100%")
 
 if options.cert_work:
     parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
@@ -6338,7 +6305,7 @@ if config_updated:
     config_write(config)
 
 if options.setup:
-    register_instance()
+    register_instance(guid)
     if options.fromemail and options.smtp:
         test_msg(guid)
     sys.exit(0)
@@ -6387,10 +6354,17 @@ if options.unreserve_all:
     unreserve_all(dirs)
     sys.exit(0)
 
-if options.QuitGIMPS:
+if options.no_more_work:
     logging.info("Quitting GIMPS after current work completes.")
     config.set(SEC.PrimeNet, "QuitGIMPS", str(1))
     config_write(config)
+    sys.exit(0)
+
+if options.resume_work:
+    if config.has_option(SEC.PrimeNet, "QuitGIMPS"):
+        logging.info("Resuming getting new work.")
+        config.remove_option(SEC.PrimeNet, "QuitGIMPS")
+        config_write(config)
     sys.exit(0)
 
 if options.ping:
