@@ -907,8 +907,6 @@ def setup():
 
     cert_work = ask_yn("Get occasional PRP proof certification work", False if options.cert_work is None else options.cert_work)
 
-    cert_work = ask_yn("Get occasional PRP proof certification work", False if options.cert_work is None else options.cert_work)
-
     if not ask_ok_cancel():
         return
     if options.num_workers != num_thread:
@@ -6203,12 +6201,6 @@ if not options.dirs and options.cpu >= options.num_workers:
     parser.error(
         "CPU core or GPU number ({0:n}) must be less than the number of workers ({1:n})".format(options.cpu, options.num_workers)
     )
-
-if options.cert_work:
-    parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
-
-if not 1 <= options.cert_cpu_limit <= 100:
-    parser.error("Proof certification work limit must be between 1 and 100%")
 
 if options.cert_work:
     parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
