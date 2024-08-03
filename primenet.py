@@ -802,10 +802,14 @@ def setup():
 
     if program in {4, 5}:
         config.set(SEC.PrimeNet, "MaxExponents", str(1000))
+        if not options.days_of_work:
+            options.days_of_work = 1.0
         if not options.results_file:
             options.results_file = "results.json.txt"
     else:
         config.set(SEC.PrimeNet, "MaxExponents", str(15))
+        if not options.days_of_work:
+            options.days_of_work = 3.0
         if not options.results_file:
             options.results_file = "results.txt"
     config.set(SEC.PrimeNet, "resultsfile", options.results_file)
@@ -919,7 +923,7 @@ def setup():
         # options.cert_work = cert_work
         config.set(SEC.PrimeNet, "CertWork", str(cert_work))
 
-    work = ask_float("Days of work to queue up", options.days_of_work, 1, 90)
+    work = ask_float("Days of work to queue up", options.days_of_work, sys.float_info.epsilon, 90)
     end_dates = ask_int(
         "Hours to wait between sending assignment progress and expected completion dates", options.hours_between_checkins, 1, 7 * 24
     )
@@ -4146,7 +4150,7 @@ def program_options(send=False, start=-1, retry_count=0):
             if tnum < 0:
                 args["nw"] = options.num_workers
                 # args["Priority"] = 1
-                args["DaysOfWork"] = int(round(options.days_of_work))
+                args["DaysOfWork"] = max(1, int(round(options.days_of_work)))
                 args["DayMemory"] = options.day_night_memory
                 args["NightMemory"] = options.day_night_memory
                 # args["DayStartTime"] = 0
@@ -5835,8 +5839,7 @@ parser.add_option(
     "--days-work",
     dest="days_of_work",
     type="float",
-    default=3.0,
-    help="Days of work to queue (1-180 days), Default: %default days. Adds one to num_cache when the time left for all assignments is less than this number of days.",
+    help="Days of work to queue ((0-180] days), Default: %default days. Raises num_cache to a larger value when the time left for all assignments is less than this number of days.",
 )
 parser.add_option(
     "--force-pminus1",
