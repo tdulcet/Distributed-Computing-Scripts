@@ -1104,6 +1104,13 @@ def create_new_guid():
     return uuid.uuid4().hex
 
 
+# allows us to give hints for config types that don't have a default optparse value (due to having dynamic defaults)
+OPTIONS_TYPE_HINTS = {
+    "DaysOfWork": float,
+    "CertWork": bool,
+}
+
+
 def merge_config_and_options(config, options):
     """Merges command-line options with configuration file settings."""
     # getattr and setattr allow access to the options.xxxx values by name
@@ -1116,14 +1123,17 @@ def merge_config_and_options(config, options):
         for attr, option in value.items():
             # if "attr" has its default value in options, copy it from config
             attr_val = getattr(options, attr)
+            type_hint = OPTIONS_TYPE_HINTS[option] if option in OPTIONS_TYPE_HINTS else None
             if not hasattr(opts_no_defaults, attr) and config.has_option(section, option):
                 # If no option is given and the option exists in local.ini, take it
                 # from local.ini
-                if isinstance(attr_val, (list, tuple)):
+                if isinstance(attr_val, (list, tuple)) or type_hint in (list, tuple):
                     val = config.get(section, option)
                     new_val = val.split(",") if val else []
-                elif isinstance(attr_val, bool):
+                elif isinstance(attr_val, bool) or type_hint == bool:
                     new_val = config.getboolean(section, option)
+                elif isinstance(attr_val, float) or type_hint == float:
+                    new_val = config.getfloat(section, option)
                 else:
                     new_val = config.get(section, option)
                 # config file values are always str()
