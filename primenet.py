@@ -5714,6 +5714,7 @@ def is_pyinstaller():
 parser = optparse.OptionParser(
     version="%prog " + VERSION,
     description="This program will automatically get assignments, report assignment results, upload proof files and optionally register assignments and report assignment progress to PrimeNet for the Mlucas, GpuOwl/PRPLL, CUDALucas, mfaktc and mfakto GIMPS programs. It also saves its configuration to a “local.ini” file by default, so it is only necessary to give most of the arguments once. The first time it is run, if a password is NOT provided, it will register the current Mlucas/GpuOwl/PRPLL/CUDALucas/mfaktc/mfakto instance with PrimeNet (see the Registering Options below). Then, it will report assignment results, get assignments and upload any proof files to PrimeNet on the --timeout interval, or only once if --timeout is 0. If registered, it will additionally report the progress on the --checkin interval.",
+    usage="%prog [options]\nUse -h/--help to see all options\nUse --setup to configure this instance of the program",
 )
 
 # options not saved to local.ini
