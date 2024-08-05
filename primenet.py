@@ -2090,7 +2090,11 @@ def send_request(guid, args):
                 logging.error("PrimeNet error {0}: {1}".format(rc, resmsg))
                 logging.error(result["pnErrorDetail"])
         elif result["pnErrorDetail"] != "SUCCESS":
-            logging.info("PrimeNet success code with additional info: {0}".format(result["pnErrorDetail"]))
+            lines = ["PrimeNet success code with additional info:"] + result["pnErrorDetail"].split("\n")
+            if len(lines) > 2:
+                [logging.info(line) for line in lines]
+            else:
+                logging.info(" ".join(lines))
 
     except Timeout:
         logging.exception("")
