@@ -3163,19 +3163,19 @@ def parse_work_unit_mfaktc(filename, p):
         return None
 
     n = int(exp)
-    bits = int(bit_min)
+    int_bit_min = int(bit_min)
+    int_bit_max = int(bit_max)
     ms_elapsed = int(bit_level_time)
 
     if p != n:
         return None
 
-    pct_complete = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
-    assignment_ghd = tf_ghd_credit(n, bits, int(bit_max))
+    pct_complete = pct_complete_mfakt(n, int_bit_min, int(num_classes), int(cur_class))
+    assignment_ghd = tf_ghd_credit(n, int_bit_min, int_bit_max)
     counter = pct_complete * assignment_ghd
     avg_msec_per_iter = ms_elapsed / counter if ms_elapsed else None
-    stage = "TF{0}".format(bits)
 
-    return counter, avg_msec_per_iter, stage, pct_complete
+    return counter, avg_msec_per_iter, pct_complete
 
 
 # "%u %d %d %d %s: %d %d %08X\n", exp, bit_min, bit_max, mystuff.num_classes, MFAKTO_VERSION, cur_class, num_factors, i
@@ -3204,10 +3204,9 @@ def parse_work_unit_mfakto(filename, p):
     if p != n:
         return None
 
-    stage = "TF{0}".format(bits)
     pct_complete = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
 
-    return stage, pct_complete
+    return pct_complete
 
 
 MLUCAS_RE = re.compile(r"^p([0-9]+)(?:\.s([12]))?$")
@@ -3436,15 +3435,15 @@ def parse_mfaktc_output_file(adapter, adir, p):
     savefile = os.path.join(adir, "M{0}.ckp".format(p))
     iteration = 0
     avg_msec_per_iter = None
-    stage = pct_complete = None
+    pct_complete = None
     if os.path.exists(savefile):
         result = parse_work_unit_mfaktc(savefile, p)
         if result is not None:
-            iteration, avg_msec_per_iter, stage, pct_complete = result
+            iteration, avg_msec_per_iter, pct_complete = result
     else:
         adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
 
-    return iteration, avg_msec_per_iter, stage, pct_complete, None, 0, 0
+    return iteration, avg_msec_per_iter, None, pct_complete, None, 0, 0
 
 
 def parse_mfakto_output_file(adapter, adir, p):
@@ -3452,15 +3451,15 @@ def parse_mfakto_output_file(adapter, adir, p):
     savefile = os.path.join(adir, "M{0}.ckp".format(p))
     iteration = 0
     avg_msec_per_iter = None
-    stage = pct_complete = None
+    pct_complete = None
     if os.path.exists(savefile):
         result = parse_work_unit_mfakto(savefile, p)
         if result is not None:
-            stage, pct_complete = result
+            pct_complete = result
     else:
         adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
 
-    return iteration, avg_msec_per_iter, stage, pct_complete, None, 0, 0
+    return iteration, avg_msec_per_iter, None, pct_complete, None, 0, 0
 
 
 def get_progress_assignment(adapter, adir, assignment):
@@ -5042,6 +5041,11 @@ def update_progress(adapter, cpu_num, assignment, progress, msec_per_iter, p, no
             stage = "PRP"
         elif assignment.work_type == PRIMENET.WORK_TYPE_CERT:
             stage = "CERT"
+        elif assignment.work_type == PRIMENET.WORK_TYPE_FACTOR:
+            if int(assignment.factor_to) == int(assignment.sieve_depth) + 1:
+                stage = "TF{0}".format(int(assignment.sieve_depth))
+            else:
+                stage = "TF{0}-{1}".format(int(assignment.sieve_depth), int(assignment.factor_to))
     if time_left is None:
         cur_time_left += 7 * 24 * 60 * 60
         adapter.debug("Finish cannot be estimated, using 7 days")
@@ -5347,7 +5351,7 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
                 if num % factor:
                     adapter.warning("Bad factor for M{0} found: {1}".format(assignment.n, factor))
         else:
-            buf += "M{0} no factors from 2^{1} to 2^{2}, Wh{3}: -".format(assignment.n, ar["bitlo"], ar["bithi"], port)
+            buf += "M{0} no factors from 2^{1} to 2^{2}".format(assignment.n, ar["bitlo"], ar["bithi"])
     elif result_type in {PRIMENET.AR_P1_FACTOR, PRIMENET.AR_P1_NOFACTOR}:
         args["d"] = (
             1
