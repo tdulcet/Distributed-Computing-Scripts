@@ -2090,8 +2090,7 @@ def send_request(guid, args):
                 logging.error("PrimeNet error {0}: {1}".format(rc, resmsg))
                 logging.error(result["pnErrorDetail"])
         elif result["pnErrorDetail"] != "SUCCESS":
-            logging.info("PrimeNet success code with additional info:")
-            logging.info(result["pnErrorDetail"])
+            logging.info("PrimeNet success code with additional info: {0}".format(result["pnErrorDetail"]))
 
     except Timeout:
         logging.exception("")
@@ -3695,7 +3694,7 @@ def output_status(dirs, cpu_num=None):
                         / (log2(assignment.k) + log2(assignment.b) * assignment.n)
                     )
             elif assignment.work_type == PRIMENET.WORK_TYPE_FACTOR:
-                work_type_str = "factor from 2^{0.0f} to 2^{1.0f}".format(assignment.sieve_depth, assignment.factor_to)
+                work_type_str = "factor from 2^{0:.0f} to 2^{1:.0f}".format(assignment.sieve_depth, assignment.factor_to)
             elif assignment.work_type == PRIMENET.WORK_TYPE_PMINUS1:
                 work_type_str = "P-1 B1={0}".format(assignment.B1)
             elif assignment.work_type == PRIMENET.WORK_TYPE_PFACTOR:
@@ -6514,15 +6513,17 @@ while True:
     elapsed = timeit.default_timer() - start
     if options.timeout > elapsed:
         sleep_duration = options.timeout - elapsed
-        logging.info("Monitoring director{0}: {1}, will submit results and fetch work every {2:.01f} hour{3}, and "
-                     "report progress every {4} hour{5}. Next check at: {6}".format(
+        logging.info("Monitoring director{0}: {1}".format(
             "y" if len(dirs) == 1 else "ies",
-            " ".join(dirs),
+            " ".join(os.path.abspath(dir) for dir in dirs),
+        ))
+        logging.info("Will submit results and fetch work every {0:.01f} hour{1}, and "
+                     "report progress every {2} hour{3}. Next check at: {4}".format(
             options.timeout / 3600,
             "s" if options.timeout != 3600 else "",
             options.hours_between_checkins,
             "s" if options.hours_between_checkins != 1 else "",
-            (datetime.now() + timedelta(0, sleep_duration)).strftime("%m/%d/%Y, %H:%M:%S"),
+            (datetime.now() + timedelta(0, sleep_duration)).strftime("%c"),
         ))
         try:
             time.sleep(sleep_duration)
