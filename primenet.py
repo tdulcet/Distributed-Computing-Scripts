@@ -6522,12 +6522,12 @@ while True:
             " ".join(os.path.abspath(dir) for dir in dirs),
         ))
         logging.info("Will submit results and fetch work every {0:.01f} hour{1}, and "
-                     "report progress every {2} hour{3}. Next check at: {4}".format(
+                     "report progress every {2} hour{3}. Next check at: {4:%c}".format(
             options.timeout / 3600,
             "s" if options.timeout != 3600 else "",
             options.hours_between_checkins,
             "s" if options.hours_between_checkins != 1 else "",
-            (datetime.now() + timedelta(0, sleep_duration)).strftime("%c"),
+            (datetime.now() + timedelta(0, sleep_duration)),
         ))
         try:
             time.sleep(sleep_duration)
