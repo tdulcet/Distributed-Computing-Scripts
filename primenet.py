@@ -6333,7 +6333,9 @@ if options.setup:
                  "Then, start {2} as normal, and {0} will report results and fetch work periodically.\n"
                  "For a list of all options run: \"{1} --help\"".format(
         "primenet.exe" if is_pyinstaller() else "primenet.py",
-        "primenet.exe" if is_pyinstaller() else "python primenet.py",
+        "primenet.exe" if is_pyinstaller() else "{0} primenet.py".format(
+            (os.path.splitext(os.path.basename(sys.executable)) or ["python"])[0]
+        ),
         PROGRAM["name"],
     ))
     sys.exit(0)
