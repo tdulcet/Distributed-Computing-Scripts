@@ -3718,7 +3718,7 @@ def output_status(dirs, cpu_num=None):
             else:
                 cur_time_left += time_left
                 time_left = timedelta(seconds=cur_time_left)
-                adapter.info("{0}, {1}, {2} ({3:%c})".format(buf, work_type_str, time_left, now + time_left))
+                adapter.info("{0}, {1}, {2} ({3:%c})".format(buf, work_type_str, timedeltastr(time_left), now + time_left))
             if all_and_prp_cnt:
                 ll_and_prp_cnt += 1
                 adapter.info(
@@ -4985,7 +4985,7 @@ def send_progress(adapter, cpu_num, assignment, percent, stage, time_left, now, 
         args["fftlen"] = fftlen
     retry = False
     delta = timedelta(seconds=time_left)
-    adapter.info("Sending expected completion date for {0}: {1} ({2:%c})".format(exponent_to_str(assignment), delta, now + delta))
+    adapter.info("Sending expected completion date for {0}: {1} ({2:%c})".format(exponent_to_str(assignment), timedeltastr(delta, pad=True), now + delta))
     result = send_request(guid, args)
     if result is None:
         # Try again
@@ -5055,7 +5055,7 @@ def update_progress(adapter, cpu_num, assignment, progress, msec_per_iter, p, no
     else:
         cur_time_left += time_left
         delta = timedelta(seconds=time_left)
-        adapter.debug("Finish estimated in {0} (using {1:n} msec/iter estimation)".format(delta, msec_per_iter))
+        adapter.debug("Finish estimated in {0} (using {1:n} msec/iter estimation)".format(timedeltastr(delta), msec_per_iter))
     if checkin:
         send_progress(adapter, cpu_num, assignment, percent, stage, cur_time_left, now, fftlen)
     return percent, cur_time_left
@@ -5711,6 +5711,20 @@ def is_pyinstaller():
     return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
 
 
+def timedeltastr(td, pad=False):
+    remainder, seconds = divmod(int(td.total_seconds()), 60)
+    remainder, minutes = divmod(remainder, 60)
+    days, hours = divmod(remainder, 24)
+    days = int(days)
+    result = "{0}{1}{2}{3}".format(
+        "{:n}d".format(days) if days else "",
+        "{:02n}h".format(hours) if days else "{:n}h".format(hours) if hours else "",
+        "{:02n}m".format(minutes) if hours or days else "{:n}m".format(minutes) if minutes else "",
+        "{:02n}s".format(seconds) if minutes or hours or days else "{:n}s".format(seconds),
+    )
+    return "{:>12}".format(result) if pad else result
+
+
 #######################################################################################################
 #
 # Start main program here
@@ -6231,6 +6245,9 @@ if not options.dirs and options.cpu >= options.num_workers:
 
 if options.cert_work:
     parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
+
+if options.mfakto:
+    parser.error("Unfortunately, mfakto does not yet output results in a primenet.py parseable json format, so is not yet supported")
 
 if not 1 <= options.cert_cpu_limit <= 100:
     parser.error("Proof certification work limit must be between 1 and 100%")
