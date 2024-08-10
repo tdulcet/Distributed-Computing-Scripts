@@ -1070,6 +1070,21 @@ attr_to_copy = {
     },
 }
 
+# allows us to give hints for config types that don't have a default optparse value (due to having dynamic defaults)
+OPTIONS_TYPE_HINTS = {
+    SEC.PrimeNet: {
+        "gpuowl": bool,
+        "cudalucas": bool,
+        "mfaktc": bool,
+        "mfakto": bool,
+        "CertWork": bool,
+        "DaysOfWork": float,
+        "tests_saved": float,
+        "pm1_multiplier": float,
+    },
+    SEC.Email: {"tls": bool, "starttls": bool},
+}
+
 
 def config_read():
     """Reads and parses the configuration settings from a file."""
@@ -1109,10 +1124,6 @@ def create_new_guid():
     return uuid.uuid4().hex
 
 
-# allows us to give hints for config types that don't have a default optparse value (due to having dynamic defaults)
-OPTIONS_TYPE_HINTS = {"DaysOfWork": float, "CertWork": bool}
-
-
 def merge_config_and_options(config, options):
     """Merges command-line options with configuration file settings."""
     # getattr and setattr allow access to the options.xxxx values by name
@@ -1125,14 +1136,14 @@ def merge_config_and_options(config, options):
         for attr, option in value.items():
             # if "attr" has its default value in options, copy it from config
             attr_val = getattr(options, attr)
-            type_hint = OPTIONS_TYPE_HINTS.get(option)
+            type_hint = OPTIONS_TYPE_HINTS[section].get(option)
             if not hasattr(opts_no_defaults, attr) and config.has_option(section, option):
                 # If no option is given and the option exists in local.ini, take it
                 # from local.ini
-                if isinstance(attr_val, (list, tuple)) or isinstance(type_hint, (list, tuple)):
+                if isinstance(attr_val, (list, tuple)) or type_hint in {list, tuple}:
                     val = config.get(section, option)
                     new_val = val.split(",") if val else []
-                elif isinstance(attr_val, bool) or isinstance(type_hint, bool):
+                elif isinstance(attr_val, bool) or type_hint is bool:
                     new_val = config.getboolean(section, option)
                 else:
                     new_val = config.get(section, option)
@@ -2092,7 +2103,7 @@ def send_request(guid, args):
                 logging.error("PrimeNet error {0}: {1}".format(rc, resmsg))
                 logging.error(result["pnErrorDetail"])
         elif result["pnErrorDetail"] != "SUCCESS":
-            if result["pnErrorDetail"].count("\n") > 1:
+            if result["pnErrorDetail"].count("\n"):
                 logging.info("PrimeNet success code with additional info:")
                 logging.info(result["pnErrorDetail"])
             else:
@@ -3144,7 +3155,7 @@ def tf_ghd_credit(exp, bit_min, bit_max):
 
 
 # "%s%u %d %d %d %s: %d %d %s %llu %08X", NAME_NUMBERS, exp, bit_min, bit_max, NUM_CLASSES, MFAKTC_VERSION, cur_class, num_factors, strlen(factors_string) ? factors_string : "0", bit_level_time, i
-MFAKTC_TF_RE = re.compile(rb'^M(\d+) (\d+) (\d+) (\d+) ([^\s:]+): (\d+) (\d+) (0|"\d+"(?:,"\d+")*) (\d+) ([\dA-F]{8})$')
+MFAKTC_TF_RE = re.compile(br'^M(\d+) (\d+) (\d+) (\d+) ([^\s:]+): (\d+) (\d+) (0|"\d+"(?:,"\d+")*) (\d+) ([\dA-F]{8})$')
 
 
 def parse_work_unit_mfaktc(filename, p):
@@ -3181,7 +3192,7 @@ def parse_work_unit_mfaktc(filename, p):
 
 
 # "%u %d %d %d %s: %d %d %08X\n", exp, bit_min, bit_max, mystuff.num_classes, MFAKTO_VERSION, cur_class, num_factors, strlen(factors_string) ? factors_string : "0", bit_level_time, i
-MFAKTO_TF_RE = re.compile(rb'^(\d+) (\d+) (\d+) (\d+) (mfakto [^\s:]+): (\d+) (\d+) (0|"\d+"(?:,"\d+")*) (\d+) ([\dA-F]{8})$')
+MFAKTO_TF_RE = re.compile(br'^(\d+) (\d+) (\d+) (\d+) (mfakto [^\s:]+): (\d+) (\d+) (0|"\d+"(?:,"\d+")*) (\d+) ([\dA-F]{8})$')
 
 
 def parse_work_unit_mfakto(filename, p):
@@ -3196,7 +3207,9 @@ def parse_work_unit_mfakto(filename, p):
     mfakto_tf = MFAKTO_TF_RE.match(header)
 
     if mfakto_tf:
-        exp, bit_min, _bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, bit_level_time, _i = mfakto_tf.groups()
+        exp, bit_min, _bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, bit_level_time, _i = (
+            mfakto_tf.groups()
+        )
     else:
         return None
 
@@ -4424,9 +4437,8 @@ def update_assignment(adapter, cpu_num, assignment, task):
         PRIMENET.WORK_TYPE_PFACTOR,
     }:
         redo = False
-        tests_saved = float(options.tests_saved)
         if (
-            tests_saved
+            options.tests_saved
             and options.pm1_multiplier is not None
             and (
                 (assignment.work_type in {PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK} and assignment.pminus1ed)
@@ -4452,17 +4464,16 @@ def update_assignment(adapter, cpu_num, assignment, task):
                             p1 + p2, p1, p2, p1 + p2 - (prob1 + prob2), p1 - prob1, p2 - prob2
                         )
                     )
-                    pm1_multiplier = float(options.pm1_multiplier)
-                    if bound2 < midB2 * pm1_multiplier:
-                        adapter.info("Existing B2={0:n} < {1:n}, redoing P-1".format(bound2, midB2 * pm1_multiplier))
+                    if bound2 < midB2 * options.pm1_multiplier:
+                        adapter.info("Existing B2={0:n} < {1:n}, redoing P-1".format(bound2, midB2 * options.pm1_multiplier))
                         redo = True
         else:
             redo = True
         if redo:
             if assignment.work_type in {PRIMENET.WORK_TYPE_FIRST_LL, PRIMENET.WORK_TYPE_DBLCHK}:
-                assignment.pminus1ed = int(not tests_saved)
+                assignment.pminus1ed = int(not options.tests_saved)
             elif assignment.work_type in {PRIMENET.WORK_TYPE_PRP, PRIMENET.WORK_TYPE_PFACTOR}:
-                assignment.tests_saved = tests_saved
+                assignment.tests_saved = options.tests_saved
             changed = True
     if options.pm1_bounds:
         add_bounds = False
@@ -6355,22 +6366,21 @@ if options.setup:
     register_instance(guid)
     if options.fromemail and options.smtp:
         test_msg(guid)
-    print("\nSetup of this instance of the PrimeNet program is now complete.")
-    print("Run the below command each time you want to start the program:")
     print(
-        "\t{0}{1}".format(
-            "primenet"
+        """
+Setup of this instance of the PrimeNet program is now complete.
+Run the below command each time you want to start the program. If you have more than one worker, add the -D/--dir option for each worker directory.
+	{0}{1}
+Then, start {2} as normal. The PrimeNet program will automatically get assignments, report assignment progress, report results and upload proof files.
+Run --help for a full list of available options.
+""".format(
+            sys.argv[0]
             if is_pyinstaller()
-            else "{0} -OO primenet.py".format(os.path.splitext(os.path.basename(sys.executable or "python"))[0]),
-            " --dir <dirpath>" * options.num_workers if options.num_workers > 1 else "",
+            else "{0} -OO {1}".format(os.path.splitext(os.path.basename(sys.executable or "python3"))[0], sys.argv[0]),
+            " --dir <directory>" * options.num_workers if options.num_workers > 1 else "",
+            PROGRAM["name"],
         )
     )
-    print(
-        "Then, start {0} as normal. The PrimeNet program will automatically get assignments, report assignment progress, report results and upload proof files.".format(
-            PROGRAM["name"]
-        )
-    )
-    print("Run --help for a full list of available options.")
     sys.exit(0)
 
 if options.timeout > options.hours_between_checkins * 60 * 60:
