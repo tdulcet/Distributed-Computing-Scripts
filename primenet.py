@@ -3181,8 +3181,8 @@ def parse_work_unit_mfaktc(filename, p):
     return counter, avg_msec_per_iter, pct_complete
 
 
-# "%u %d %d %d %s: %d %d %08X\n", exp, bit_min, bit_max, mystuff.num_classes, MFAKTO_VERSION, cur_class, num_factors, i
-MFAKTO_TF_RE = re.compile(br"^(\d+) (\d+) (\d+) (\d+) (mfakto [^\s:]+): (\d+) (\d+) ([\dA-F]{8})$")
+# "%u %d %d %d %s: %d %d %08X\n", exp, bit_min, bit_max, mystuff.num_classes, MFAKTO_VERSION, cur_class, num_factors, strlen(factors_string) ? factors_string : "0", bit_level_time, i
+MFAKTO_TF_RE = re.compile(rb'^(\d+) (\d+) (\d+) (\d+) (mfakto [^\s:]+): (\d+) (\d+) (0|"\d+"(?:,"\d+")*) (\d+) ([\dA-F]{8})$')
 
 
 def parse_work_unit_mfakto(filename, p):
@@ -3197,19 +3197,24 @@ def parse_work_unit_mfakto(filename, p):
     mfakto_tf = MFAKTO_TF_RE.match(header)
 
     if mfakto_tf:
-        exp, bit_min, _bit_max, num_classes, _version, cur_class, _num_factors, _i = mfakto_tf.groups()
+        exp, bit_min, _bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, bit_level_time, _i = mfakto_tf.groups()
     else:
         return None
 
     n = int(exp)
-    bits = int(bit_min)
+    int_bit_min = int(bit_min)
+    int_bit_max = int(bit_max)
+    ms_elapsed = int(bit_level_time)
 
     if p != n:
         return None
 
-    pct_complete = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
+    pct_complete = pct_complete_mfakt(n, int_bit_min, int(num_classes), int(cur_class))
+    assignment_ghd = tf_ghd_credit(n, int_bit_min, int_bit_max)
+    counter = pct_complete * assignment_ghd
+    avg_msec_per_iter = ms_elapsed / counter if ms_elapsed else None
 
-    return pct_complete
+    return counter, avg_msec_per_iter, pct_complete
 
 
 MLUCAS_RE = re.compile(r"^p([0-9]+)(?:\.s([12]))?$")
@@ -3458,7 +3463,7 @@ def parse_mfakto_output_file(adapter, adir, p):
     if os.path.exists(savefile):
         result = parse_work_unit_mfakto(savefile, p)
         if result is not None:
-            pct_complete = result
+            iteration, avg_msec_per_iter, pct_complete = result
     else:
         adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
 
@@ -6245,9 +6250,6 @@ if not options.dirs and options.cpu >= options.num_workers:
 
 if options.cert_work:
     parser.error("Unfortunately, proof certification work is not yet supported by any of the GIMPS programs")
-
-if options.mfakto:
-    parser.error("Unfortunately, mfakto does not yet output results in a primenet.py parseable json format, so is not yet supported")
 
 if not 1 <= options.cert_cpu_limit <= 100:
     parser.error("Proof certification work limit must be between 1 and 100%")
