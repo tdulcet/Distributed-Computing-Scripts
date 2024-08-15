@@ -1665,6 +1665,7 @@ def send(subject, message, attachments=None, to=None, cc=None, bcc=None, priorit
     # print(msg.as_string())
     # print(msg)
 
+    s = None
     try:
         if options.tls:
             # Python 3.3+
@@ -1692,7 +1693,8 @@ def send(subject, message, attachments=None, to=None, cc=None, bcc=None, priorit
         logging.exception("Failed to send e-mail")
         return False
     finally:
-        s.quit()
+        if s is not None:
+            s.quit()
     return True
 
 
@@ -2110,13 +2112,13 @@ def send_request(guid, args):
                 logging.info("PrimeNet success code with additional info: {0}".format(result["pnErrorDetail"]))
 
     except Timeout:
-        logging.exception("")
+        (logging.exception if options.debug == 1 else logging.error)("")
         return None
     except HTTPError:
-        logging.exception("ERROR receiving answer to request: " + r.url)
+        (logging.exception if options.debug == 1 else logging.error)("ERROR receiving answer to request: " + r.url)
         return None
     except ConnectionError:
-        logging.exception("ERROR connecting to server for request: ")
+        (logging.exception if options.debug == 1 else logging.error)("ERROR connecting to server for request")
         return None
     return result
 
@@ -5127,7 +5129,7 @@ def update_progress_all(adapter, adir, cpu_num, last_time, tasks, progress, chec
             mtime = os.path.getmtime(file)
             date = datetime.fromtimestamp(mtime)
             if last_time >= mtime:
-                adapter.info("Log/Save file {0!r} has not been modified since the last progress update ({1:%c})".format(file, date))
+                adapter.warning("STALL DETECTED: Log/Save file {0!r} has not been modified since the last progress update ({1:%c})".format(file, date))
                 if not config.has_option(section, "stalled"):
                     send_msg(
                         "⚠️ {0} on {1} has stalled".format(PROGRAM["name"], options.computer_id),
