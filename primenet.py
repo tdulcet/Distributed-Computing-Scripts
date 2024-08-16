@@ -5381,8 +5381,8 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
                 if num % factor:
                     adapter.warning("Bad factor for M{0} found: {1}".format(assignment.n, factor))
         else:
-            buf += "M{0} no factors from 2^{1} to 2^{2}, {3}".format(
-                assignment.n, ar["bitlo"], ar["bithi"], ar.get("security-code", "-")
+            buf += "M{0} no factors from 2^{1} to 2^{2}{3}".format(
+                assignment.n, ar["bitlo"], ar["bithi"], ", {0}".format(ar.get("security-code")) if "security-code" in ar else ""
             )
     elif result_type in {PRIMENET.AR_P1_FACTOR, PRIMENET.AR_P1_NOFACTOR}:
         args["d"] = (
