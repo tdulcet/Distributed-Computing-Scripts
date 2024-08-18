@@ -5366,8 +5366,8 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
             factors = ar["factors"]
             buf += "M{0} has {1}factor{2}: {3} (TF:{4}-{5})".format(
                 assignment.n,
-                "s" if len(factors) != 1 else "",
                 "a " if len(factors) == 1 else "",
+                "s" if len(factors) != 1 else "",
                 ", ".join(factors),
                 ar["bitlo"],
                 ar["bithi"],
