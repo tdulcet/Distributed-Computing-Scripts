@@ -415,11 +415,11 @@ try:
     import requests
     from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
 except ImportError:
-    import subprocess
-
-    print("Installing requests dependency")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
-    print("The Requests library has been installed. Please run the program again")
+    print(
+        """Please run the below command to install the Requests library:
+	{0} -m pip install requests
+Then, run the PrimeNet program again.""".format(os.path.splitext(os.path.basename(sys.executable or "python3"))[0])
+    )
     sys.exit(0)
 
 locale.setlocale(locale.LC_ALL, "")
@@ -1094,7 +1094,7 @@ def config_read():
     try:
         config.read([localfile])
     except ConfigParserError:
-        logging.exception("ERROR reading {0!r} file:".format(localfile))
+        logging.exception("ERROR reading {0!r} file:".format(localfile), exc_info=options.debug)
     for section in (SEC.PrimeNet, SEC.Email, SEC.Internals):
         if not config.has_section(section):
             # Create the section to avoid having to test for it later
@@ -1690,7 +1690,7 @@ def send(subject, message, attachments=None, to=None, cc=None, bcc=None, priorit
                 s.login(options.email_username, options.email_password)
             s.sendmail(from_addr, to_addrs, msg.as_string())
     except smtplib.SMTPException:
-        logging.exception("Failed to send e-mail")
+        logging.exception("Failed to send e-mail", exc_info=options.debug)
         return False
     finally:
         if s is not None:
@@ -2112,13 +2112,13 @@ def send_request(guid, args):
                 logging.info("PrimeNet success code with additional info: {0}".format(result["pnErrorDetail"]))
 
     except Timeout:
-        (logging.exception if options.debug == 1 else logging.error)("")
+        logging.exception("", exc_info=options.debug)
         return None
     except HTTPError:
-        (logging.exception if options.debug == 1 else logging.error)("ERROR receiving answer to request: " + r.url)
+        logging.exception("ERROR receiving answer to request: " + r.url, exc_info=options.debug)
         return None
     except ConnectionError:
-        (logging.exception if options.debug == 1 else logging.error)("ERROR connecting to server for request")
+        logging.exception("ERROR connecting to server for request", exc_info=options.debug)
         return None
     return result
 
@@ -2132,7 +2132,7 @@ def get_exponent(n):
         json = r.json()
 
     except RequestException:
-        logging.exception("")
+        logging.exception("", exc_info=options.debug)
         return None
     return json
 
@@ -2915,7 +2915,7 @@ def parse_work_unit_mlucas(adapter, filename, exponent, astage):
     except EOFError:
         return None
     except (IOError, OSError):
-        logging.exception("Error reading {0!r} file.".format(filename))
+        logging.exception("Error reading {0!r} file.".format(filename), exc_info=options.debug)
         return None
 
     return counter, stage, pct_complete, fftlen
@@ -2947,7 +2947,7 @@ def parse_work_unit_cudalucas(adapter, filename, p):
     except EOFError:
         return None
     except (IOError, OSError):
-        logging.exception("Error reading {0!r} file.".format(filename))
+        logging.exception("Error reading {0!r} file.".format(filename), exc_info=options.debug)
         return None
 
     return counter, avg_msec_per_iter, stage, pct_complete, fftlen
@@ -3002,7 +3002,7 @@ def parse_work_unit_gpuowl(adapter, filename, p):
         with open(filename, "rb") as f:
             header = f.readline().rstrip()
     except (IOError, OSError):
-        logging.exception("Error reading {0!r} file.".format(filename))
+        logging.exception("Error reading {0!r} file.".format(filename), exc_info=options.debug)
         return None
 
     if not header.startswith(b"OWL "):
@@ -3166,7 +3166,7 @@ def parse_work_unit_mfaktc(filename, p):
         with open(filename, "rb") as f:
             header = f.readline()
     except (IOError, OSError):
-        logging.exception("Error reading {0!r} file.".format(filename))
+        logging.exception("Error reading {0!r} file.".format(filename), exc_info=options.debug)
         return None
 
     mfaktc_tf = MFAKTC_TF_RE.match(header)
@@ -3203,28 +3203,27 @@ def parse_work_unit_mfakto(filename, p):
         with open(filename, "rb") as f:
             header = f.readline().rstrip()
     except (IOError, OSError):
-        logging.exception("Error reading {0!r} file.".format(filename))
+        logging.exception("Error reading {0!r} file.".format(filename), exc_info=options.debug)
         return None
 
     mfakto_tf = MFAKTO_TF_RE.match(header)
 
     if mfakto_tf:
-        exp, bit_min, _bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, bit_level_time, _i = (
+        exp, bit_min, bit_max, num_classes, _version, cur_class, _num_factors, _factors_string, bit_level_time, _i = (
             mfakto_tf.groups()
         )
     else:
         return None
 
     n = int(exp)
-    int_bit_min = int(bit_min)
-    int_bit_max = int(bit_max)
+    bits = int(bit_min)
     ms_elapsed = int(bit_level_time)
 
     if p != n:
         return None
 
-    pct_complete = pct_complete_mfakt(n, int_bit_min, int(num_classes), int(cur_class))
-    assignment_ghd = tf_ghd_credit(n, int_bit_min, int_bit_max)
+    pct_complete = pct_complete_mfakt(n, bits, int(num_classes), int(cur_class))
+    assignment_ghd = tf_ghd_credit(n, bits, int(bit_max))
     counter = pct_complete * assignment_ghd
     avg_msec_per_iter = ms_elapsed / counter if ms_elapsed else None
 
@@ -3960,10 +3959,10 @@ def upload_proof(adapter, filename):
                     adapter.error(str(json))
                     return False
     except RequestException:
-        logging.exception("")
+        logging.exception("", exc_info=options.debug)
         return False
     except (IOError, OSError):
-        logging.exception("Cannot open proof file {0!r}".format(filename))
+        logging.exception("Cannot open proof file {0!r}".format(filename), exc_info=options.debug)
         return False
 
 
@@ -4031,7 +4030,7 @@ def get_proof_data(assignment_aid, file):
             if chunk:
                 file.write(chunk)
     except RequestException:
-        logging.exception("")
+        logging.exception("", exc_info=options.debug)
         return None
     return amd5
 
@@ -5129,7 +5128,11 @@ def update_progress_all(adapter, adir, cpu_num, last_time, tasks, progress, chec
             mtime = os.path.getmtime(file)
             date = datetime.fromtimestamp(mtime)
             if last_time >= mtime:
-                adapter.warning("STALL DETECTED: Log/Save file {0!r} has not been modified since the last progress update ({1:%c})".format(file, date))
+                adapter.warning(
+                    "STALL DETECTED: Log/Save file {0!r} has not been modified since the last progress update ({1:%c})".format(
+                        file, date
+                    )
+                )
                 if not config.has_option(section, "stalled"):
                     send_msg(
                         "⚠️ {0} on {1} has stalled".format(PROGRAM["name"], options.computer_id),
@@ -5347,8 +5350,9 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
         args["gbz"] = 1
         if "proof" in ar:
             proof = ar["proof"]
-            args["pp"] = proof["power"]
-            args["ph"] = proof["md5"]
+            if proof["power"]:
+                args["pp"] = proof["power"]
+                args["ph"] = proof["md5"]
     elif result_type in {PRIMENET.AR_TF_FACTOR, PRIMENET.AR_TF_NOFACTOR}:
         args["d"] = (
             1
@@ -5382,7 +5386,7 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
                     adapter.warning("Bad factor for M{0} found: {1}".format(assignment.n, factor))
         else:
             buf += "M{0} no factors from 2^{1} to 2^{2}{3}".format(
-                assignment.n, ar["bitlo"], ar["bithi"], ", {0}".format(ar.get("security-code")) if "security-code" in ar else ""
+                assignment.n, ar["bitlo"], ar["bithi"], ", {0}".format(ar["security-code"]) if "security-code" in ar else ""
             )
     elif result_type in {PRIMENET.AR_P1_FACTOR, PRIMENET.AR_P1_NOFACTOR}:
         args["d"] = (
@@ -5403,8 +5407,8 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
             factors = ar["factors"]
             buf += "{0} has {1}factor{2}: {3} (P-1, B1={4}{5})".format(
                 exponent_to_str(assignment),
-                "s" if len(factors) != 1 else "",
                 "a " if len(factors) == 1 else "",
+                "s" if len(factors) != 1 else "",
                 ", ".join(factors),
                 args["B1"],
                 ", B2={0}{1}".format(args["B2"], ", E={0}".format(ar["brent-suyama"]) if "brent-suyama" in ar else "")
@@ -5467,7 +5471,7 @@ def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
                     timeout=30,
                 )
             except RequestException:
-                logging.exception("Backup notification failed")
+                logging.exception("Backup notification failed", exc_info=options.debug)
             else:
                 adapter.debug("Backup notification: {0}".format(r.text))
             if result_type == PRIMENET.AR_LL_PRIME:
@@ -5642,7 +5646,7 @@ def submit_one_line(adapter, adir, resultsfile, sendline, assignments):
             ar = json.loads(sendline)
             is_json = True
         except JSONDecodeError:
-            logging.exception("Unable to decode entry in {0!r}: {1}".format(resultsfile, sendline))
+            logging.exception("Unable to decode entry in {0!r}: {1}".format(resultsfile, sendline), exc_info=options.debug)
             # Mlucas
             if "Program: E" in sendline:
                 adapter.info("Please upgrade to Mlucas v19 or greater.")
