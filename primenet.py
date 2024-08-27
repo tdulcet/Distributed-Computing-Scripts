@@ -5119,13 +5119,13 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
                 num_cache += 1
                 adapter.debug(
                     "Time left ({0}) is less than days_of_work ({1}), so num_cache increased by one to {2:n}".format(
-                        time_left, days_work, num_cache
+                        timedeltastr(time_left), timedeltastr(days_work), num_cache
                     )
                 )
             else:
                 adapter.debug(
                     "Time left ({0}) is greater than days_of_work ({1}), so num_cache has not been changed".format(
-                        time_left, days_work
+                        timedeltastr(time_left), timedeltastr(days_work)
                     )
                 )
 
