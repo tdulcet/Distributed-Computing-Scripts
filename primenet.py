@@ -4621,7 +4621,7 @@ https://www.mersenne.org/editcpu/?g={guid}""".format(options, guid=guid)
 def assignment_unreserve(adapter, assignment, retry_count=0):
     """Unreserves an assignment from the PrimeNet server."""
     guid = get_guid(config)
-    if guid is None:
+    if guid is None and assignment.n < 1000000000:
         adapter.error("Cannot unreserve, the registration is not done")
         return False
     if not assignment or not assignment.uid:
@@ -4697,7 +4697,10 @@ def unreserve_all(dirs):
                 ((assignment.uid, assignment.n), assignment) for assignment in tasks if isinstance(assignment, Assignment)
             ).values()
             changed = False
+            any_tf1g = False
             for assignment in assignments:
+                if assignment.work_type == PRIMENET.WORK_TYPE_FACTOR and assignment.n >= 1000000000:
+                    any_tf1g = True
                 if assignment_unreserve(adapter, assignment):
                     tasks = [
                         task
@@ -4708,8 +4711,42 @@ def unreserve_all(dirs):
                     changed = True
             if changed:
                 write_workfile(adir, tasks)
+            if any_tf1g:
+                tf1g_unreserve_all(adapter)
         finally:
             unlock_file(workfile)
+
+def tf1g_unreserve_all(adapter, retry_count=0):
+    retry = False
+    if retry_count >= 5:
+        adapter.info("Retry count exceeded.")
+        return False
+    if options.user_id:
+        try:
+            r = requests.post("https://www.mersenne.ca/tf1G.php", data={"gimps_login": options.user_id, "unreserve-all": options.user_id})
+            result = r.json()
+            if "error" in result:
+                adapter.error("ERROR during tf1G unreserve-all: {0}".format(result["error"]))
+                return False
+            if "unreserved_count" in result:
+                adapter.info("Unreserved {0} exponents from tf1G.".format(result["unreserved_count"]))
+                return True
+            else:
+                adapter.error("ERROR during tf1G unreserve-all, unexpected result: ".format(result))
+        except (Timeout, JSONDecodeError) as e:
+            logging.exception(e, exc_info=options.debug)
+            retry = True
+        except HTTPError as e:
+            logging.exception("ERROR receiving answer to request: {0}".format(e), exc_info=options.debug)
+            retry = True
+        except ConnectionError as e:
+            logging.exception("ERROR connecting to server for request: {0}".format(e), exc_info=options.debug)
+            retry = True
+        if retry:
+            return tf1g_unreserve_all(retry_count + 1)
+    else:
+        adapter.error("Failed to unreserve tf1G exponents due to missing user_id.")
+    return False
 
 
 def update_assignment(adapter, cpu_num, assignment, task):
