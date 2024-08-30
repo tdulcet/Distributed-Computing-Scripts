@@ -4723,7 +4723,7 @@ def tf1g_unreserve_all(adapter, retry_count=0):
         return False
     if options.user_id:
         try:
-            r = requests.post("https://www.mersenne.ca/tf1G.php", data={"gimps_login": options.user_id, "unreserve-all": options.user_id})
+            r = session.post("https://www.mersenne.ca/tf1G.php", data={"gimps_login": options.user_id, "unreserve-all": options.user_id})
             result = r.json()
             if "error" in result:
                 adapter.error("ERROR during tf1G unreserve-all: {0}".format(result["error"]))
@@ -5959,6 +5959,29 @@ Python version: {14}
     return report_result(adapter, adir, sendline, ar, tasks, retry_count + 1)
 
 
+def submit_mersenne_ca_results(adapter, lines):
+    """Submit results for exponents over 1,000,000,000 using https://www.mersenne.ca/submit-results.php"""
+    adapter.debug("Submitting using mersenne.ca/subtmit-results.php")
+    results_string = "\n".join(lines)
+    try:
+        r = session.post("https://www.mersenne.ca/submit-results.php?json=1", data={
+            "gimps_login":options.user_id}, files={"results_file": ("results.json.txt", results_string)})
+        r.raise_for_status()
+        res_json = r.json()
+    except HTTPError:
+        adapter.exception("", exc_info=options.debug)
+        return False
+    except JSONDecodeError:
+        adapter.exception("", exc_info=options.debug)
+        return False
+    except ConnectionError:
+        adapter.exception("URL open ERROR", exc_info=options.debug)
+        return False
+    else:
+        adapter.info("Mersenne.ca Results: {0}".format(res_json["results"]))
+    return True
+
+
 def submit_one_line_manually(adapter, sendline):
     """Submit results using manual testing, will be attributed to "Manual Testing" in mersenne.org."""
     adapter.debug("Submitting using manual results")
@@ -6028,6 +6051,19 @@ def submit_one_line(adapter, adir, resultsfile, sendline, assignments):
 
 
 RESULTPATTERN = re.compile(r"Prime95|Program: E|Mlucas|CUDALucas v|CUDAPm1 v|gpuowl|prpll|mfakt[co]")
+MERSENNECAPATTERN = re.compile(r'("exponent":\s*|M)[1-9][0-9]{9,}')
+
+RESULTS_FAIL_EMAIL_TITLE_TEMPLATE = "❌📤 Failed to report assignment result on {0}"
+RESULTS_FAIL_EMAIL_BODY_TEMPLATE = """Failed to report mersenne.ca assignment results from the {0!r} file on your {1!r} computer (worker #{2}):
+
+> {3}
+
+Below is the last up to 10 lines of the {4!r} log file for the PrimeNet program:
+
+{5}
+
+If you believe this is a bug with the program/script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
+"""
 
 
 def submit_work(adapter, adir, cpu_num, tasks):
@@ -6045,16 +6081,30 @@ def submit_work(adapter, adir, cpu_num, tasks):
         # EWM: Note that readonly_list_file does not need the file(s) to exist - nonexistent files simply yield 0-length rs-array entries.
         # remove nonsubmittable lines from list of possibles
         # if a line was previously submitted, discard
-        results_send = [line for line in results if RESULTPATTERN.search(line) and line not in results_sent]
+        new_result_lines = [line for line in results if RESULTPATTERN.search(line) and line not in results_sent]
+        mersenne_ca_result_send = [line for line in new_result_lines if MERSENNECAPATTERN.search(line) and line not in results_sent]
+        results_send = [line for line in new_result_lines if line not in mersenne_ca_result_send]
     finally:
         unlock_file(resultsfile)
 
-    if not results_send:
+    if not new_result_lines:
         adapter.debug("No new results in {0!r}.".format(resultsfile))
         return
     length = len(results_send)
     adapter.debug("Found {0:n} new result{1} to report in {2!r}".format(length, "s" if length > 1 else "", resultsfile))
 
+    # send all mersenne.ca results at once, to minimize tf1G overhead
+    sent = []
+    if mersenne_ca_result_send:
+        all_sent = submit_mersenne_ca_results(adapter, mersenne_ca_result_send)
+        if all_sent:
+            write_list_file(sentfile, mersenne_ca_result_send, "a")
+        else:
+            send_msg(
+                RESULTS_FAIL_EMAIL_TITLE_TEMPLATE.format(options.computer_id),
+                RESULTS_FAIL_EMAIL_BODY_TEMPLATE.format(resultsfile, options.computer_id, cpu_num + 1, mersenne_ca_result_send, logfile, tail(logfile, 10)),
+                priority="2 (High)",
+            )
     # Only for new results, to be appended to results_sent
     sent = []
     # EWM: Switch to one-result-line-at-a-time submission to support
@@ -6069,17 +6119,8 @@ def submit_work(adapter, adir, cpu_num, tasks):
             sent.append(sendline)
         else:
             send_msg(
-                "❌📤 Failed to report assignment result on {0}".format(options.computer_id),
-                """Failed to report an assignment result from the {0!r} file on your {1!r} computer (worker #{2}):
-
-> {3}
-
-Below is the last up to 10 lines of the {4!r} log file for the PrimeNet program:
-
-{5}
-
-If you believe this is a bug with the program/script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
-""".format(resultsfile, options.computer_id, cpu_num + 1, sendline, logfile, tail(logfile, 10)),
+                RESULTS_FAIL_EMAIL_TITLE_TEMPLATE.format(options.computer_id),
+                RESULTS_FAIL_EMAIL_BODY_TEMPLATE.format(resultsfile, options.computer_id, cpu_num + 1, sendline, logfile, tail(logfile, 10)),
                 priority="2 (High)",
             )
     write_list_file(sentfile, sent, "a")
@@ -6214,8 +6255,8 @@ parser.add_option(
     default=10,
     help="PRP proof certification work limit in percentage of CPU or GPU time, Default: %default%. Requires the --cert-work option.",
 )
-parser.add_option("--min-exp", dest="min_exp", type="int", help="Minimum exponent to get from PrimeNet (2 - 999,999,999)")
-parser.add_option("--max-exp", dest="max_exp", type="int", help="Maximum exponent to get from PrimeNet (2 - 999,999,999)")
+parser.add_option("--min-exp", dest="min_exp", type="int", help="Minimum exponent to get from PrimeNet or mersenne.ca (2 - 99,999,999,999)")
+parser.add_option("--max-exp", dest="max_exp", type="int", help="Maximum exponent to get from PrimeNet or mersenne.ca (2 - 99,999,999,999)")
 
 parser.add_option(
     "-g",
