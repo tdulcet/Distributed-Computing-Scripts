@@ -5557,7 +5557,7 @@ def cuda_result_to_json(resultsfile, sendline):
 
 
 def report_result(adapter, adir, sendline, ar, tasks, retry_count=0):
-    """Submit one result line using v5 API, will be attributed to the computed identified by guid."""
+    """Submit one result line using v5 API, will be attributed to the computer identified by guid."""
     """Return False if the submission should be retried"""
     guid = get_guid(config)
     # JSON is required because assignment_id is necessary in that case
