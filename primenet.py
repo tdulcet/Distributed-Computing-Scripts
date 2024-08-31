@@ -1552,6 +1552,7 @@ def read_workfile(adapter, adir):
             if (
                 assignment.k == 1.0
                 and assignment.b == 2
+                and assignment.n < 1000000000  # skip primality test for >1G exponents, slow
                 and not is_prime(assignment.n)
                 and assignment.c == -1
                 and not assignment.known_factors
@@ -5234,6 +5235,9 @@ def register_assignment(adapter, cpu_num, assignment, retry_count=0):
     if guid is None:
         adapter.error("Cannot register assignment, the registration is not done")
         return None
+    if assignment.n >= 1000000000:
+        adapter.debug("Cannot register assignment, exponent is larger than PrimeNet bounds")
+        return None
     args = primenet_v5_bargs.copy()
     args["t"] = "ra"
     args["g"] = guid
@@ -5330,6 +5334,9 @@ def send_progress(adapter, cpu_num, assignment, percent, stage, time_left, now, 
     guid = get_guid(config)
     if guid is None:
         adapter.error("Cannot send progress, the registration is not done")
+        return None
+    if assignment.n >= 1000000000:
+        adapter.debug("Cannot send progress, exponent larger than primenet bounds")
         return None
     if not assignment.uid:
         return None
@@ -6093,7 +6100,7 @@ def submit_work(adapter, adir, cpu_num, tasks):
     length = len(results_send)
     adapter.debug("Found {0:n} new result{1} to report in {2!r}".format(length, "s" if length > 1 else "", resultsfile))
 
-    # send all mersenne.ca results at once, to minimize tf1G overhead
+    # send all mersenne.ca results at once, to minimize server overhead
     sent = []
     if mersenne_ca_result_send:
         all_sent = submit_mersenne_ca_results(adapter, mersenne_ca_result_send)
