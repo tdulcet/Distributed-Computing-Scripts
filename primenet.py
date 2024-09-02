@@ -477,6 +477,7 @@ _V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ = 17737
 primenet_v5_bargs = OrderedDict((("px", "GIMPS"), ("v", TRANSACTION_API_VERSION)))
 primenet_baseurl = "https://www.mersenne.org/"
 primenet_login = False
+mersenne_ca_baseurl = "https://www.mersenne.ca/"
 
 is_64bit = platform.machine().endswith("64")
 PORT = None
@@ -1523,6 +1524,8 @@ def parse_assignment(task):
         assignment.n = int(n)
         assignment.c = int(c)
         assignment.cert_squarings = int(cert_squarings)
+    if assignment.n and assignment.n > 1000000000:
+        assignment.ra_failed = True
     return assignment
 
 
@@ -2379,7 +2382,7 @@ def get_exponent(n):
     # args = {"exp_lo": n, "faclim": 1, "json": 1}
     try:
         # r = session.get(primenet_baseurl + "report_exponent_simple/", params=args, timeout=180)
-        r = session.get("https://www.mersenne.ca/exponent/{0}/json".format(n), params=args, timeout=180)
+        r = session.get(mersenne_ca_baseurl + "exponent/{0}/json".format(n), params=args, timeout=180)
         r.raise_for_status()
         json = r.json()
 
@@ -2533,7 +2536,7 @@ https://www.mersenne.ca/M{0}
                 for (B1, B2), label in zip(bounds, ("MIN", "MID", "MAX")):
                     p1, p2 = pm1(p, sieve_depth, B1, B2)
                     print("\t{0}: B1={1:n}, B2={2:n}, Probability {3:%} ({4:.3%} + {5:.3%})".format(label, B1, B2, p1 + p2, p1, p2))
-                print("For more information, see: https://www.mersenne.ca/prob.php?exponent={0}\n".format(p))
+                print("For more information, see: {0}prob.php?exponent={1}\n".format(mersenne_ca_baseurl, p))
 
                 B1 = ask_int("P-1 Bound #1", 0 if options.gpuowl else midB1, 100)
                 B2 = ask_int("P-1 Bound #2", 0 if options.gpuowl else midB2, 0)
@@ -3748,8 +3751,8 @@ def parse_mfaktc_output_file(adapter, adir, p):
         result = parse_work_unit_mfaktc(savefile, p)
         if result is not None:
             iteration, avg_msec_per_iter, pct_complete = result
-    else:
-        adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
+    # else:
+    #     adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
 
     return iteration, avg_msec_per_iter, stage, pct_complete, None, 0, 0
 
@@ -3764,8 +3767,8 @@ def parse_mfakto_output_file(adapter, adir, p):
         result = parse_work_unit_mfakto(savefile, p)
         if result is not None:
             iteration, avg_msec_per_iter, pct_complete = result
-    else:
-        adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
+    # else:
+    #     adapter.debug("Checkpoint file {0!r} does not exist".format(savefile))
 
     return iteration, avg_msec_per_iter, stage, pct_complete, None, 0, 0
 
@@ -4724,7 +4727,7 @@ def tf1g_unreserve_all(adapter, retry_count=0):
         return False
     if options.user_id:
         try:
-            r = session.post("https://www.mersenne.ca/tf1G.php", data={"gimps_login": options.user_id, "unreserve-all": options.user_id})
+            r = session.post(mersenne_ca_baseurl + "tf1G.php", data={"gimps_login": options.user_id, "unreserve-all": options.user_id})
             result = r.json()
             if "error" in result:
                 adapter.error("ERROR during tf1G unreserve-all: {0}".format(result["error"]))
@@ -5023,6 +5026,39 @@ def recover_assignments(dirs):
             unlock_file(workfile)
 
 
+def tf1g_fetch(adapter, adir, cpu_num, num_to_get):
+    try:
+        r = session.post(mersenne_ca_baseurl + "tf1G.php", data={
+            "gimps_login": options.user_id,
+            "min_exponent": options.min_exp,
+            "max_exponent": options.max_exp,
+            "tf_min": 70,
+            "tf_limit": 75,
+            "max_ghd": "",
+            "max_assignments": num_to_get,
+            "download_worktodo": 1,
+            "stages": 0,
+        })
+        r.raise_for_status()
+        res = r.text
+    except HTTPError:
+        adapter.exception("")
+        return []
+    except ConnectionError:
+        adapter.exception("URL open error at tf1g_fetch")
+        return []
+    else:
+        tests = []
+        for task in res.strip().splitlines():
+            test = parse_assignment(task)
+            if test is None:
+                adapter.error("Invalid assignment {0!r}".format(task))
+                tests.append(task)
+            else:
+                tests.append(test)
+        return tests
+
+
 def primenet_fetch(adapter, cpu_num, num_to_get):
     """Get a number of assignments from the PrimeNet server."""
     if options.password and not primenet_login:
@@ -5040,6 +5076,7 @@ def primenet_fetch(adapter, cpu_num, num_to_get):
     #    5						ECM for first factor on Mersenne numbers
     #    6						ECM on Fermat numbers
     #    8						ECM on mersenne cofactors
+    #   12                      Trial factoring GPU
     # *100	SmallestAvail		Smallest available first-time tests
     # *101	DoubleCheck			Double-checking
     # *102	WorldRecord			World record primality tests
@@ -5154,7 +5191,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
         if cur_time_left:
             time_left = timedelta(seconds=cur_time_left)
             if time_left <= days_work:
-                num_cache += 1
+                num_cache += 1 if options.min_exp < 1000000000 and (options.mfaktc or options.mfakto) else 10
                 adapter.debug(
                     "Time left ({0}) is less than days_of_work ({1}), so num_cache increased by one to {2:n}".format(
                         timedeltastr(time_left), timedeltastr(days_work), num_cache
@@ -5189,7 +5226,11 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             )
         )
 
-        assignments = primenet_fetch(adapter, cpu_num, num_to_get)
+        # tf1G work fetch
+        if options.min_exp >= 1000000000 and work_preference[cpu_num] in [2, 12]:
+            assignments = tf1g_fetch(adapter, adir, cpu_num, num_to_get)
+        else:
+            assignments = primenet_fetch(adapter, cpu_num, num_to_get)
         num_fetched = len(assignments)
         adapter.debug("Fetched {0:n} assignment{1}:".format(num_fetched, "s" if num_fetched > 1 else ""))
         if not assignments:
@@ -5336,7 +5377,7 @@ def send_progress(adapter, cpu_num, assignment, percent, stage, time_left, now, 
         adapter.error("Cannot send progress, the registration is not done")
         return None
     if assignment.n >= 1000000000:
-        adapter.debug("Cannot send progress, exponent larger than primenet bounds")
+        # adapter.debug("Cannot send progress, exponent larger than primenet bounds")
         return None
     if not assignment.uid:
         return None
@@ -5971,7 +6012,7 @@ def submit_mersenne_ca_results(adapter, lines):
     adapter.debug("Submitting using mersenne.ca/subtmit-results.php")
     results_string = "\n".join(lines)
     try:
-        r = session.post("https://www.mersenne.ca/submit-results.php?json=1", data={
+        r = session.post(mersenne_ca_baseurl + "submit-results.php?json=1", data={
             "gimps_login":options.user_id}, files={"results_file": ("results.json.txt", results_string)})
         r.raise_for_status()
         res_json = r.json()
