@@ -808,6 +808,9 @@ def setup():
         1,
         5,
     )
+    if program in [4, 5]:
+        tf1g = ask_yn("Is this setup for the tf1G subproject on https://mersenne.ca/tf1G? This is mutually exclusive with primenet trial factoring.",
+                      options.min_exp is not None and options.min_exp >= 1000000000)
     if program == 2:
         print("Warning: PRPLL is not ready for production use and is not (yet) fully supported.")
     gpu = None
@@ -853,6 +856,11 @@ def setup():
         options.memory = memory
         config.set(SEC.PrimeNet, "memory", str(memory))
         options.day_night_memory = memory * 0.9
+    if tf1g:
+        options.min_exp = 1000000000
+        config.set(SEC.PrimeNet, "GetMinExponent", str(options.min_exp))
+        options.work_preference = ["12"]
+        config.set(SEC.PrimeNet, "WorkPreference", str(options.work_preference))
 
     disk = ask_float(
         "Configured disk space limit per worker to store the proof interim residues files for PRP tests in GiB/worker (0 to not send)",
@@ -5026,7 +5034,9 @@ def recover_assignments(dirs):
             unlock_file(workfile)
 
 
-def tf1g_fetch(adapter, adir, cpu_num, num_to_get):
+def tf1g_fetch(adapter, adir, cpu_num, num_to_get, retry_count=0):
+    retry = False
+    adapter.info("Getting tf1G assignments from mersenne.ca")
     try:
         r = session.post(mersenne_ca_baseurl + "tf1G.php", data={
             "gimps_login": options.user_id,
@@ -5043,10 +5053,10 @@ def tf1g_fetch(adapter, adir, cpu_num, num_to_get):
         res = r.text
     except HTTPError:
         adapter.exception("")
-        return []
+        retry = True
     except ConnectionError:
         adapter.exception("URL open error at tf1g_fetch")
-        return []
+        retry = True
     else:
         tests = []
         for task in res.strip().splitlines():
@@ -5056,7 +5066,15 @@ def tf1g_fetch(adapter, adir, cpu_num, num_to_get):
                 tests.append(task)
             else:
                 tests.append(test)
+                adapter.info("Got assignment: {0}".format(exponent_to_str(test)))
         return tests
+    if retry:
+        if retry_count >= 3:
+            adapter.info("Retry count exceeded.")
+            return []
+        time.sleep(1 << retry_count)
+        return tf1g_fetch(adapter, adir, cpu_num, num_to_get, retry_count + 1)
+    return []
 
 
 def primenet_fetch(adapter, cpu_num, num_to_get):
@@ -5191,10 +5209,12 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
         if cur_time_left:
             time_left = timedelta(seconds=cur_time_left)
             if time_left <= days_work:
-                num_cache += 1 if options.min_exp < 1000000000 and (options.mfaktc or options.mfakto) else 10
+
+                delta_cache = 1 if options.min_exp < 1000000000 and (options.mfaktc or options.mfakto) else 10
+                num_cache += delta_cache
                 adapter.debug(
-                    "Time left ({0}) is less than days_of_work ({1}), so num_cache increased by one to {2:n}".format(
-                        timedeltastr(time_left), timedeltastr(days_work), num_cache
+                    "Time left ({0}) is less than days_of_work ({1}), so num_cache increased by {2:n} to {3:n}".format(
+                        timedeltastr(time_left), timedeltastr(days_work), delta_cache, num_cache
                     )
                 )
             else:
@@ -5226,7 +5246,6 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             )
         )
 
-        # tf1G work fetch
         if options.min_exp >= 1000000000 and work_preference[cpu_num] in [2, 12]:
             assignments = tf1g_fetch(adapter, adir, cpu_num, num_to_get)
         else:
@@ -6021,6 +6040,7 @@ def submit_mersenne_ca_results(adapter, lines):
         return False
     except JSONDecodeError:
         adapter.exception("", exc_info=options.debug)
+        adapter.error(r.text)
         return False
     except ConnectionError:
         adapter.exception("URL open ERROR", exc_info=options.debug)
@@ -6303,8 +6323,9 @@ parser.add_option(
     default=10,
     help="PRP proof certification work limit in percentage of CPU or GPU time, Default: %default%. Requires the --cert-work option.",
 )
-parser.add_option("--min-exp", dest="min_exp", type="int", help="Minimum exponent to get from PrimeNet or mersenne.ca (2 - 99,999,999,999)")
-parser.add_option("--max-exp", dest="max_exp", type="int", help="Maximum exponent to get from PrimeNet or mersenne.ca (2 - 99,999,999,999)")
+parser.add_option("--min-exp", dest="min_exp", type="int", help="Minimum exponent to get from PrimeNet or tf1G (2 - 9,999,999,999)\n"
+                                                                "tf1G assignments are supported by setting this flag to 1,000,000,000 or above")
+parser.add_option("--max-exp", dest="max_exp", type="int", help="Maximum exponent to get from PrimeNet or tf1G (2 - 9,999,999,999)")
 
 parser.add_option(
     "-g",
