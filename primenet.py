@@ -5196,13 +5196,15 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             )
         )
 
-    amax = (
-        config.getint(SEC.PrimeNet, "MaxExponents")
-        if config.has_option(SEC.PrimeNet, "MaxExponents")
-        else 1000
-        if options.mfaktc or options.mfakto
-        else 15
-    )
+    if config.has_option(SEC.PrimeNet, "MaxExponents"):
+        amax = config.getint(SEC.PrimeNet, "MaxExponents")
+    elif options.mfaktc or options.mfakto:
+        if options.min_exp >= 1000000000:
+            amax = 10000 # tf1G
+        else:
+            amax = 1000 # primenet TF
+    else:
+        amax = 15
     days_work = timedelta(days=options.days_of_work)
     new_tasks = []
     while True:
@@ -5237,6 +5239,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
                 "{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(num_existing, num_cache, workfile)
             )
             if not new_tasks:
+                adapter.info("Estimated time to complete queued work is {0} ".format(timedeltastr(time_left)))
                 return
             break
         num_to_get = num_cache - num_existing
@@ -6643,7 +6646,14 @@ if options.days_of_work is None:
     options.days_of_work = 1.0 if options.mfaktc or options.mfakto else 3.0
     config.set(SEC.PrimeNet, "DaysOfWork", str(options.days_of_work))
 if not config.has_option(SEC.PrimeNet, "MaxExponents"):
-    config.set(SEC.PrimeNet, "MaxExponents", str(1000 if options.mfaktc or options.mfakto else 15))
+    if options.mfaktc or options.mfakto:
+        if options.min_exp >= 1000000000:
+            amax = 10000  # tf1G
+        else:
+            amax = 1000  # primenet TF
+    else:
+        amax = 15
+    config.set(SEC.PrimeNet, "MaxExponents", str(amax))
 
 # check options after merging so that if local.ini file is changed by hand,
 # values are also checked
