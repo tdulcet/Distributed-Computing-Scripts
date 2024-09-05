@@ -5034,18 +5034,21 @@ def recover_assignments(dirs):
             unlock_file(workfile)
 
 
-def tf1g_fetch(adapter, adir, cpu_num, num_to_get, retry_count=0):
+def tf1g_fetch(adapter, adir, cpu_num, tf_min="", tf_limit="", max_assignments="", max_ghd="", retry_count=0):
     retry = False
-    adapter.info("Getting tf1G assignments from mersenne.ca")
+    adapter.info("Getting {0}{1} tf1G assignments from mersenne.ca".format(
+        max_ghd if max_ghd else max_assignments,
+        " GHz-days of" if max_ghd else ""
+    ))
     try:
         r = session.post(mersenne_ca_baseurl + "tf1G.php", data={
             "gimps_login": options.user_id,
             "min_exponent": options.min_exp,
             "max_exponent": options.max_exp,
-            "tf_min": "",
-            "tf_limit": "",
-            "max_ghd": "",
-            "max_assignments": num_to_get,
+            "tf_min": tf_min,
+            "tf_limit": tf_limit,
+            "max_ghd": max_ghd,
+            "max_assignments": "" if max_ghd else max_assignments,
             "download_worktodo": 1,
             "stages": 0,
         })
@@ -5073,7 +5076,7 @@ def tf1g_fetch(adapter, adir, cpu_num, num_to_get, retry_count=0):
             adapter.info("Retry count exceeded.")
             return []
         time.sleep(1 << retry_count)
-        return tf1g_fetch(adapter, adir, cpu_num, num_to_get, retry_count + 1)
+        return tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_limit, max_assignments, max_ghd, retry_count + 1)
     return []
 
 
@@ -5250,7 +5253,15 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
         )
 
         if options.min_exp >= 1000000000 and work_preference[cpu_num] in [2, 12]:
-            assignments = tf1g_fetch(adapter, adir, cpu_num, num_to_get)
+            tf_min = ""
+            tf_max = ""
+            if msec_per_iter is not None:
+                ghd_to_request = int((days_work.total_seconds() - time_left.total_seconds()) * 1000 / msec_per_iter)
+                if ghd_to_request < 100:
+                    ghd_to_request = ""
+                assignments = tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_max, num_to_get, ghd_to_request)
+            else:
+                assignments = tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_max, num_to_get)
         else:
             assignments = primenet_fetch(adapter, cpu_num, num_to_get)
         num_fetched = len(assignments)
