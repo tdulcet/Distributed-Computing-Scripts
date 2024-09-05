@@ -5257,8 +5257,6 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             tf_max = ""
             if msec_per_iter is not None:
                 ghd_to_request = int((days_work.total_seconds() - time_left.total_seconds()) * 1000 / msec_per_iter)
-                if ghd_to_request < 100:
-                    ghd_to_request = ""
                 assignments = tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_max, num_to_get, ghd_to_request)
             else:
                 assignments = tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_max, num_to_get)
