@@ -5173,6 +5173,11 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
     _percent = cur_time_left = msec_per_iter = p = None
     if progress is not None:
         _percent, cur_time_left, msec_per_iter, p = progress  # unpack update_progress output
+    section = "Worker #{0}".format(cpu_num + 1) if options.num_workers > 1 else SEC.Internals
+    if msec_per_iter is None and p is None and config.has_option(section, "msec_per_iter") and config.has_option(section, "exponent"):
+        # get speed from .ini in case of no assignments
+        msec_per_iter = config.getfloat(section, "msec_per_iter")
+        p = config.getint(section, "exponent")
     num_cache = options.num_cache
     if not num_cache:
         num_cache = 10 if options.mfaktc or options.mfakto else 1
@@ -5214,8 +5219,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
         if cur_time_left:
             time_left = timedelta(seconds=cur_time_left)
             if time_left <= days_work:
-
-                delta_cache = 1 if options.min_exp < 1000000000 and (options.mfaktc or options.mfakto) else 10
+                delta_cache = 1
                 num_cache += delta_cache
                 adapter.debug(
                     "Time left ({0}) is less than days_of_work ({1}), so num_cache increased by {2:n} to {3:n}".format(
@@ -5241,8 +5245,8 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             adapter.debug(
                 "{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(num_existing, num_cache, workfile)
             )
+            adapter.info("Estimated time to complete queued work is {0}, work requested is {1}".format(timedeltastr(time_left), timedeltastr(days_work)))
             if not new_tasks:
-                adapter.info("Estimated time to complete queued work is {0} ".format(timedeltastr(time_left)))
                 return
             break
         num_to_get = num_cache - num_existing
@@ -5256,7 +5260,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             tf_min = ""
             tf_max = ""
             if msec_per_iter is not None:
-                ghd_to_request = int((days_work.total_seconds() - time_left.total_seconds()) * 1000 / msec_per_iter)
+                ghd_to_request = int(max(10,(days_work.total_seconds() - cur_time_left)) * 1000 / msec_per_iter)
                 assignments = tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_max, num_to_get, ghd_to_request)
             else:
                 assignments = tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_max, num_to_get)
