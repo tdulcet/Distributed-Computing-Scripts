@@ -1108,6 +1108,8 @@ attr_to_copy = {
         "cert_cpu_limit": "CertDailyCPULimit",
         "min_exp": "GetMinExponent",
         "max_exp": "GetMaxExponent",
+        "bit_min": "bit_min",
+        "bit_max": "bit_max",
         "gpuowl": "gpuowl",
         "cudalucas": "cudalucas",
         "mfaktc": "mfaktc",
@@ -5257,13 +5259,11 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
         )
 
         if options.min_exp >= 1000000000 and work_preference[cpu_num] in [2, 12]:
-            tf_min = ""
-            tf_max = ""
             if msec_per_iter is not None:
                 ghd_to_request = int(max(10,(days_work.total_seconds() - cur_time_left)) * 1000 / msec_per_iter)
-                assignments = tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_max, num_to_get, ghd_to_request)
+                assignments = tf1g_fetch(adapter, adir, cpu_num, options.bit_min, options.bit_max, num_to_get, ghd_to_request)
             else:
-                assignments = tf1g_fetch(adapter, adir, cpu_num, tf_min, tf_max, num_to_get)
+                assignments = tf1g_fetch(adapter, adir, cpu_num, options.bit_min, options.bit_max, num_to_get)
         else:
             assignments = primenet_fetch(adapter, cpu_num, num_to_get)
         num_fetched = len(assignments)
@@ -6342,6 +6342,9 @@ parser.add_option(
 parser.add_option("--min-exp", dest="min_exp", type="int", help="Minimum exponent to get from PrimeNet or tf1G (2 - 9,999,999,999)\n"
                                                                 "tf1G assignments are supported by setting this flag to 1,000,000,000 or above")
 parser.add_option("--max-exp", dest="max_exp", type="int", help="Maximum exponent to get from PrimeNet or tf1G (2 - 9,999,999,999)")
+
+parser.add_option("--bit-min", dest="bit_min", type="int", help="Minimum bitlevel of tf1G assignments to fetch")
+parser.add_option("--bit-max", dest="bit_max", type="int", help="Maximum bitlevel of tf1G assignments to fetch")
 
 parser.add_option(
     "-g",
