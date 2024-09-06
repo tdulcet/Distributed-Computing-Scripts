@@ -3523,6 +3523,19 @@ def parse_work_unit_mfakto(filename, p):
 
     return counter, avg_msec_per_iter, pct_complete
 
+STAGES_RE = re.compile(r"^\s*Stages\s*=\s*([01])\s*(?:$|#)")
+
+
+def get_stages_mfaktx_ini(adir, filename):
+    ini_file = os.path.join(adir, filename)
+    # assume Stages=1 if not able to be found, because stages = 1 gives assignments that work for Stages=0
+    stages = 1
+    # configparser doesn't nicely work with .ini files without sections
+    for line in readonly_list_file(ini_file):
+        match = STAGES_RE.fullmatch(line)
+        if match:
+            stages = int(match.group(1))
+    return stages
 
 MLUCAS_RE = re.compile(r"^p([0-9]+)(?:\.s([12]))?$")
 
@@ -5038,9 +5051,12 @@ def recover_assignments(dirs):
 
 def tf1g_fetch(adapter, adir, cpu_num, tf_min="", tf_limit="", max_assignments="", max_ghd="", retry_count=0):
     retry = False
-    adapter.info("Getting {0}{1} tf1G assignments from mersenne.ca".format(
+    ini_filename = "mfaktc.ini" if options.mfaktc else "mfakto.ini" if options.mfakto else ""
+    stages = get_stages_mfaktx_ini(adir, ini_filename)
+    adapter.info("Getting {0}{1} tf1G assignments from mersenne.ca, stages={2}".format(
         max_ghd if max_ghd else max_assignments,
-        " GHz-days of" if max_ghd else ""
+        " GHz-days of" if max_ghd else "",
+        stages
     ))
     try:
         r = session.post(mersenne_ca_baseurl + "tf1G.php", data={
@@ -5052,7 +5068,7 @@ def tf1g_fetch(adapter, adir, cpu_num, tf_min="", tf_limit="", max_assignments="
             "max_ghd": max_ghd,
             "max_assignments": "" if max_ghd else max_assignments,
             "download_worktodo": 1,
-            "stages": 0,
+            "stages": stages,
         })
         r.raise_for_status()
         res = r.text
