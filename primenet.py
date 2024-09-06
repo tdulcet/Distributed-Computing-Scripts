@@ -6795,6 +6795,9 @@ if options.day_night_memory > options.memory:
         )
     )
 
+if options.min_exp < 1000000000 < options.max_exp:
+    parser.error("Min exponent and max exponent must both be less than or greater than 1,000,000,000 (for tf1G)")
+
 if not 0 <= options.days_of_work <= 180:
     parser.error("Days of work must be less than or equal to 180 days")
 
