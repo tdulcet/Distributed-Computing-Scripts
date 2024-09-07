@@ -54,18 +54,20 @@ Automatically gets assignments, reports assignment results, upload proof files a
 
 ```
 Usage: primenet.py [options]
+Use -h/--help to see all options
+Use --setup to configure this instance of the program
 
 This program will automatically get assignments, report assignment results,
 upload proof files and optionally register assignments and report assignment
-progress to PrimeNet for the GpuOwl/PRPLL, CUDALucas, Mlucas, mfaktc, and mfakto
-GIMPS programs. It also saves its configuration to a “local.ini” file by default,
-so it is only necessary to give most of the arguments once. The first time it is
-run, if a password is NOT provided, it will register the current
-GpuOwl/PRPLL/CUDALucas/Mlucas instance with PrimeNet (see the Registering
-Options below). Then, it will report assignment results, get assignments and
-upload any proof files to PrimeNet on the --timeout interval, or only once if
---timeout is 0. If registered, it will additionally report the progress on the
---checkin interval.
+progress to PrimeNet for the Mlucas, GpuOwl/PRPLL, CUDALucas, mfaktc and
+mfakto GIMPS programs. It also saves its configuration to a “local.ini” file
+by default, so it is only necessary to give most of the arguments once. The
+first time it is run, if a password is NOT provided, it will register the
+current Mlucas/GpuOwl/PRPLL/CUDALucas/mfaktc/mfakto instance with PrimeNet
+(see the Registering Options below). Then, it will report assignment results,
+get assignments and upload any proof files to PrimeNet on the --timeout
+interval, or only once if --timeout is 0. If registered, it will additionally
+report the progress on the --checkin interval.
 
 Options:
   --version             show program's version number and exit
@@ -82,7 +84,8 @@ Options:
   -i WORKTODO_FILE, --work-file=WORKTODO_FILE
                         Work file filename, Default: “worktodo.txt”
   -r RESULTS_FILE, --results-file=RESULTS_FILE
-                        Results file filename, Default: “results.txt”
+                        Results file filename, Default: “results.json.txt” for
+                        mfaktc/mfakto or “results.txt” otherwise
   -L LOGFILE, --logfile=LOGFILE
                         Log file filename, Default: “primenet.log”
   -l LOCALFILE, --local-file=LOCALFILE
@@ -102,18 +105,22 @@ Options:
                         default behavior for old versions of this script.
   -T WORK_PREFERENCE, --worktype=WORK_PREFERENCE
                         Type of work, Default: 150. Supported work
-                        preferences: 4 (P-1 factoring), 100 (First time LL
-                        tests), 101 (Double-check LL tests), 102 (World record
-                        LL tests), 104 (100M digit LL tests), 150 (First time
-                        PRP tests), 151 (Double-check PRP tests), 152 (World
+                        preferences: 2 (Trial factoring), 4 (P-1 factoring),
+                        12 (Trial factoring GPU), 100 (First time LL tests),
+                        101 (Double-check LL tests), 102 (World record LL
+                        tests), 104 (100M digit LL tests), 106 (Double-check
+                        LL tests with zero shift count), 150 (First time PRP
+                        tests), 151 (Double-check PRP tests), 152 (World
                         record PRP tests), 153 (100M digit PRP tests), 154
                         (Smallest available first time PRP that needs P-1
                         factoring), 155 (Double-check using PRP with proof),
-                        160 (First time PRP on Mersenne cofactors), 161
-                        (Double-check PRP on Mersenne cofactors). Provide once
-                        to use the same worktype for all workers or once for
-                        each worker to use different worktypes. Not all
-                        worktypes are supported by all the GIMPS programs.
+                        156 (Double-check using PRP with proof and nonzero
+                        shift count), 160 (First time PRP on Mersenne
+                        cofactors), 161 (Double-check PRP on Mersenne
+                        cofactors). Provide once to use the same worktype for
+                        all workers or once for each worker to use different
+                        worktypes. Not all worktypes are supported by all the
+                        GIMPS programs.
   --cert-work           Get PRP proof certification work, Default: none. Not
                         yet supported by any of the GIMPS programs.
   --cert-work-limit=CERT_CPU_LIMIT
@@ -128,6 +135,8 @@ Options:
                         Get assignments for GpuOwl or PRPLL instead of Mlucas.
                         PRPLL is not yet fully supported.
   --cudalucas           Get assignments for CUDALucas instead of Mlucas.
+  --mfaktc              Get assignments for mfaktc instead of Mlucas.
+  --mfakto              Get assignments for mfakto instead of Mlucas.
   --num-workers=NUM_WORKERS
                         Number of workers (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu-num=CPU
@@ -139,9 +148,10 @@ Options:
                         testing). Deprecated in favor of the --days-work
                         option.
   -W DAYS_OF_WORK, --days-work=DAYS_OF_WORK
-                        Days of work to queue (1-180 days), Default: 3.0 days.
-                        Adds one to num_cache when the time left for all
-                        assignments is less than this number of days.
+                        Days of work to queue ((0-180] days), Default: 1 day
+                        for mfaktc/mfakto or 3 days otherwise. Increases
+                        num_cache when the time left for all assignments is
+                        less than this number of days.
   --force-pminus1=TESTS_SAVED
                         Force P-1 factoring before LL/PRP tests and/or change
                         the default PrimeNet PRP and P-1 tests_saved value.
@@ -191,11 +201,12 @@ Options:
                         are sure you will not be finishing this exponent.
                         Requires that the instance is registered with
                         PrimeNet.
-  --unreserve-all       Unreserve all assignments and exit. Quit GIMPS
-                        immediately. Requires that the instance is registered
-                        with PrimeNet.
+  --unreserve-all       Unreserve all assignments and exit. Requires that the
+                        instance is registered with PrimeNet.
   --no-more-work        Prevent this program from getting new assignments and
-                        exit. Quit GIMPS after current work completes.
+                        exit.
+  --resume-work         Resume getting new assignments after having previously
+                        run the --no-more-work option and exit.
   --ping                Ping the PrimeNet server, show version information and
                         exit.
   --setup               Prompt for all the options that are needed to setup
