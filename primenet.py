@@ -1160,6 +1160,8 @@ OPTIONS_TYPE_HINTS = {
         "DaysOfWork": float,
         "tests_saved": float,
         "pm1_multiplier": float,
+        "GetMinExponent": int,
+        "GetMaxExponent": int,
     },
     SEC.Email: {"tls": bool, "starttls": bool},
 }
@@ -6812,7 +6814,7 @@ if options.day_night_memory > options.memory:
     )
 
 if options.min_exp < 1000000000 < options.max_exp:
-    parser.error("Min exponent and max exponent must both be less than or greater than 1,000,000,000 (for tf1G)")
+    parser.error("Min exponent ({0}) and max exponent ({1}) must both be less than or greater than 1,000,000,000 (for tf1G)".format(options.min_exp, options.max_exp))
 
 if not 0 <= options.days_of_work <= 180:
     parser.error("Days of work must be less than or equal to 180 days")
