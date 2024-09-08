@@ -5227,7 +5227,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
     if config.has_option(SEC.PrimeNet, "MaxExponents"):
         amax = config.getint(SEC.PrimeNet, "MaxExponents")
     elif options.mfaktc or options.mfakto:
-        if options.min_exp >= 1000000000:
+        if options.min_exp and options.min_exp >= 1000000000:
             amax = 10000 # tf1G
         else:
             amax = 1000 # primenet TF
@@ -5276,7 +5276,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             )
         )
 
-        if options.min_exp >= 1000000000 and work_preference[cpu_num] in [2, 12]:
+        if options.min_exp and options.min_exp >= 1000000000 and work_preference[cpu_num] in [2, 12]:
             if msec_per_iter is not None:
                 ghd_to_request = int(max(10,(days_work.total_seconds() - cur_time_left)) * 1000 / msec_per_iter)
                 assignments = tf1g_fetch(adapter, adir, cpu_num, options.bit_min, options.bit_max, num_to_get, ghd_to_request)
@@ -6681,7 +6681,7 @@ if options.days_of_work is None:
     config.set(SEC.PrimeNet, "DaysOfWork", str(options.days_of_work))
 if not config.has_option(SEC.PrimeNet, "MaxExponents"):
     if options.mfaktc or options.mfakto:
-        if options.min_exp >= 1000000000:
+        if options.min_exp and options.min_exp >= 1000000000:
             amax = 10000  # tf1G
         else:
             amax = 1000  # primenet TF
@@ -6813,7 +6813,7 @@ if options.day_night_memory > options.memory:
         )
     )
 
-if options.min_exp < 1000000000 < options.max_exp:
+if options.min_exp and options.max_exp and options.min_exp < 1000000000 < options.max_exp:
     parser.error("Min exponent ({0}) and max exponent ({1}) must both be less than or greater than 1,000,000,000 (for tf1G)".format(options.min_exp, options.max_exp))
 
 if not 0 <= options.days_of_work <= 180:
