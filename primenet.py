@@ -1569,7 +1569,6 @@ def read_workfile(adapter, adir):
             if (
                 assignment.k == 1.0
                 and assignment.b == 2
-                and assignment.n < 1000000000  # skip primality test for >1G exponents, slow
                 and not is_prime(assignment.n)
                 and assignment.c == -1
                 and not assignment.known_factors
