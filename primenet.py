@@ -99,9 +99,11 @@ try:
     # Python 3+
     from configparser import ConfigParser
     from configparser import Error as ConfigParserError
+    from configparser import NoOptionError
 except ImportError:
     from ConfigParser import ConfigParser
     from ConfigParser import Error as ConfigParserError
+    from ConfigParser import NoOptionError
 
 if sys.version_info >= (3, 7):
     # Python 3.7+
@@ -3525,18 +3527,25 @@ def parse_work_unit_mfakto(filename, p):
 
     return counter, avg_msec_per_iter, pct_complete
 
-STAGES_RE = re.compile(r"^\s*Stages\s*=\s*([01])\s*(?:$|#)")
-
 
 def get_stages_mfaktx_ini(adir, filename):
     ini_file = os.path.join(adir, filename)
-    # assume Stages=1 if not able to be found, because stages = 1 gives assignments that work for Stages=0
+    config = ConfigParser()
     stages = 1
-    # configparser doesn't nicely work with .ini files without sections
-    for line in readonly_list_file(ini_file):
-        match = STAGES_RE.fullmatch(line)
-        if match:
-            stages = int(match.group(1))
+    with open(ini_file) as file:
+        if hasattr(config, "read_file"):  # Python 3.2+
+            config.read_file(chain(("[default]",), file))
+        else:
+            with io.StringIO("[default]\n") as stream:
+                stream.write(file.read())
+                stream.seek(0)
+                config.readfp(stream)
+    try:
+        stages = config.getint("default", "Stages")
+    except ValueError:
+        pass
+    except NoOptionError:
+        pass
     return stages
 
 MLUCAS_RE = re.compile(r"^p([0-9]+)(?:\.s([12]))?$")
