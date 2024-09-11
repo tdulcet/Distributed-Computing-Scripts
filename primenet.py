@@ -5245,7 +5245,7 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
 
         if options.min_exp and options.min_exp >= 1000000000 and work_preference[cpu_num] in {2, 12}:
             if msec_per_iter is not None:
-                ghd_to_request = max(10, ((options.days_of_work * 24 * 60 * 60) - cur_time_left) * 1000 / msec_per_iter)
+                ghd_to_request = max(10, int(((options.days_of_work * 24 * 60 * 60) - cur_time_left) * 1000 / msec_per_iter))
                 assignments = tf1g_fetch(adapter, adir, num_to_get, ghd_to_request)
             else:
                 assignments = tf1g_fetch(adapter, adir, num_to_get)
@@ -6125,7 +6125,7 @@ def submit_work(adapter, adir, cpu_num, tasks):
     # EWM: Switch to one-result-line-at-a-time submission to support
     # error-message-on-submit handling:
     for sendline in results_send:
-        result = parse_result(sendline)
+        result = parse_result(adapter, resultsfile, sendline)
         if result is not None:
             ar, message, assignment, result_type, no_report = result
             if no_report:
