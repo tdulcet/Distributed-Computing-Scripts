@@ -477,6 +477,7 @@ _V5_UNIQUE_TRUSTED_CLIENT_CONSTANT_ = 17737
 primenet_v5_bargs = OrderedDict((("px", "GIMPS"), ("v", TRANSACTION_API_VERSION)))
 primenet_baseurl = "https://www.mersenne.org/"
 mersenne_ca_baseurl = "https://www.mersenne.ca/"
+MAX_PRIMENET_EXP = 1000000000
 
 is_64bit = platform.machine().endswith("64")
 PORT = None
@@ -813,7 +814,7 @@ def setup():
     if program in {4, 5}:
         tf1g = ask_yn(
             "Is this setup for the TF1G subproject on https://mersenne.ca/tf1G? This is mutually exclusive with PrimeNet trial factoring.",
-            options.min_exp and options.min_exp >= 1000000000,
+            options.min_exp and options.min_exp >= MAX_PRIMENET_EXP,
         )
     gpu = None
     if program != 1:
@@ -837,7 +838,10 @@ def setup():
         options.cpu_hours = hours
         config.set(SEC.PrimeNet, "CPUHours", str(hours))
         config.set(SEC.PrimeNet, "RollingAverage", str(1000))
-    if program == 2:
+    if program == 1:
+        options.mlucas = True
+        config.set(SEC.PrimeNet, "mlucas", str(True))
+    elif program == 2:
         options.gpuowl = True
         config.set(SEC.PrimeNet, "gpuowl", str(True))
     elif program == 3:
@@ -859,7 +863,7 @@ def setup():
         config.set(SEC.PrimeNet, "memory", str(memory))
         options.day_night_memory = memory * 0.9
     if tf1g:
-        options.min_exp = 1000000000
+        options.min_exp = MAX_PRIMENET_EXP
         config.set(SEC.PrimeNet, "GetMinExponent", str(options.min_exp))
 
     disk = ask_float(
@@ -1111,6 +1115,7 @@ attr_to_copy = {
         "max_exp": "GetMaxExponent",
         "bit_min": "bit_min",
         "bit_max": "bit_max",
+        "mlucas": "mlucas",
         "gpuowl": "gpuowl",
         "cudalucas": "cudalucas",
         "mfaktc": "mfaktc",
@@ -1153,6 +1158,7 @@ attr_to_copy = {
 # allows us to give hints for config types that don't have a default optparse value (due to having dynamic defaults)
 OPTIONS_TYPE_HINTS = {
     SEC.PrimeNet: {
+        "mlucas": bool,
         "gpuowl": bool,
         # "cudalucas": bool,
         "mfaktc": bool,
@@ -1537,7 +1543,7 @@ def parse_assignment(task):
         assignment.n = int(n)
         assignment.c = int(c)
         assignment.cert_squarings = int(cert_squarings)
-    if assignment.n and assignment.n > 1000000000:
+    if assignment.n and assignment.n >= MAX_PRIMENET_EXP:
         assignment.ra_failed = True
     return assignment
 
@@ -1792,16 +1798,15 @@ def send(subject, message, attachments=None, to=None, cc=None, bcc=None, priorit
         msg = MIMEMultipart()
         msg.attach(msg_text)
 
-        for file in attachments:
-            ctype, encoding = mimetypes.guess_type(file)
+        for filename, file in attachments:
+            ctype, encoding = mimetypes.guess_type(filename)
             if ctype is None or encoding is not None:
                 ctype = "application/octet-stream"
             maintype, subtype = ctype.split("/", 1)
-            with open(file, "rb") as f:
-                msg_attach = MIMEBase(maintype, subtype)
-                msg_attach.set_payload(f.read())
+            msg_attach = MIMEBase(maintype, subtype)
+            msg_attach.set_payload(file)
             encoders.encode_base64(msg_attach)
-            msg_attach.add_header("Content-Disposition", "attachment", filename=("utf-8", "", os.path.basename(file)))
+            msg_attach.add_header("Content-Disposition", "attachment", filename=("utf-8", "", os.path.basename(filename)))
             msg.attach(msg_attach)
     else:
         msg = msg_text
@@ -1852,7 +1857,7 @@ def send(subject, message, attachments=None, to=None, cc=None, bcc=None, priorit
             if options.email_username:
                 s.login(options.email_username, options.email_password)
             s.sendmail(from_addr, to_addrs, msg.as_string())
-    except smtplib.SMTPException as e:
+    except (smtplib.SMTPException, IOError, OSError) as e:  # socket.error
         logging.exception("Failed to send e-mail: {0}".format(e), exc_info=options.debug)
         return False
     finally:
@@ -1871,7 +1876,7 @@ def send_msg(subject, message="", attachments=None, to=None, cc=None, bcc=None, 
     if attachments:
         aattachments = []
         for attachment in attachments:
-            if not os.path.exists(attachment):
+            if not isinstance(attachment, (tuple, list)) and not os.path.exists(attachment):
                 logging.info("Skipping attachment: cannot read {0!r} file.".format(attachment))
                 message += "(Unable to attach the {0!r} file, as it does not exist.)\n".format(attachment)
             else:
@@ -1883,16 +1888,26 @@ def send_msg(subject, message="", attachments=None, to=None, cc=None, bcc=None, 
                 logging.info("File {0!r} already exists.".format(azipfile))
             with zipfile.ZipFile(azipfile, "w") as myzip:
                 for attachment in attachments:
-                    myzip.write(attachment, os.path.basename(attachment))
+                    if isinstance(attachment, (tuple, list)):
+                        filename, file = attachment
+                        myzip.writestr(os.path.basename(filename), file)
+                    else:
+                        myzip.write(attachment, os.path.basename(attachment))
             attachments = [azipfile]
+
+        for i, attachment in enumerate(attachments):
+            if not isinstance(attachment, (tuple, list)):
+                with open(file, "rb") as f:
+                    attachments[i] = (attachment, f.read())
 
         logging.debug("Attachments:")
         total = 0
         aattachments = []
         for attachment in attachments:
-            size = os.path.getsize(attachment)
+            filename, file = attachment
+            size = len(file)
             total += size
-            logging.debug("{0!r}: {1}".format(attachment, outputunit(size)))
+            logging.debug("{0!r}: {1}".format(filename, outputunit(size)))
             aattachments.append((size, attachment))
 
         logging.debug("Total Size: {0}".format(outputunit(total)))
@@ -1901,11 +1916,12 @@ def send_msg(subject, message="", attachments=None, to=None, cc=None, bcc=None, 
             logging.warning("The total size of all attachments is greater than 25 MiB.")
             total = 0
             for size, attachment in sorted(aattachments):
+                filename, _ = attachment
                 total += size
                 if total >= 25 * 1024 * 1024:
-                    logging.info("Skipping attachment: {0!r}".format(attachment))
+                    logging.info("Skipping attachment: {0!r}".format(filename))
                     message += "(Unable to attach the {0!r} file ({1}), as the total message size would be too large.)\n".format(
-                        attachment, outputunit(size)
+                        filename, outputunit(size)
                     )
                     attachments.remove(attachment)
 
@@ -4789,7 +4805,7 @@ def unreserve_all(dirs):
             changed = False
             for assignment in assignments:
                 tf1g = False
-                if assignment.work_type == PRIMENET.WORK_TYPE_FACTOR and assignment.n >= 1000000000:
+                if assignment.work_type == PRIMENET.WORK_TYPE_FACTOR and assignment.n >= MAX_PRIMENET_EXP:
                     any_tf1g = tf1g = True
                 if tf1g or assignment_unreserve(adapter, assignment):
                     tasks = [
@@ -5073,10 +5089,10 @@ def recover_assignments(dirs):
             unlock_file(workfile)
 
 
-def tf1g_fetch(adapter, adir, max_assignments="", max_ghd="", retry_count=0):
+def tf1g_fetch(adapter, adir, max_assignments, max_ghd="", retry_count=0):
     stages = get_stages_mfaktx_ini(adapter, adir)
     adapter.info(
-        "Getting {0}{1} TF1G assignments from mersenne.ca, stages={2}".format(
+        "Getting {0:n}{1} TF1G assignments from mersenne.ca, stages = {2}".format(
             max_ghd or max_assignments, " GHz-days of" if max_ghd else "", stages
         )
     )
@@ -5196,7 +5212,9 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
     if config.has_option(SEC.PrimeNet, "MaxExponents"):
         amax = config.getint(SEC.PrimeNet, "MaxExponents")
     else:
-        amax = (10000 if options.min_exp and options.min_exp >= 1000000000 else 1000) if options.mfaktc or options.mfakto else 15
+        amax = (
+            (10000 if options.min_exp and options.min_exp >= MAX_PRIMENET_EXP else 1000) if options.mfaktc or options.mfakto else 15
+        )
     days_work = timedelta(days=options.days_of_work)
     new_tasks = []
     while True:
@@ -5243,9 +5261,9 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             )
         )
 
-        if options.min_exp and options.min_exp >= 1000000000 and work_preference[cpu_num] in {2, 12}:
+        if options.min_exp and options.min_exp >= MAX_PRIMENET_EXP and work_preference[cpu_num] in {2, 12}:
             if msec_per_iter is not None:
-                ghd_to_request = max(10, int(((options.days_of_work * 24 * 60 * 60) - cur_time_left) * 1000 / msec_per_iter))
+                ghd_to_request = max(10, ((options.days_of_work * 24 * 60 * 60) - cur_time_left) * 1000 / msec_per_iter)
                 assignments = tf1g_fetch(adapter, adir, num_to_get, ghd_to_request)
             else:
                 assignments = tf1g_fetch(adapter, adir, num_to_get)
@@ -5299,7 +5317,7 @@ def register_assignment(adapter, cpu_num, assignment, retry_count=0):
     if guid is None:
         adapter.error("Cannot register assignment, the registration is not done")
         return None
-    if assignment.k == 1.0 and assignment.b == 2 and assignment.n >= 1000000000 and assignment.c == -1:
+    if assignment.k == 1.0 and assignment.b == 2 and assignment.n >= MAX_PRIMENET_EXP and assignment.c == -1:
         adapter.error("Cannot register assignment, exponent is larger than PrimeNet bounds")
         return None
     args = primenet_v5_bargs.copy()
@@ -5394,7 +5412,7 @@ def send_progress(adapter, cpu_num, assignment, percent, stage, time_left, now, 
     if guid is None:
         adapter.error("Cannot send progress, the registration is not done")
         return None
-    if assignment.n >= 1000000000:
+    if assignment.n >= MAX_PRIMENET_EXP:
         # adapter.debug("Cannot send progress, exponent larger than PrimeNet bounds")
         return None
     if not assignment.uid:
@@ -5659,7 +5677,7 @@ def cuda_result_to_json(resultsfile, sendline):
     return ar
 
 
-def report_result(adapter, adir, ar, message, assignment, result_type, sendline, tasks, retry_count=0):
+def report_result(adapter, adir, ar, message, assignment, result_type, tasks, retry_count=0):
     """Submit one result line using v5 API, will be attributed to the computer identified by guid."""
     """Return False if the submission should be retried"""
     guid = get_guid(config)
@@ -5669,7 +5687,6 @@ def report_result(adapter, adir, ar, message, assignment, result_type, sendline,
     # JSON is required because assignment_id is necessary in that case
     # and it is not present in old output format.
     # adapter.debug("Submitting using v5 API")
-    adapter.debug("Sending result: {0!r}".format(sendline))
 
     args = primenet_v5_bargs.copy()
     args["t"] = "ar"  # assignment result
@@ -5790,13 +5807,13 @@ def report_result(adapter, adir, ar, message, assignment, result_type, sendline,
         adapter.info("Retry count exceeded.")
         return False
     time.sleep(1 << retry_count)
-    return report_result(adapter, adir, ar, message, assignment, result_type, sendline, tasks, retry_count + 1)
+    return report_result(adapter, adir, ar, message, assignment, result_type, tasks, retry_count + 1)
 
 
 def submit_mersenne_ca_results(adapter, lines, retry_count=0):
     """Submit results for exponents over 1,000,000,000 using https://www.mersenne.ca/submit-results.php"""
     length = len(lines)
-    adapter.info("Submitting {0:n} results using mersenne.ca".format(length))
+    adapter.info("Submitting {0:n} results to mersenne.ca".format(length))
     retry = False
     try:
         r = session.post(
@@ -5812,8 +5829,22 @@ def submit_mersenne_ca_results(adapter, lines, retry_count=0):
         logging.exception(e, exc_info=options.debug)
         retry = True
     else:
-        adapter.info("mersenne.ca results:")
-        adapter.info(str(result["results"]))
+        adapter.info("mersenne.ca response:")
+        adapter.info(result["user_message"])
+        results = result["results"]
+        if results["unknown"]:
+            adapter.error("Unknown {0:n} result{1}.".format(results["unknown"], "s" if results["unknown"] != 1 else ""))
+        if results["rejected"]:
+            adapter.error("Rejected {0:n} result{1}.".format(results["rejected"], "s" if results["rejected"] != 1 else ""))
+        accepted = sum(results["accepted"].values())
+        adapter.info("Accepted {0:n} result{1}.".format(accepted, "s" if accepted != 1 else ""))
+        factors = results["factors"]
+        adapter.info(
+            "Total credit is {0:n} GHz-days{1}.".format(
+                sum(results["ghd"].values()),
+                ", Found {0:n} new factor{1}".format(factors["new"], "s" if factors["new"] != 1 else "") if factors["new"] else "",
+            )
+        )
     if retry:
         if retry_count >= 3:
             logging.info("Retry count exceeded.")
@@ -6073,17 +6104,16 @@ Python version: {14}
             )
 
     if not no_report:
+        adapter.debug("Sending result: {0!r}".format(sendline))
         adapter.info("Sending result to server: {0}".format(buf))
 
     if result_type in {PRIMENET.AR_TF_FACTOR, PRIMENET.AR_P1_FACTOR}:
-        num = (
-            (1 << assignment.n) - 1
-            if result_type == PRIMENET.AR_TF_FACTOR
-            else int(assignment.k) * assignment.b**assignment.n + assignment.c
-        )
         for factor in map(int, ar["factors"]):
             adapter.info("The factor {0} has {1:n} decimal digits and {2:.6n} bits".format(factor, len(str(factor)), log2(factor)))
-            if num % factor:
+            if result_type == PRIMENET.AR_TF_FACTOR:
+                if pow(2, assignment.n, factor) - 1:
+                    adapter.warning("Bad factor for M{0} found: {1}".format(assignment.n, factor))
+            elif (int(assignment.k) * pow(assignment.b, assignment.n, factor) + assignment.c) % factor:
                 adapter.warning("Bad factor for {0} found: {1}".format(exponent_to_str(assignment), factor))
 
     return ar, message, assignment, result_type, no_report
@@ -6130,9 +6160,9 @@ def submit_work(adapter, adir, cpu_num, tasks):
             ar, message, assignment, result_type, no_report = result
             if no_report:
                 sent.append(sendline)
-            elif assignment.k == 1.0 and assignment.b == 2 and assignment.n >= 1000000000 and assignment.c == -1:
+            elif assignment.k == 1.0 and assignment.b == 2 and assignment.n >= MAX_PRIMENET_EXP and assignment.c == -1:
                 mersenne_ca_result_send.append((message, sendline))
-            elif report_result(adapter, adir, ar, message, assignment, result_type, sendline, tasks):
+            elif report_result(adapter, adir, ar, message, assignment, result_type, tasks):
                 sent.append(sendline)
             else:
                 failed.append(sendline)
@@ -6146,8 +6176,9 @@ def submit_work(adapter, adir, cpu_num, tasks):
             failed.extend(sendlines)
 
     if failed:
+        length = len(failed)
         send_msg(
-            "❌📤 Failed to report assignment result{0} on {1}".format("s" if len(failed) != 1 else "", options.computer_id),
+            "❌📤 Failed to report assignment result{0} on {1}".format("s" if length != 1 else "", options.computer_id),
             """Failed to report {0:n} assignment result{1} from the {2!r} file on your {3!r} computer (worker #{4}):
 
 {5}
@@ -6158,15 +6189,16 @@ Below is the last up to 10 lines of the {6!r} log file for the PrimeNet program:
 
 If you believe this is a bug with the program/script, please create an issue: https://github.com/tdulcet/Distributed-Computing-Scripts/issues
 """.format(
-                len(failed),
-                "s" if len(failed) != 1 else "",
+                length,
+                "s" if length != 1 else "",
                 resultsfile,
                 options.computer_id,
                 cpu_num + 1,
-                "\n".join("> " + line for line in failed),
+                "\n".join("> " + line for line in failed) if length <= 10 else "> (See attached)",
                 logfile,
                 tail(logfile, 10),
             ),
+            (resultsfile, "\n".join(failed).encode("utf-8")) if length > 10 else None,
             priority="2 (High)",
         )
     write_list_file(sentfile, sent, "a")
@@ -6307,16 +6339,13 @@ parser.add_option("--max-exp", dest="max_exp", type="int", help="Maximum exponen
 parser.add_option("--bit-min", dest="bit_min", type="int", help="Minimum bit level of TF1G assignments to fetch")
 parser.add_option("--bit-max", dest="bit_max", type="int", help="Maximum bit level of TF1G assignments to fetch")
 
+parser.add_option("-m", "--mlucas", action="store_true", help="Get assignments for Mlucas.")
 parser.add_option(
-    "-g",
-    "--gpuowl",
-    "--prpll",
-    action="store_true",
-    help="Get assignments for GpuOwl or PRPLL instead of Mlucas. PRPLL is not yet fully supported.",
+    "-g", "--gpuowl", "--prpll", action="store_true", help="Get assignments for GpuOwl or PRPLL. PRPLL is not yet fully supported."
 )
-parser.add_option("--cudalucas", action="store_true", help="Get assignments for CUDALucas instead of Mlucas.")
-parser.add_option("--mfaktc", action="store_true", help="Get assignments for mfaktc instead of Mlucas.")
-parser.add_option("--mfakto", action="store_true", help="Get assignments for mfakto instead of Mlucas.")
+parser.add_option("--cudalucas", action="store_true", help="Get assignments for CUDALucas.")
+parser.add_option("--mfaktc", action="store_true", help="Get assignments for mfaktc.")
+parser.add_option("--mfakto", action="store_true", help="Get assignments for mfakto.")
 parser.add_option("--prime95", action="store_true", help=optparse.SUPPRESS_HELP)
 parser.add_option(
     "--num-workers", dest="num_workers", type="int", default=1, help="Number of workers (CPU Cores/GPUs), Default: %default"
@@ -6469,7 +6498,7 @@ group.add_option(
     help="CPU frequency/speed (MHz), Default: %default MHz",
 )
 group.add_option(
-    "-m", "--memory", dest="memory", type="int", default=memory, help="Total physical memory (RAM) (MiB), Default: %default MiB"
+    "--memory", dest="memory", type="int", default=memory, help="Total physical memory (RAM) (MiB), Default: %default MiB"
 )
 group.add_option(
     "--max-memory",
@@ -6623,7 +6652,7 @@ if options.days_of_work is None:
     options.days_of_work = 1.0 if options.mfaktc or options.mfakto else 3.0
     config.set(SEC.PrimeNet, "DaysOfWork", str(options.days_of_work))
 if not config.has_option(SEC.PrimeNet, "MaxExponents"):
-    amax = (10000 if options.min_exp and options.min_exp >= 1000000000 else 1000) if options.mfaktc or options.mfakto else 15
+    amax = (10000 if options.min_exp and options.min_exp >= MAX_PRIMENET_EXP else 1000) if options.mfaktc or options.mfakto else 15
     config.set(SEC.PrimeNet, "MaxExponents", str(amax))
 
 # check options after merging so that if local.ini file is changed by hand,
@@ -6738,13 +6767,22 @@ if options.cert_work:
 if not 1 <= options.cert_cpu_limit <= 100:
     parser.error("Proof certification work limit must be between 1 and 100%")
 
+if not (options.mlucas or options.cudalucas or options.gpuowl or options.mfaktc or options.mfakto):
+    parser.error("Must select at least one GIMPS program to get assignments for")
+
 if (
-    (options.gpuowl and options.cudalucas)
+    (options.mlucas and options.cudalucas)
+    or (options.mlucas and options.gpuowl)
+    or (options.mlucas and options.mfaktc)
+    or (options.mlucas and options.mfakto)
+    or (options.cudalucas and options.gpuowl)
     or (options.cudalucas and options.mfaktc)
+    or (options.cudalucas and options.mfakto)
+    or (options.gpuowl and options.mfaktc)
+    or (options.gpuowl and options.mfakto)
     or (options.mfaktc and options.mfakto)
-    or (options.mfakto and options.gpuowl)
 ):
-    parser.error("This program can only be used with GpuOwl/PRPLL or CUDALucas or mfaktc or mfakto")
+    parser.error("This program can only be used with Mlucas or GpuOwl/PRPLL or CUDALucas or mfaktc or mfakto")
 
 if options.day_night_memory > options.memory:
     parser.error(
@@ -6753,7 +6791,7 @@ if options.day_night_memory > options.memory:
         )
     )
 
-if options.min_exp and options.max_exp and options.min_exp < 1000000000 <= options.max_exp:
+if options.min_exp and options.max_exp and options.min_exp < MAX_PRIMENET_EXP <= options.max_exp:
     parser.error(
         "Minimum exponent ({0}) and maximum exponent ({1}) must both be less than or greater than 1,000,000,000 (for TF1G)".format(
             options.min_exp, options.max_exp
