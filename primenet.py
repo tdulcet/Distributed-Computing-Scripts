@@ -4756,15 +4756,20 @@ def unreserve(dirs, p):
         logging.error("Error unreserving exponent: {0} not found in workfile{1}".format(p, "s" if len(dirs) != 1 else ""))
 
 
-def tf1g_unreserve_all(retry_count=0):
+def tf1g_unreserve_all(cpu_num, retry_count=0):
+    guid = get_guid(config)
     if not options.user_id:
         logging.error("Failed to unreserve TF1G exponents due to missing PrimeNet User ID.")
         return False
+    if guid is None:
+        logging.error("Failed to unreserve TF1G exponents due to missing PrimeNet guid.")
+        return false
     logging.info("Unreserving all assignments from TF1G.")
     retry = False
     try:
         r = session.post(
-            mersenne_ca_baseurl + "tf1G.php", data={"gimps_login": options.user_id, "unreserve-all": options.user_id}, timeout=180
+            mersenne_ca_baseurl + "tf1G.php", data={"gimps_login": options.user_id, "unreserve-all": options.user_id,
+                                                    "cpu": guid, "worker": cpu_num}, timeout=180
         )
         r.raise_for_status()
         result = r.json()
@@ -4792,11 +4797,12 @@ def tf1g_unreserve_all(retry_count=0):
 def unreserve_all(dirs):
     """Unreserves all assignments in the given directories."""
     logging.info("Unreserving all assignments.")
-    any_tf1g = False
     for i, adir in enumerate(dirs):
-        adapter = logging.LoggerAdapter(logger, {"cpu_num": i} if options.dirs else None)
+        cpu_num = i if options.dirs else options.cpu
+        adapter = logging.LoggerAdapter(logger, {"cpu_num": cpu_num} if options.dirs else None)
         workfile = os.path.join(adir, options.worktodo_file)
         lock_file(workfile)
+        any_tf1g = False
         try:
             tasks = list(read_workfile(adapter, adir))
             assignments = OrderedDict(
@@ -4819,8 +4825,8 @@ def unreserve_all(dirs):
                 write_workfile(adir, tasks)
         finally:
             unlock_file(workfile)
-    if any_tf1g:
-        tf1g_unreserve_all()
+        if any_tf1g or options.min_exp >= MAX_PRIMENET_EXP:
+            tf1g_unreserve_all(cpu_num)
 
 
 def update_assignment(adapter, cpu_num, assignment, task):
@@ -5067,20 +5073,24 @@ def recover_assignments(dirs):
     for i, adir in enumerate(dirs):
         adapter = logging.LoggerAdapter(logger, {"cpu_num": i} if options.dirs else None)
         cpu_num = i if options.dirs else options.cpu
-        # A new parameter "all" can be used to return expired assignments
-        num_to_get = get_assignment(adapter, cpu_num, 0)
-        if num_to_get is None:
-            adapter.error("Unable to determine the number of assignments to recover")
-            return
-        adapter.info("Recovering {0:n} assignment{1}".format(num_to_get, "s" if num_to_get != 1 else ""))
-        tests = []
-        for j in range(1, num_to_get + 1):
-            test = get_assignment(adapter, cpu_num, j)
-            if test is None:
+        if options.min_exp >= MAX_PRIMENET_EXP:
+            tests = tf1g_recover_assignments(cpu_num)
+        else:
+            # A new parameter "all" can be used to return expired assignments
+            num_to_get = get_assignment(adapter, cpu_num, 0)
+            if num_to_get is None:
+                adapter.error("Unable to determine the number of assignments to recover")
                 return
-            task = output_assignment(test)
-            test, _ = update_assignment(adapter, cpu_num, test, task)
-            tests.append(test)
+            adapter.info("Recovering {0:n} assignment{1}".format(num_to_get, "s" if num_to_get != 1 else ""))
+            tests = []
+            for j in range(1, num_to_get + 1):
+                test = get_assignment(adapter, cpu_num, j)
+                if test is None:
+                    return
+                task = output_assignment(test)
+                test, _ = update_assignment(adapter, cpu_num, test, task)
+                tests.append(test)
+
         workfile = os.path.join(adir, options.worktodo_file)
         lock_file(workfile)
         try:
@@ -5088,9 +5098,53 @@ def recover_assignments(dirs):
         finally:
             unlock_file(workfile)
 
+def tf1g_recover_assignments(cpu_num, retry_count=0):
+    guid = get_guid(config)
+    if not options.user_id:
+        logging.error("Failed to recover TF1G assignments due to missing PrimeNet User ID.")
+        return []
+    if guid is None:
+        logging.error("Failed to recover TF1G assignments due to missing PrimeNet guid.")
+        return []
+    logging.info("Recovering assignments from TF1G.")
+    retry = False
+    try:
+        r = session.post(
+            mersenne_ca_baseurl + "tf1G.php", data={"myassignments": 1, "gimps_login": options.user_id,
+                                                    "cpu": guid, "worker": cpu_num}, timeout=180
+        )
+        r.raise_for_status()
+        result = r.text
+    except RequestException as e:
+        logging.exception(e, exc_info=options.debug)
+        retry = True
+    else:
+        tests = []
+        for task in result.strip().splitlines():
+            test = parse_assignment(task)
+            if test is None:
+                adapter.error("Invalid assignment {0!r}".format(task))
+                tests.append(task)
+            else:
+                adapter.info("Recovered assignment: {0}".format(exponent_to_text(test)))
+                tests.append(test)
+        adapter.info("Recovered {0} assignments from tf1G.".format(len(tests)))
+        return tests
+    if retry:
+        if retry_count >= 3:
+            logging.info("Retry count exceeded.")
+            return []
+        time.sleep(1 << retry_count)
+        return tf1g_recover_assignments(cpu_num, retry_count + 1)
+    return []
 
-def tf1g_fetch(adapter, adir, max_assignments, max_ghd="", retry_count=0):
+
+def tf1g_fetch(adapter, adir, cpu_num, max_assignments, max_ghd="", retry_count=0):
     stages = get_stages_mfaktx_ini(adapter, adir)
+    guid = get_guid(config)
+    if guid is None:
+        adapter.error("Cannot fetch tf1G work, PrimeNet registration is not done.")
+        return []
     adapter.info(
         "Getting {0:n}{1} TF1G assignments from mersenne.ca, stages = {2}".format(
             max_ghd or max_assignments, " GHz-days of" if max_ghd else "", stages
@@ -5110,6 +5164,8 @@ def tf1g_fetch(adapter, adir, max_assignments, max_ghd="", retry_count=0):
                 "max_assignments": "" if max_ghd else max_assignments,
                 "download_worktodo": 1,
                 "stages": stages,
+                "cpu": guid,
+                "worker": cpu_num,
             },
             timeout=180,
         )
@@ -5134,7 +5190,7 @@ def tf1g_fetch(adapter, adir, max_assignments, max_ghd="", retry_count=0):
             adapter.info("Retry count exceeded.")
             return []
         time.sleep(1 << retry_count)
-        return tf1g_fetch(adapter, adir, max_assignments, max_ghd, retry_count + 1)
+        return tf1g_fetch(adapter, adir, cpu_num, max_assignments, max_ghd, retry_count + 1)
     return []
 
     # As of early 2018, here is the full list of assignment-type codes supported by the Primenet server; Mlucas
@@ -5264,9 +5320,9 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
         if options.min_exp and options.min_exp >= MAX_PRIMENET_EXP and work_preference[cpu_num] in {2, 12}:
             if msec_per_iter is not None:
                 ghd_to_request = max(10, ((options.days_of_work * 24 * 60 * 60) - cur_time_left) * 1000 / msec_per_iter)
-                assignments = tf1g_fetch(adapter, adir, num_to_get, ghd_to_request)
+                assignments = tf1g_fetch(adapter, adir, cpu_num, num_to_get, ghd_to_request)
             else:
-                assignments = tf1g_fetch(adapter, adir, num_to_get)
+                assignments = tf1g_fetch(adapter, adir, cpu_num, num_to_get)
         else:
             assignments = []
             for _i in range(num_to_get):
@@ -6442,7 +6498,7 @@ parser.add_option(
     "--recover-all",
     action="store_true",
     dest="recover",
-    help="Recover all assignments and exit. This will overwrite any existing work files. Requires that the instance is registered with PrimeNet.",
+    help="Recover all assignments and exit. This will overwrite any existing work files, so finished work is submitted beforehand. Requires that the instance is registered with PrimeNet.",
 )
 parser.add_option(
     "--register-exponents",
@@ -6459,7 +6515,7 @@ parser.add_option(
     "--unreserve-all",
     action="store_true",
     dest="unreserve_all",
-    help="Unreserve all assignments and exit. Requires that the instance is registered with PrimeNet.",
+    help="Unreserve all assignments and exit. Requires that the instance is registered with PrimeNet. Also submits any finished work beforehand.",
 )
 parser.add_option(
     "--no-more-work", action="store_true", dest="no_more_work", help="Prevent this program from getting new assignments and exit."
@@ -6910,12 +6966,17 @@ if options.status:
     output_status(dirs)
     sys.exit(0)
 
-if options.proofs:
+if options.proofs or options.recover or options.unreserve_all:
     for i, adir in enumerate(dirs):
         adapter = logging.LoggerAdapter(logger, {"cpu_num": i} if options.dirs else None)
         cpu_num = i if options.dirs else options.cpu
         tasks = list(read_workfile(adapter, adir))
         submit_work(adapter, adir, cpu_num, tasks)
+
+if options.proofs:
+    for i, adir in enumerate(dirs):
+        adapter = logging.LoggerAdapter(logger, {"cpu_num": i} if options.dirs else None)
+        cpu_num = i if options.dirs else options.cpu
         upload_proofs(adapter, adir, cpu_num)
     sys.exit(0)
 
