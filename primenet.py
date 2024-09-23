@@ -5064,10 +5064,12 @@ def get_assignment(adapter, cpu_num, assignment_num=None, get_cert_work=None, mi
     return assignment
 
 
-def tf1g_fetch(adapter, adir, cpu_num, max_assignments=None, max_ghd=None, recover=False, retry_count=0):
+def tf1g_fetch(adapter, adir, cpu_num, max_assignments=None, max_ghd=None, recover=False, recover_all=False, retry_count=0):
     guid = get_guid(config)
-    data = {"gimps_login": options.user_id, "cpu": guid, "worker": cpu_num}
-    if recover:
+    data = {"gimps_login": options.user_id}
+    if not recover_all:
+        data.update({"cpu": guid, "worker": cpu_num})
+    if recover or recover_all:
         logging.info("Recovering TF1G assignments")
         data.update({"myassignments": 1})
     else:
@@ -5110,11 +5112,11 @@ def tf1g_fetch(adapter, adir, cpu_num, max_assignments=None, max_ghd=None, recov
             adapter.info("Retry count exceeded.")
             return []
         time.sleep(1 << retry_count)
-        return tf1g_fetch(adapter, adir, cpu_num, max_assignments, max_ghd, recover, retry_count + 1)
+        return tf1g_fetch(adapter, adir, cpu_num, max_assignments, max_ghd, recover, recover_all, retry_count + 1)
     return []
 
 
-def recover_assignments(dirs):
+def recover_assignments(dirs, recover_all=False):
     """Recovers assignments from the PrimeNet server."""
     if guid is None:
         logging.error("Cannot recover assignments, the registration is not done")
@@ -5143,7 +5145,7 @@ def recover_assignments(dirs):
                 tests.append(test)
 
             if options.min_exp and options.min_exp >= MAX_PRIMENET_EXP:
-                for test in tf1g_fetch(adapter, adir, cpu_num, recover=True):
+                for test in tf1g_fetch(adapter, adir, cpu_num, recover=True, recover_all=recover_all):
                     if isinstance(test, Assignment):
                         task = output_assignment(test)
                         test, _ = update_assignment(adapter, cpu_num, test, task)
@@ -6465,10 +6467,16 @@ parser.add_option(
     help="Report assignment results, upload all PRP proofs and exit. Requires PrimeNet User ID.",
 )
 parser.add_option(
-    "--recover-all",
+    "--recover",
     action="store_true",
     dest="recover",
-    help="Report assignment results, recover all assignments and exit. This will overwrite any existing work files.",
+    help="Report assignment results, recover assignments associated with the worktype and guid and exit. This will overwrite any existing work files.",
+)
+parser.add_option(
+    "--recover-all",
+    action="store_true",
+    dest="recover_all",
+    help="Report assignment results, recover all assignments associated with the user id and exit. This will overwrite any existing work files.",
 )
 parser.add_option(
     "--register-exponents",
@@ -6945,8 +6953,8 @@ if options.proofs:
         upload_proofs(adapter, adir, cpu_num)
     sys.exit(0)
 
-if options.recover:
-    recover_assignments(dirs)
+if options.recover or options.recover_all:
+    recover_assignments(dirs, recover_all=options.recover_all)
     sys.exit(0)
 
 if options.register_exponents:
