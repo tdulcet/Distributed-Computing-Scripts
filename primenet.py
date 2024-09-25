@@ -428,12 +428,16 @@ except ImportError:
 try:
     # import certifi
     import requests
+    import urllib3
     from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
 except ImportError:
+    executable = os.path.basename(sys.executable) if sys.executable else "python3"
     print(
         """Please run the below command to install the Requests library:
+
 	{0} -m pip install requests
-Then, run the PrimeNet program again.""".format(os.path.splitext(os.path.basename(sys.executable or "python3"))[0])
+
+Then, run the PrimeNet program again.""".format(executable[:-4] if executable.endswith(".exe") else executable)
     )
     sys.exit(0)
 
@@ -487,7 +491,10 @@ elif sys.platform == "darwin":
     PORT = 10 if is_64bit else 9
 elif sys.platform.startswith("linux"):
     PORT = 8 if is_64bit else 2
+
 session = requests.Session()  # session that maintains our cookies
+session.mount('https://', requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, backoff_factor=1, allowed_methods=None)))
+session.mount('http://', requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, backoff_factor=1, allowed_methods=None)))
 atexit.register(session.close)
 # Python 2.7.9 and 3.4+
 # context = ssl.create_default_context(cafile=certifi.where())
@@ -1897,7 +1904,7 @@ def send_msg(subject, message="", attachments=None, to=None, cc=None, bcc=None, 
 
         for i, attachment in enumerate(attachments):
             if not isinstance(attachment, (tuple, list)):
-                with open(file, "rb") as f:
+                with open(attachment, "rb") as f:
                     attachments[i] = (attachment, f.read())
 
         logging.debug("Attachments:")
@@ -4564,7 +4571,7 @@ def program_options(send=False, start=-1, retry_count=0):
                     if not retry:
                         parser.error("Error while setting program options on mersenne.org")
             if retry:
-                if retry_count >= 3:
+                if retry_count >= 2:
                     logging.info("Retry count exceeded.")
                     return None
                 time.sleep(1 << retry_count)
@@ -4717,7 +4724,7 @@ def assignment_unreserve(adapter, assignment, retry_count=0):
             register_instance()
             retry = True
     if retry:
-        if retry_count >= 3:
+        if retry_count >= 2:
             adapter.info("Retry count exceeded.")
             return False
         time.sleep(1 << retry_count)
@@ -4784,7 +4791,7 @@ def tf1g_unreserve_all(adapter, cpu_num, retry_count=0):
         adapter.error("Error during TF1G unreserve-all, unexpected result:")
         adapter.error(str(result))
     if retry:
-        if retry_count >= 3:
+        if retry_count >= 2:
             adapter.info("Retry count exceeded.")
             return False
         time.sleep(1 << retry_count)
@@ -4916,14 +4923,14 @@ def update_assignment(adapter, cpu_num, assignment, task):
     return assignment, task
 
 
-def get_assignment(adapter, cpu_num, assignment_num=None, get_cert_work=None, min_exp=None, max_exp=None, retry_count=0):
+def get_assignment(adapter, cpu_num, assignment_num=None, get_cert_work=None, min_exp=None, max_exp=None, recover_all=False, retry_count=0):
     """Get a new assignment from the PrimeNet server."""
     guid = get_guid(config)
     args = primenet_v5_bargs.copy()
     args["t"] = "ga"  # transaction type
     args["g"] = guid
     args["c"] = cpu_num
-    args["a"] = "" if assignment_num is None else assignment_num
+    args["a"] = assignment_num
     if assignment_num is None:
         if get_cert_work:
             args["cert"] = get_cert_work
@@ -4933,6 +4940,8 @@ def get_assignment(adapter, cpu_num, assignment_num=None, get_cert_work=None, mi
             args["min"] = min_exp
         if max_exp:
             args["max"] = max_exp
+    elif recover_all:
+        args["all"] = 1
     # adapter.debug("Fetching using v5 API")
     supported = frozenset([
         PRIMENET.WORK_TYPE_FACTOR,
@@ -4965,11 +4974,11 @@ def get_assignment(adapter, cpu_num, assignment_num=None, get_cert_work=None, mi
             if not retry:
                 return None
     if retry:
-        if retry_count >= 3:
+        if retry_count >= 2:
             adapter.info("Retry count exceeded.")
             return None
         time.sleep(1 << retry_count)
-        return get_assignment(adapter, cpu_num, assignment_num, get_cert_work, min_exp, max_exp, retry_count + 1)
+        return get_assignment(adapter, cpu_num, assignment_num, get_cert_work, min_exp, max_exp, recover_all, retry_count + 1)
     if assignment_num is not None and not assignment_num:
         return int(r["a"])
     assignment = Assignment(int(r["w"]))
@@ -5071,7 +5080,7 @@ def tf1g_fetch(adapter, adir, cpu_num, max_assignments=None, max_ghd=None, recov
         data.update({"cpu": guid, "worker": cpu_num})
     if recover or recover_all:
         logging.info("Recovering TF1G assignments")
-        data.update({"myassignments": 1})
+        data["myassignments"] = 1
     else:
         stages = get_stages_mfaktx_ini(adapter, adir)
         adapter.info(
@@ -5108,7 +5117,7 @@ def tf1g_fetch(adapter, adir, cpu_num, max_assignments=None, max_ghd=None, recov
         logging.exception(e, exc_info=options.debug)
         retry = True
     if retry:
-        if retry_count >= 3:
+        if retry_count >= 2:
             adapter.info("Retry count exceeded.")
             return []
         time.sleep(1 << retry_count)
@@ -5129,22 +5138,21 @@ def recover_assignments(dirs, recover_all=False):
         try:
             tasks = list(read_workfile(adapter, adir))
             submit_work(adapter, adir, cpu_num, tasks)
-            # A new parameter "all" can be used to return expired assignments
-            num_to_get = get_assignment(adapter, cpu_num, 0)
+            num_to_get = get_assignment(adapter, cpu_num, 0, recover_all=recover_all)
             if num_to_get is None:
                 adapter.error("Unable to determine the number of assignments to recover")
                 return
             adapter.info("Recovering {0:n} PrimeNet assignment{1}".format(num_to_get, "s" if num_to_get != 1 else ""))
             tests = []
             for j in range(1, num_to_get + 1):
-                test = get_assignment(adapter, cpu_num, j)
+                test = get_assignment(adapter, cpu_num, j, recover_all=recover_all)
                 if test is None:
                     break
                 task = output_assignment(test)
                 test, _ = update_assignment(adapter, cpu_num, test, task)
                 tests.append(test)
 
-            if options.min_exp and options.min_exp >= MAX_PRIMENET_EXP:
+            if options.min_exp and options.min_exp >= MAX_PRIMENET_EXP and (not recover_all or not cpu_num):
                 for test in tf1g_fetch(adapter, adir, cpu_num, recover=True, recover_all=recover_all):
                     if isinstance(test, Assignment):
                         task = output_assignment(test)
@@ -5399,7 +5407,7 @@ def register_assignment(adapter, cpu_num, assignment, retry_count=0):
             register_instance(guid)
             retry = True
     if retry:
-        if retry_count >= 3:
+        if retry_count >= 2:
             adapter.info("Retry count exceeded.")
             return None
         time.sleep(1 << retry_count)
@@ -5491,7 +5499,7 @@ def send_progress(adapter, cpu_num, assignment, percent, stage, time_left, now, 
         elif rc == PRIMENET.ERROR_SERVER_BUSY:
             retry = True
     if retry:
-        if retry_count >= 3:
+        if retry_count >= 2:
             adapter.info("Retry count exceeded.")
             return None
         time.sleep(1 << retry_count)
@@ -5820,7 +5828,7 @@ def report_result(adapter, ar, message, assignment, result_type, tasks, retry_co
             )
             return False
 
-    if retry_count >= 3:
+    if retry_count >= 2:
         adapter.info("Retry count exceeded.")
         return False
     time.sleep(1 << retry_count)
@@ -5863,7 +5871,7 @@ def submit_mersenne_ca_results(adapter, lines, retry_count=0):
             )
         )
     if retry:
-        if retry_count >= 3:
+        if retry_count >= 2:
             logging.info("Retry count exceeded.")
             return False
         time.sleep(1 << retry_count)
@@ -6226,7 +6234,7 @@ If you believe this is a bug with the program/script, please create an issue: ht
                 logfile,
                 tail(logfile, 10),
             ),
-            (resultsfile, "\n".join(failed).encode("utf-8")) if length > 10 else None,
+            [(resultsfile, "\n".join(failed).encode("utf-8"))] if length > 10 else None,
             priority="2 (High)",
         )
     write_list_file(sentfile, sent, "a")
@@ -6470,13 +6478,13 @@ parser.add_option(
     "--recover",
     action="store_true",
     dest="recover",
-    help="Report assignment results, recover assignments associated with the worktype and guid and exit. This will overwrite any existing work files.",
+    help="Report assignment results, recover all assignments and exit. This will overwrite any existing work files.",
 )
 parser.add_option(
     "--recover-all",
     action="store_true",
     dest="recover_all",
-    help="Report assignment results, recover all assignments associated with the user id and exit. This will overwrite any existing work files.",
+    help="The same as --recover, except for PrimeNet it will additionally recover expired assignments and for mersenne.ca it will recover all assignments for all systems/workers to the first worker. This will overwrite any existing work files.",
 )
 parser.add_option(
     "--register-exponents",
@@ -6909,6 +6917,7 @@ if options.setup:
     register_instance(guid)
     if options.fromemail and options.smtp and test_email:
         test_msg(guid)
+    executable = os.path.basename(sys.executable) if sys.executable else "python3"
     print(
         """
 Setup of this instance of the PrimeNet program is now complete.
@@ -6921,7 +6930,7 @@ Run --help for a full list of available options.
 """.format(
             sys.argv[0]
             if is_pyinstaller()
-            else "{0} -OO {1}".format(os.path.splitext(os.path.basename(sys.executable or "python3"))[0], sys.argv[0]),
+            else "{0} -OO {1}".format(executable[:-4] if executable.endswith(".exe") else executable, sys.argv[0]),
             " --dir <directory>" * options.num_workers if options.num_workers != 1 else "",
             PROGRAM["name"],
         )
