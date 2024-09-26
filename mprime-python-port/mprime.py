@@ -5,6 +5,13 @@
 # ./mprime.py "$USER" "$HOSTNAME" 150 10
 # ./mprime.py ANONYMOUS
 
+# /// script
+# requires-python = ">=3.5"
+# dependencies = [
+#   "requests",
+# ]
+# ///
+
 import os
 import platform
 import re  # regular expression matching
@@ -58,9 +65,14 @@ print(f"Idle time to run:\t{TIME // 60} minutes\n")
 try:
     import requests
 except ImportError:
-    print("Installing requests dependency")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
-    import requests
+    print(
+        """Please run the below command to install the Requests library:
+
+	{0} -m pip install requests
+
+Then, run the script again.""".format(os.path.basename(sys.executable) if sys.executable else "python3")
+    )
+    sys.exit(0)
 # ----------------------------#
 # ---Command Line Checks------#
 misc_check(len(sys.argv) > 5, f"Usage: {sys.argv[0]} [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]")
@@ -81,6 +93,7 @@ print("\nDownloading MPrime\n")
 with requests.get(f"https://www.mersenne.org/download/software/v30/30.19/{FILE}", stream=True) as r:
     r.raise_for_status()
     with open(FILE, "wb") as f:
+        os.posix_fallocate(f.fileno(), 0, int(r.headers["Content-Length"]))
         for chunk in r.iter_content(chunk_size=None):
             if chunk:
                 f.write(chunk)

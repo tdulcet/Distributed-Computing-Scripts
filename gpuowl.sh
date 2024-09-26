@@ -223,7 +223,7 @@ if command -v clinfo >/dev/null; then
 
 	mapfile -t TOTAL_GPU_MEM < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_GLOBAL_MEM_SIZE *//p')
 	maxAlloc=$((TOTAL_GPU_MEM[DEVICE] >> 20))
-	ARGS+=(-m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
+	ARGS+=(--memory="$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
 	ARGS+=(--cpu-model="${GPU[DEVICE]}")
@@ -236,7 +236,7 @@ elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
 	if [[ -n $TOTAL_GPU_MEM ]]; then
 		maxAlloc=${TOTAL_GPU_MEM[DEVICE]}
-		ARGS+=(-m "$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
+		ARGS+=(--memory="$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 	fi
 fi
 python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" -i 'worktodo.ini' -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"

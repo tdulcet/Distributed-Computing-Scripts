@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Automatic assignment handler for Mlucas, GpuOwl/PRPLL, CUDALucas, CUDAPm1, mfaktc and mfakto.
+
+# /// script
+# requires-python = ">=2.6"
+# dependencies = [
+#   "requests",
+# ]
+# ///
+
+"""Automatic assignment handler for Mlucas, GpuOwl/PRPLL, CUDALucas, CUDAPm1, mfaktc, mfakto and cofact.
 
 [*] Python can be downloaded from https://www.python.org/downloads/
     * An .exe version of this script (not requiring Python) can be downloaded from:
@@ -90,6 +98,12 @@ from hashlib import md5
 from itertools import chain, count, starmap
 
 try:
+    # Python 2
+    from future_builtins import map, zip  # ascii, filter, hex, oct
+except ImportError:
+    pass
+
+try:
     # Python 3+
     from urllib.parse import urlencode
 except ImportError:
@@ -100,8 +114,8 @@ try:
     from configparser import ConfigParser
     from configparser import Error as ConfigParserError
 except ImportError:
-    from ConfigParser import ConfigParser
     from ConfigParser import Error as ConfigParserError
+    from ConfigParser import SafeConfigParser as ConfigParser
 
 if sys.version_info >= (3, 7):
     # Python 3.7+
@@ -129,15 +143,6 @@ except ImportError:
 
 
 try:
-    # Python 3.8+
-    from math import isqrt
-except ImportError:
-
-    def isqrt(x):
-        return int(math.sqrt(x))
-
-
-try:
     # Python 3.3+
     from math import log2
 except ImportError:
@@ -153,39 +158,6 @@ except ImportError:
 
     def expm1(x):
         return math.exp(x) - 1
-
-
-try:
-    # Python 3.3+
-    from shutil import disk_usage
-except ImportError:
-    # Adapted from: https://code.activestate.com/recipes/577972-disk-usage/
-    from collections import namedtuple
-
-    _ntuple_diskusage = namedtuple("usage", "total used free")
-
-    if hasattr(os, "statvfs"):  # POSIX
-
-        def disk_usage(path):
-            st = os.statvfs(path)
-            free = st.f_bavail * st.f_frsize
-            total = st.f_blocks * st.f_frsize
-            used = (st.f_blocks - st.f_bfree) * st.f_frsize
-            return _ntuple_diskusage(total, used, free)
-
-    elif os.name == "nt":  # Windows
-
-        def disk_usage(path):
-            _, total, free = ctypes.c_ulonglong(), ctypes.c_ulonglong(), ctypes.c_ulonglong()
-            fun = (
-                ctypes.windll.kernel32.GetDiskFreeSpaceExW
-                if sys.version_info >= (3,) or isinstance(path, unicode)
-                else ctypes.windll.kernel32.GetDiskFreeSpaceExA
-            )
-            if not fun(path, ctypes.byref(_), ctypes.byref(total), ctypes.byref(free)):
-                raise ctypes.WinError()
-            used = total.value - free.value
-            return _ntuple_diskusage(total.value, used, free.value)
 
 
 if sys.platform == "win32":  # Windows
@@ -395,6 +367,77 @@ class nvmlMemory_t(ctypes.Structure):
 
 
 try:
+    # Python 3.3+
+    from shutil import disk_usage
+except ImportError:
+    # Adapted from: https://code.activestate.com/recipes/577972-disk-usage/
+    from collections import namedtuple
+
+    _ntuple_diskusage = namedtuple("usage", "total used free")
+
+    if hasattr(os, "statvfs"):  # POSIX
+
+        def disk_usage(path):
+            st = os.statvfs(path)
+            free = st.f_bavail * st.f_frsize
+            total = st.f_blocks * st.f_frsize
+            used = (st.f_blocks - st.f_bfree) * st.f_frsize
+            return _ntuple_diskusage(total, used, free)
+
+    elif os.name == "nt":  # Windows
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW.argtypes = (
+            wintypes.LPCWSTR,
+            ctypes.POINTER(ctypes.c_ulonglong),
+            ctypes.POINTER(ctypes.c_ulonglong),
+            ctypes.POINTER(ctypes.c_ulonglong),
+        )
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW.restype = wintypes.BOOL
+
+        ctypes.windll.kernel32.GetDiskFreeSpaceExA.argtypes = (
+            wintypes.LPCSTR,
+            ctypes.POINTER(ctypes.c_ulonglong),
+            ctypes.POINTER(ctypes.c_ulonglong),
+            ctypes.POINTER(ctypes.c_ulonglong),
+        )
+        ctypes.windll.kernel32.GetDiskFreeSpaceExA.restype = wintypes.BOOL
+
+        def disk_usage(path):
+            _, total, free = ctypes.c_ulonglong(), ctypes.c_ulonglong(), ctypes.c_ulonglong()
+            fun = (
+                ctypes.windll.kernel32.GetDiskFreeSpaceExW
+                if sys.version_info >= (3,) or isinstance(path, str)
+                else ctypes.windll.kernel32.GetDiskFreeSpaceExA
+            )
+            if not fun(path, ctypes.byref(_), ctypes.byref(total), ctypes.byref(free)):
+                raise ctypes.WinError()
+            used = total.value - free.value
+            return _ntuple_diskusage(total.value, used, free.value)
+
+
+try:
+    # Python 3.3+
+    from os import replace
+except ImportError:
+    if os.name == "nt":  # Windows
+        ctypes.windll.kernel32.MoveFileExW.argtypes = (wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD)
+        ctypes.windll.kernel32.MoveFileExW.restype = wintypes.BOOL
+
+        ctypes.windll.kernel32.MoveFileExA.argtypes = (wintypes.LPCSTR, wintypes.LPCSTR, wintypes.DWORD)
+        ctypes.windll.kernel32.MoveFileExA.restype = wintypes.BOOL
+
+        def replace(src, dst):
+            fun = (
+                ctypes.windll.kernel32.MoveFileExW
+                if sys.version_info >= (3,) or isinstance(src, str) or isinstance(dst, str)
+                else ctypes.windll.kernel32.MoveFileExA
+            )
+            if not fun(src, dst, 0x1):  # MOVEFILE_REPLACE_EXISTING
+                raise ctypes.WinError()
+
+    else:  # POSIX
+        replace = os.rename
+
+try:
     # Windows
     import winsound
 except ImportError:
@@ -446,7 +489,7 @@ if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(0)
 charset.add_charset("utf-8", charset.QP, charset.QP, "utf-8")
 
-VERSION = "2.2"
+VERSION = "2.2.0"
 # GIMPS programs to use in the application version string when registering with PrimeNet
 PROGRAMS = (
     {"name": "Prime95", "version": "30.19", "build": 20},
@@ -454,7 +497,7 @@ PROGRAMS = (
     {"name": "GpuOwl", "version": "7.5"},
     {"name": "CUDALucas", "version": "2.06"},
     {"name": "mfaktc", "version": "0.23"},
-    {"name": "mfakto", "version": "0.15", "build": 7},
+    {"name": "mfakto", "version": "0.16"},
 )
 # People to e-mail when a new prime is found
 # E-mail addresses munged to prevent spam
@@ -493,8 +536,12 @@ elif sys.platform.startswith("linux"):
     PORT = 8 if is_64bit else 2
 
 session = requests.Session()  # session that maintains our cookies
-session.mount('https://', requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, backoff_factor=1, allowed_methods=None)))
-session.mount('http://', requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, backoff_factor=1, allowed_methods=None)))
+session.headers["User-Agent"] = "PrimeNet automatic assignment handler version {0} ({1})".format(
+    VERSION, session.headers["User-Agent"]
+)
+# urllib3 1.26+: allowed_methods=None, method_whitelist=None
+session.mount("https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, backoff_factor=1)))
+session.mount("http://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, backoff_factor=1)))
 atexit.register(session.close)
 # Python 2.7.9 and 3.4+
 # context = ssl.create_default_context(cafile=certifi.where())
@@ -513,6 +560,40 @@ class Formatter(logging.Formatter):
     def format(self, record):
         record.worker = ", Worker #{0:n}".format(record.cpu_num + 1) if hasattr(record, "cpu_num") else ""
         return super(Formatter, self).format(record)
+
+
+class COLORS:
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    # BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    # CYAN = "\033[36m"
+    GRAY = "\033[90m"
+    DEFAULT = "\033[39m"  # Default Color
+
+
+BOLD = "\033[1m"
+# DIM = "\033[2m"
+# RESET = "\033[22m"
+RESET_All = "\033[m"
+
+
+class ColorFormatter(Formatter):
+    FORMATS = {
+        logging.DEBUG: COLORS.GRAY,
+        # logging.INFO: COLORS.GREEN,
+        logging.WARNING: COLORS.YELLOW,
+        logging.ERROR: COLORS.RED,
+        logging.CRITICAL: COLORS.MAGENTA,
+    }
+
+    def format(self, record):
+        fmt = super(ColorFormatter, self).format(record)
+        color = self.FORMATS.get(record.levelno)
+        if COLOR and color:
+            return color + fmt + COLORS.DEFAULT
+        return fmt
 
 
 class SEC:
@@ -679,21 +760,30 @@ YES_RE = re.compile(r"^[yY]")
 NO_RE = re.compile(r"^[nN]")
 
 # Python 2
+if hasattr(__builtins__, "unicode"):
+    str = unicode
+
+# Python 2
 if hasattr(__builtins__, "raw_input"):
     input = raw_input
 
+# Python 2
+if hasattr(__builtins__, "xrange"):
+    range = xrange
 
-def timedeltastr(td):
-    m, s = divmod(td.seconds, 60)
-    h, m = divmod(m, 60)
-    d = td.days
-    # td.microseconds
-    return "{0}{1}{2}{3}".format(
-        "{0:n}d".format(d) if d else "",
-        "{0:02n}h".format(h) if d else "{0:n}h".format(h) if h else "",
-        "{0:02n}m".format(m) if h or d else "{0:n}m".format(m) if m else "",
-        "{0:02n}s".format(s) if m or h or d else "{0:n}s".format(s),
-    )
+
+class timedelta(timedelta):
+    def __str__(self):
+        m, s = divmod(self.seconds, 60)
+        h, m = divmod(m, 60)
+        d = self.days
+        # self.microseconds
+        return "{0}{1}{2}{3}".format(
+            "{0:n}d".format(d) if d else "",
+            "{0:02n}h".format(h) if d else "{0:n}h".format(h) if h else "",
+            "{0:02n}m".format(m) if h or d else "{0:n}m".format(m) if m else "",
+            "{0:02n}s".format(s) if m or h or d else "{0:n}s".format(s),
+        )
 
 
 def ask_yn(astr, val):
@@ -810,15 +900,16 @@ def setup():
         config.set(SEC.PrimeNet, "ComputerID", compid)
 
     program = ask_int(
-        "Which GIMPS program are you getting assignments for (1=Mlucas, 2=GpuOwl/PRPLL, 3=CUDALucas, 4=mfaktc, 5=mfakto)",
-        5 if options.mfakto else 4 if options.mfaktc else 3 if options.cudalucas else 2 if options.gpuowl else 1,
+        "Which GIMPS program are you getting assignments for (1=Mlucas, 2=GpuOwl, 3=PRPLL, 4=CUDALucas, 5=mfaktc, 6=mfakto)",
+        6 if options.mfakto else 5 if options.mfaktc else 4 if options.cudalucas else 2 if options.gpuowl else 1,
         1,
-        5,
+        6,
     )
-    if program == 2:
-        print("Warning: PRPLL is not ready for production use and is not (yet) fully supported.")
+    if program == 3:
+        print("Unfortunately, PRPLL is not ready for production use and is not (yet) fully supported. Please use GpuOwl instead.")
+        sys.exit(1)
     tf1g = False
-    if program in {4, 5}:
+    if program in {5, 6}:
         tf1g = ask_yn(
             "Is this setup for the TF1G subproject on https://mersenne.ca/tf1G? This is mutually exclusive with PrimeNet trial factoring.",
             options.min_exp and options.min_exp >= MAX_PRIMENET_EXP,
@@ -851,13 +942,13 @@ def setup():
     elif program == 2:
         options.gpuowl = True
         config.set(SEC.PrimeNet, "gpuowl", str(True))
-    elif program == 3:
+    elif program == 4:
         options.cudalucas = True
         config.set(SEC.PrimeNet, "cudalucas", str(True))
-    elif program == 4:
+    elif program == 5:
         options.mfaktc = True
         config.set(SEC.PrimeNet, "mfaktc", str(True))
-    elif program == 5:
+    elif program == 6:
         options.mfakto = True
         config.set(SEC.PrimeNet, "mfakto", str(True))
     if gpu:
@@ -872,6 +963,9 @@ def setup():
     if tf1g:
         options.min_exp = MAX_PRIMENET_EXP
         config.set(SEC.PrimeNet, "GetMinExponent", str(options.min_exp))
+    elif options.min_exp and options.min_exp >= MAX_PRIMENET_EXP:
+        options.min_exp = None
+        config.remove_option(SEC.PrimeNet, "GetMinExponent")
 
     disk = ask_float(
         "Configured disk space limit per worker to store the proof interim residues files for PRP tests in GiB/worker (0 to not send)",
@@ -925,11 +1019,11 @@ def setup():
 	161 - Double-check PRP on Mersenne cofactors
 """)
     print("""Not all worktypes are supported by all the GIMPS programs:
-┌──────────┬────────┬────────┬───────┬───────────┬───────────────┬─────────┐
-│ Worktype │ Mlucas │ GpuOwl │ PRPLL │ CUDALucas │ mfaktc/mfakto │ CUDAPm1 │
-├──────────┴────────┴────────┴───────┴───────────┴───────────────┴─────────┤
-│ 4          ✔        ✔                                            ✔       │
-│ 12                                               ✔                       │
+┌──────────┬────────┬────────┬───────┬───────────┬─────────┬───────────────┐
+│ Worktype │ Mlucas │ GpuOwl │ PRPLL │ CUDALucas │ CUDAPm1 │ mfaktc/mfakto │
+├──────────┴────────┴────────┴───────┴───────────┴─────────┴───────────────┤
+│ 4          ✔        ✔                            ✔                       │
+│ 12                                                         ✔             │
 │ 100        ✔        ✔*       ✔       ✔                                   │
 │ 101        ✔                         ✔                                   │
 │ 102        ✔        ✔*       ✔       ✔                                   │
@@ -1006,6 +1100,9 @@ def setup():
     if not report_100m:
         # options.no_report_100m = not report_100m
         config.set(SEC.PrimeNet, "no_report_100m", str(not report_100m))
+    else:
+        # options.no_report_100m = None
+        config.remove_option(SEC.PrimeNet, "no_report_100m")
 
     test_email = False
     if ask_yn(
@@ -1078,6 +1175,7 @@ def lock_file(filename):
     lockfile = filename + ".lck"
     for i in count():
         try:
+            # Python 3.3+: with open(lockfile, "x") as f:
             fd = os.open(lockfile, os.O_CREAT | os.O_EXCL)
             os.close(fd)
             break
@@ -1137,6 +1235,7 @@ attr_to_copy = {
         "convert_ll_to_prp": "convert_ll_to_prp",
         "convert_prp_to_ll": "convert_prp_to_ll",
         "hours_between_checkins": "HoursBetweenCheckins",
+        "color": "color",
         "computer_id": "ComputerID",
         "cpu_brand": "CpuBrand",
         "cpu_features": "cpu_features",
@@ -1165,6 +1264,8 @@ attr_to_copy = {
 # allows us to give hints for config types that don't have a default optparse value (due to having dynamic defaults)
 OPTIONS_TYPE_HINTS = {
     SEC.PrimeNet: {
+        "GetMinExponent": int,
+        "GetMaxExponent": int,
         "mlucas": bool,
         "gpuowl": bool,
         # "cudalucas": bool,
@@ -1174,8 +1275,7 @@ OPTIONS_TYPE_HINTS = {
         "DaysOfWork": float,
         "tests_saved": float,
         "pm1_multiplier": float,
-        "GetMinExponent": int,
-        "GetMaxExponent": int,
+        "color": bool,
     },
     SEC.Email: {"tls": bool, "starttls": bool},
 }
@@ -1183,7 +1283,7 @@ OPTIONS_TYPE_HINTS = {
 
 def config_read():
     """Reads and parses the configuration settings from a file."""
-    config = ConfigParser(dict_type=OrderedDict)
+    config = ConfigParser()
     config.optionxform = lambda option: option
     localfile = os.path.join(workdir, options.localfile)
     try:
@@ -1665,19 +1765,7 @@ def write_workfile(adir, assignments):
     with tempfile.NamedTemporaryFile("w", dir=adir, delete=False) as f:  # Python 3+: encoding="utf-8"
         pass
     write_list_file(f.name, tasks)
-    # Python 3.3+
-    if hasattr(os, "replace"):
-        os.replace(f.name, workfile)
-    elif os.name == "nt":  # Windows
-        fun = (
-            ctypes.windll.kernel32.MoveFileExW
-            if sys.version_info >= (3,) or isinstance(f.name, unicode) or isinstance(workfile, unicode)
-            else ctypes.windll.kernel32.MoveFileExA
-        )
-        if not fun(f.name, workfile, 0x1):  # MOVEFILE_REPLACE_EXISTING
-            raise ctypes.WinError()
-    else:
-        os.rename(f.name, workfile)
+    replace(f.name, workfile)
 
 
 def exponent_to_str(assignment):
@@ -1729,12 +1817,14 @@ def assignment_to_str(assignment):
 
 def announce_prime_to_user(exponent, worktype):
     """Announce a newly found prime to the user."""
+    color = BOLD + COLORS.RED if COLOR else ""
+    reset = RESET_All if COLOR else ""
     emails = ", ".join(starmap("{0} <{1}>".format, CCEMAILS))
     while True:
         if worktype == "LL":
-            print("New Mersenne Prime!!!! M{0} is prime!".format(exponent))
+            print("{0}New Mersenne Prime!!!! M{1} is prime!{2}".format(color, exponent, reset))
         else:
-            print("New Probable Prime!!!! {0} is a probable prime!".format(exponent))
+            print("{0}New Probable Prime!!!! {1} is a probable prime!{2}".format(color, exponent, reset))
         print("Please send e-mail to {0}.".format(emails))
         beep()
         time.sleep(1)
@@ -1806,7 +1896,7 @@ def send(subject, message, attachments=None, to=None, cc=None, bcc=None, priorit
         msg.attach(msg_text)
 
         for filename, file in attachments:
-            ctype, encoding = mimetypes.guess_type(filename)
+            ctype, encoding = mimetypes.guess_type(filename)  # guess_file_type(filename)
             if ctype is None or encoding is not None:
                 ctype = "application/octet-stream"
             maintype, subtype = ctype.split("/", 1)
@@ -1819,7 +1909,7 @@ def send(subject, message, attachments=None, to=None, cc=None, bcc=None, priorit
         msg = msg_text
 
     COMMASPACE = ", "
-    msg["User-Agent"] = "PrimeNet automatic assignment handler"
+    msg["User-Agent"] = "PrimeNet automatic assignment handler version {0}".format(VERSION)
     name, from_addr = fromemail
     msg["From"] = formataddr((Header(name, "utf-8").encode(), from_addr))
     to = toemails + to if to else toemails
@@ -1944,14 +2034,17 @@ def test_msg(guid):
 This is the requested test message from the PrimeNet program/script (primenet.py)! You have successfully configured the program to send e-mail notifications.
 
 Version: {1}
-Python version: {2}
+Requests/urllib3 library version: {2}/{3}
+Python version: {4}
 
-PrimeNet User ID: {3}
-Computer name: {4}
-GUID: {5}
+PrimeNet User ID: {5}
+Computer name: {6}
+GUID: {7}
 """.format(
             config.get(SEC.PrimeNet, "user_name") if config.has_option(SEC.PrimeNet, "user_name") else options.user_id,
             VERSION,
+            requests.__version__,
+            urllib3.__version__,
             platform.python_version(),
             options.user_id,
             options.computer_id,
@@ -1989,9 +2082,11 @@ def generate_application_str():
     name = program["name"]
     version = program["version"]
     if config.has_option(SEC.Internals, "program"):
-        name, version = config.get(SEC.Internals, "program").split(None, 1)
-        # version = version.removeprefix("v")
-        version = version[1:] if version.startswith("v") else version
+        aprogram = config.get(SEC.Internals, "program").split(None, 1)
+        if len(aprogram) == 2:
+            name, version = aprogram
+            # Python 3.9+: version = version.removeprefix("v")
+            version = version[1:] if version.startswith("v") else version
     # return "{0},{1},v{2};Python {3},{4}".format(
         # aplatform, name, version, platform.python_version(), parser.get_version())
     return "{0},{1},v{2}".format(aplatform, name, version)
@@ -2054,7 +2149,7 @@ def get_cpu_model():
         except WindowsError:
             pass
     elif sys.platform == "darwin":
-        output = sysctl_str(b"machdep.cpu.brand_string").decode()
+        output = sysctl_str(b"machdep.cpu.brand_string").decode("utf-8")
     elif sys.platform.startswith("linux"):
         with open("/proc/cpuinfo") as f:
             for line in f:
@@ -2066,7 +2161,7 @@ def get_cpu_model():
 
 def get_cpu_cores_threads():
     """Returns the number of CPU cores and threads on the system."""
-    # Python 3.4+
+    # Python 3.4+, but can be overridden in 3.13+
     # threads = os.cpu_count()
     # threads = multiprocessing.cpu_count()
     cores = threads = 0
@@ -2109,7 +2204,7 @@ def get_cpu_cores_threads():
             with open(path) as f:
                 acores.add(f.read().rstrip())
         cores = len(acores)
-        threads = os.sysconf(str("SC_NPROCESSORS_CONF"))
+        threads = os.sysconf("SC_NPROCESSORS_CONF" if sys.version_info >= (3,) else b"SC_NPROCESSORS_CONF")
     return cores, threads
 
 
@@ -2226,7 +2321,7 @@ def get_cpu_cache_sizes():
 
 def get_device_str(device, name):
     size = ctypes.c_size_t()
-    cl.clGetDeviceInfo(device, name, 0, None, ctypes.byref(size))
+    cl.clGetDeviceInfo(device, name, ctypes.c_size_t(0), None, ctypes.byref(size))
 
     buf = ctypes.create_string_buffer(size.value)
     cl.clGetDeviceInfo(device, name, size, buf, None)
@@ -2257,9 +2352,7 @@ def get_opencl_devices():
 
     adevices = []
 
-    for aplatform in platforms:
-        aplatform = ctypes.c_void_p(aplatform)
-
+    for aplatform in map(ctypes.c_void_p, platforms):
         num_devices = ctypes.c_uint()
         result = cl.clGetDeviceIDs(aplatform, 0xFFFFFFFF, 0, None, ctypes.byref(num_devices))  # CL_DEVICE_TYPE_ALL
         if result:  # and result != -1 # CL_DEVICE_NOT_FOUND
@@ -2273,8 +2366,7 @@ def get_opencl_devices():
         if cl.clGetDeviceIDs(aplatform, 0xFFFFFFFF, num_devices.value, devices, None):  # CL_DEVICE_TYPE_ALL
             logging.error("Failed to get the OpenCL devices")
             continue
-        for device in devices:
-            device = ctypes.c_void_p(device)
+        for device in map(ctypes.c_void_p, devices):
             name = get_device_str(device, 0x102B)  # CL_DEVICE_NAME
 
             freq = get_device_value(device, 0x100C, ctypes.c_uint)  # CL_DEVICE_MAX_CLOCK_FREQUENCY
@@ -2282,7 +2374,7 @@ def get_opencl_devices():
             mem = get_device_value(device, 0x101F, ctypes.c_uint64)  # CL_DEVICE_GLOBAL_MEM_SIZE
             memory = mem >> 20
 
-            adevices.append((name.decode(), freq, memory))
+            adevices.append((name.decode("utf-8"), freq, memory))
 
     return adevices
 
@@ -2319,7 +2411,7 @@ def get_nvidia_devices():
             nvml.nvmlDeviceGetMemoryInfo(device, ctypes.byref(mem))
             memory = mem.total >> 20
 
-            devices.append((name.decode(), freq, memory))
+            devices.append((name.decode("utf-8"), freq, memory))
     finally:
         nvml.nvmlShutdown()
 
@@ -2393,30 +2485,7 @@ def send_request(guid, args):
         r = session.get(primenet_v5_burl, params=args, timeout=180)
         # logging.debug("URL: " + r.url)
         r.raise_for_status()
-        result = parse_v5_resp(r.text)
-        # logging.debug("RESPONSE:\n" + r.text)
-        if "pnErrorResult" not in result:
-            logging.error("PnErrorResult value missing.  Full response was:\n" + r.text)
-            return None
-        if "pnErrorDetail" not in result:
-            logging.error("PnErrorDetail string missing")
-            return None
-        rc = int(result["pnErrorResult"])
-        if rc:
-            resmsg = errors.get(rc, "Unknown error code")
-            if args["t"] == "ga" and args.get("get_cert_work"):
-                logging.debug("PrimeNet error {0}: {1}".format(rc, resmsg))
-                logging.debug(result["pnErrorDetail"])
-            else:
-                logging.error("PrimeNet error {0}: {1}".format(rc, resmsg))
-                logging.error(result["pnErrorDetail"])
-        elif result["pnErrorDetail"] != "SUCCESS":
-            if result["pnErrorDetail"].count("\n"):
-                logging.info("PrimeNet success code with additional info:")
-                logging.info(result["pnErrorDetail"])
-            else:
-                logging.info("PrimeNet success code with additional info: {0}".format(result["pnErrorDetail"]))
-
+        text = r.text
     except Timeout as e:
         logging.exception(e, exc_info=options.debug)
         return None
@@ -2426,6 +2495,31 @@ def send_request(guid, args):
     except ConnectionError as e:
         logging.exception("ERROR connecting to server for request: {0}".format(e), exc_info=options.debug)
         return None
+
+    result = parse_v5_resp(text)
+    # logging.debug("RESPONSE:\n" + text)
+    if "pnErrorResult" not in result:
+        logging.error("PnErrorResult value missing.  Full response was:\n" + text)
+        return None
+    if "pnErrorDetail" not in result:
+        logging.error("PnErrorDetail string missing")
+        return None
+    rc = int(result["pnErrorResult"])
+    if rc:
+        resmsg = errors.get(rc, "Unknown error code")
+        if args["t"] == "ga" and args.get("cert"):
+            logging.debug("PrimeNet error {0}: {1}".format(rc, resmsg))
+            logging.debug(result["pnErrorDetail"])
+        else:
+            logging.error("PrimeNet error {0}: {1}".format(rc, resmsg))
+            logging.error(result["pnErrorDetail"])
+    elif result["pnErrorDetail"] != "SUCCESS":
+        if result["pnErrorDetail"].count("\n"):
+            logging.info("PrimeNet success code with additional info:")
+            logging.info(result["pnErrorDetail"])
+        else:
+            logging.info("PrimeNet success code with additional info: {0}".format(result["pnErrorDetail"]))
+
     return result
 
 
@@ -2435,12 +2529,12 @@ def get_exponent(n):
         # r = session.get(primenet_baseurl + "report_exponent_simple/", params=args, timeout=180)
         r = session.get(mersenne_ca_baseurl + "exponent/{0}/json".format(n), params=args, timeout=180)
         r.raise_for_status()
-        json = r.json()
-
+        result = r.json()
     except RequestException as e:
         logging.exception(e, exc_info=options.debug)
         return None
-    return json
+
+    return result
 
 
 FACTOR_LIMITS = (
@@ -2977,7 +3071,7 @@ def rho(x):
 def integral(a, b, f, STEPS=20):
     """Computes the integral of f(x) from a to b."""
     w = b - a
-    # assert(w >= 0)
+    # assert w >= 0
     if not w:
         return 0
     step = w / STEPS
@@ -3001,7 +3095,7 @@ def primepi(n):
 
 def n_primes_between(B1, B2):
     """Returns the number of primes between B1 and B2, inclusive."""
-    # assert(B2 >= B1)
+    # assert B2 >= B1
     return primepi(B2) - primepi(B1)
 
 
@@ -3090,7 +3184,7 @@ def walk(exponent, factoredTo):
         (p1, w1) = gain(exponent, factoredTo, B1 + stepB1, B2)
         (p2, w2) = gain(exponent, factoredTo, B1, B2 + stepB2)
 
-        # assert(w1 > w and w2 > w and p1 >= p and p2 >= p)
+        # assert w1 > w and w2 > w and p1 >= p and p2 >= p
         r1 = (p1 - p) / (w1 - w)
         r2 = (p2 - p) / (w2 - w)
 
@@ -4103,7 +4197,7 @@ def output_status(dirs, cpu_num=None):
             else:
                 cur_time_left += time_left
                 time_left = timedelta(seconds=cur_time_left)
-                adapter.info("{0}, {1}, {2} ({3:%c})".format(buf, work_type_str, timedeltastr(time_left), now + time_left))
+                adapter.info("{0}, {1}, {2} ({3:%c})".format(buf, work_type_str, time_left, now + time_left))
             if all_and_prp_cnt:
                 ll_and_prp_cnt += 1
                 adapter.info(
@@ -4220,6 +4314,9 @@ def checksum_md5(filename):
     return amd5.hexdigest()
 
 
+PROOF_NUMBER_RE = re.compile(br"^(\()?([MF]?(\d+)|(?:(\d+)\*)?(\d+)\^(\d+)([+-]\d+))(?(1)\))(?:/(\d+(?:/\d+)*))?$")
+
+
 def upload_proof(adapter, filename):
     """Upload a proof file to the PrimeNet server."""
     max_chunk_size = config.getfloat(SEC.PrimeNet, "UploadChunkSize") if config.has_option(SEC.PrimeNet, "UploadChunkSize") else 5
@@ -4246,83 +4343,90 @@ def upload_proof(adapter, filename):
             if header.startswith(b"BASE="):
                 header = f.readline().rstrip()
             header, _, number = header.partition(b"=")
-            if header != b"NUMBER" or not number.startswith(b"M"):
+            if header != b"NUMBER":
                 adapter.error("Error getting number from proof header")
                 return False
-        exponent, _, _factors = number[1:].partition(b"/")
-        exponent = int(exponent)
-        adapter.info("Proof file exponent is {0}".format(exponent))
-        filesize = os.path.getsize(filename)
-        adapter.info(
-            "Filesize of {0!r} is {1}B{2}".format(
-                filename, outputunit(filesize), " ({0}B)".format(outputunit(filesize, True)) if filesize >= 1000 else ""
+            proof_number = PROOF_NUMBER_RE.match(number)
+            if not proof_number:
+                logging.error("Error parsing number: {0!r}".format(number))
+                return False
+            _, number, exponent, _k, _b, _n, _c, _factors = proof_number.groups()
+            if not exponent or not number.startswith(b"M"):
+                logging.error("Only proof files for Mersenne numbers are supported")
+                return False
+            exponent = int(exponent)
+            adapter.info("Proof file exponent is {0}".format(exponent))
+            filesize = os.path.getsize(filename)
+            adapter.info(
+                "Filesize of {0!r} is {1}B{2}".format(
+                    filename, outputunit(filesize), " ({0}B)".format(outputunit(filesize, True)) if filesize >= 1000 else ""
+                )
             )
-        )
-        fileHash = checksum_md5(filename)
-        adapter.info("MD5 of {0!r} is {1}".format(filename, fileHash))
+            fileHash = checksum_md5(filename)
+            adapter.info("MD5 of {0!r} is {1}".format(filename, fileHash))
 
-        while True:
-            args = {"UserID": options.user_id, "Exponent": exponent, "FileSize": filesize, "FileMD5": fileHash}
-            r = session.get(primenet_baseurl + "proof_upload/", params=args, timeout=180)
-            json = r.json()
-            if "error_status" in json:
-                if json["error_status"] == 409:
-                    adapter.error("Proof {0!r} already uploaded".format(filename))
-                    adapter.error(str(json))
-                    return True
-                adapter.error("Unexpected error during {0!r} upload".format(filename))
-                adapter.error(str(json))
-                return False
-            r.raise_for_status()
-            if "URLToUse" not in json:
-                adapter.error("For proof {0!r}, server response missing URLToUse:".format(filename))
-                adapter.error(str(json))
-                return False
-            if "need" not in json:
-                adapter.error("For proof {0!r}, server response missing need list:".format(filename))
-                adapter.error(str(json))
-                return False
-
-            origUrl = json["URLToUse"]
-            baseUrl = "https" + origUrl[4:] if origUrl.startswith("http:") else origUrl
-            pos, end = next((int(a), b) for a, b in json["need"].items())
-            if pos > end or end >= filesize:
-                adapter.error("For proof {0!r}, need list entry bad:".format(filename))
-                adapter.error(str(json))
-                return False
-
-            if pos:
-                adapter.info("Resuming from offset {0:n}".format(pos))
-
-            while pos < end:
-                f.seek(pos)
-                size = min(end - pos + 1, max_chunk_size)
-                chunk = f.read(size)
-                args = {"FileMD5": fileHash, "DataOffset": pos, "DataSize": len(chunk), "DataMD5": md5(chunk).hexdigest()}
-                response = session.post(baseUrl, params=args, files={"Data": (None, chunk)}, timeout=180)
-                json = response.json()
-                if "error_status" in json:
+            while True:
+                args = {"UserID": options.user_id, "Exponent": exponent, "FileSize": filesize, "FileMD5": fileHash}
+                r = session.get(primenet_baseurl + "proof_upload/", params=args, timeout=180)
+                result = r.json()
+                if "error_status" in result:
+                    if result["error_status"] == 409:
+                        adapter.error("Proof {0!r} already uploaded".format(filename))
+                        adapter.error(str(result))
+                        return True
                     adapter.error("Unexpected error during {0!r} upload".format(filename))
-                    adapter.error(str(json))
+                    adapter.error(str(result))
                     return False
-                response.raise_for_status()
-                if "FileUploaded" in json:
-                    adapter.info("Proof file {0!r} successfully uploaded".format(filename))
-                    return True
-                if "need" not in json:
-                    adapter.error("For proof {0!r}, no entries in need list:".format(filename))
-                    adapter.error(str(json))
+                r.raise_for_status()
+                if "URLToUse" not in result:
+                    adapter.error("For proof {0!r}, server response missing URLToUse:".format(filename))
+                    adapter.error(str(result))
                     return False
-                start, end = next((int(a), b) for a, b in json["need"].items())
-                if start <= pos:
-                    adapter.error("For proof {0!r}, sending data did not advance need list:".format(filename))
-                    adapter.error(str(json))
+                if "need" not in result:
+                    adapter.error("For proof {0!r}, server response missing need list:".format(filename))
+                    adapter.error(str(result))
                     return False
-                pos = start
+
+                origUrl = result["URLToUse"]
+                baseUrl = "https" + origUrl[4:] if origUrl.startswith("http:") else origUrl
+                pos, end = next((int(a), b) for a, b in result["need"].items())
                 if pos > end or end >= filesize:
                     adapter.error("For proof {0!r}, need list entry bad:".format(filename))
-                    adapter.error(str(json))
+                    adapter.error(str(result))
                     return False
+
+                if pos:
+                    adapter.info("Resuming from offset {0:n}".format(pos))
+
+                while pos < end:
+                    f.seek(pos)
+                    size = min(end - pos + 1, max_chunk_size)
+                    chunk = f.read(size)
+                    args = {"FileMD5": fileHash, "DataOffset": pos, "DataSize": len(chunk), "DataMD5": md5(chunk).hexdigest()}
+                    response = session.post(baseUrl, params=args, files={"Data": (None, chunk)}, timeout=180)
+                    result = response.json()
+                    if "error_status" in result:
+                        adapter.error("Unexpected error during {0!r} upload".format(filename))
+                        adapter.error(str(result))
+                        return False
+                    response.raise_for_status()
+                    if "FileUploaded" in result:
+                        adapter.info("Proof file {0!r} successfully uploaded".format(filename))
+                        return True
+                    if "need" not in result:
+                        adapter.error("For proof {0!r}, no entries in need list:".format(filename))
+                        adapter.error(str(result))
+                        return False
+                    start, end = next((int(a), b) for a, b in result["need"].items())
+                    if start <= pos:
+                        adapter.error("For proof {0!r}, sending data did not advance need list:".format(filename))
+                        adapter.error(str(result))
+                        return False
+                    pos = start
+                    if pos > end or end >= filesize:
+                        adapter.error("For proof {0!r}, need list entry bad:".format(filename))
+                        adapter.error(str(result))
+                        return False
     except RequestException as e:
         logging.exception(e, exc_info=options.debug)
         return False
@@ -4390,6 +4494,9 @@ def get_proof_data(assignment_aid, file):
     try:
         r = session.get(primenet_baseurl + "proof_get_data/", params=args, timeout=180, stream=True)
         r.raise_for_status()
+        length = int(r.headers["Content-Length"])
+        if hasattr(os, "posix_fallocate"):  # Python 3.3+, Linux
+            os.posix_fallocate(file.fileno(), 0, length - 32)
         amd5 = next(r.iter_content(chunk_size=32))
         for chunk in r.iter_content(chunk_size=max_chunk_size):
             if chunk:
@@ -4400,7 +4507,7 @@ def get_proof_data(assignment_aid, file):
     return amd5
 
 
-IS_HEX_RE = re.compile(br"^[0-9a-fA-F]*$")
+IS_HEX_RE = re.compile(br"^[0-9a-fA-F]*$")  # string.hexdigits
 
 
 def download_cert(adapter, adir, filename, assignment):
@@ -4413,7 +4520,7 @@ def download_cert(adapter, adir, filename, assignment):
         return False
     size = os.path.getsize(f.name)
     adapter.info("Download was {0}B{1}".format(outputunit(size), " ({0}B)".format(outputunit(size, True)) if size >= 1000 else ""))
-    amd5 = amd5.decode().upper()
+    amd5 = amd5.decode("utf-8").upper()
     residue_md5 = checksum_md5(f.name).upper()
     if amd5 != residue_md5:
         adapter.error("MD5 of downloaded starting value {0} does not match {1}".format(residue_md5, amd5))
@@ -4446,6 +4553,8 @@ def download_certs(adapter, adir, tasks):
 
 
 def get_cert_work(adapter, adir, cpu_num, current_time, progress, tasks):
+    if config.has_option(SEC.PrimeNet, "QuitGIMPS") and config.getboolean(SEC.PrimeNet, "QuitGIMPS"):
+        return
     if not options.cert_work or options.days_of_work <= 0 or options.cpu_hours <= 12:
         return
     max_cert_assignments = 3 if options.cert_cpu_limit >= 50 else 1
@@ -4500,8 +4609,8 @@ def get_cert_work(adapter, adir, cpu_num, current_time, progress, tasks):
         test = get_assignment(adapter, cpu_num, get_cert_work=max(1, options.cert_cpu_limit), min_exp=min_exp, max_exp=max_exp)
         if test is None:
             break
-        if assignment.work_type != PRIMENET.WORK_TYPE_CERT:
-            adapter.error("Received unknown work type (expected 200): {0}".format(assignment.work_type))
+        if test.work_type != PRIMENET.WORK_TYPE_CERT:
+            adapter.error("Received unknown work type (expected 200): {0}".format(test.work_type))
             break
         tasks.appendleft(test)  # append
         new_task = output_assignment(test)
@@ -4578,8 +4687,8 @@ def program_options(send=False, start=-1, retry_count=0):
                 return program_options(send, tnum, retry_count + 1)
             if "w" in result:
                 w = int(result["w"])
-                aw = next(key for key, value in convert_dict.items() if value == w) if w in convert_dict.values() else w
-                if aw not in supported:
+                aw = next(key for key, value in CONVERT_DICT.items() if value == w) if w in CONVERT_DICT.values() else w
+                if aw not in SUPPORTED:
                     logging.error("Unsupported worktype = {0} for {1}".format(aw, PROGRAM["name"]))
                     sys.exit(1)
                 if tnum < 0:
@@ -4840,7 +4949,7 @@ def update_assignment(adapter, cpu_num, assignment, task):
     bounds = ("MIN", "MID", "MAX")
     changed = False
     if assignment.work_type == PRIMENET.WORK_TYPE_PRP and (
-        options.convert_prp_to_ll or (not assignment.prp_dblchk and int(options.work_preference[cpu_num]) in convert_dict)
+        options.convert_prp_to_ll or (not assignment.prp_dblchk and int(options.work_preference[cpu_num]) in CONVERT_DICT)
     ):
         adapter.info("Converting from PRP to LL")
         assignment.work_type = PRIMENET.WORK_TYPE_DBLCHK if assignment.prp_dblchk else PRIMENET.WORK_TYPE_FIRST_LL
@@ -4923,7 +5032,9 @@ def update_assignment(adapter, cpu_num, assignment, task):
     return assignment, task
 
 
-def get_assignment(adapter, cpu_num, assignment_num=None, get_cert_work=None, min_exp=None, max_exp=None, recover_all=False, retry_count=0):
+def get_assignment(
+    adapter, cpu_num, assignment_num=None, get_cert_work=None, min_exp=None, max_exp=None, recover_all=False, retry_count=0
+):
     """Get a new assignment from the PrimeNet server."""
     guid = get_guid(config)
     args = primenet_v5_bargs.copy()
@@ -5112,10 +5223,11 @@ def tf1g_fetch(adapter, adir, cpu_num, max_assignments=None, max_ghd=None, recov
                 else:
                     adapter.info("Got assignment: {0}".format(exponent_to_text(test)))
                     tests.append(test)
-        return tests
     except RequestException as e:
         logging.exception(e, exc_info=options.debug)
         retry = True
+    else:
+        return tests
     if retry:
         if retry_count >= 2:
             adapter.info("Retry count exceeded.")
@@ -5250,14 +5362,14 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             if time_left <= days_work:
                 num_cache += 1
                 adapter.debug(
-                    "Time left ({0}) is less than the days_of_work option ({1}), so num_cache increased by one to {2:n}".format(
-                        timedeltastr(time_left), timedeltastr(days_work), num_cache
+                    "Time left ({0}) is less than the days of work option ({1}), so num_cache increased by one to {2:n}".format(
+                        time_left, days_work, num_cache
                     )
                 )
             else:
                 adapter.debug(
-                    "Time left ({0}) is greater than the days_of_work option ({1}), so num_cache has not been changed".format(
-                        timedeltastr(time_left), timedeltastr(days_work)
+                    "Time left ({0}) is greater than the days of work option ({1}), so num_cache has not been changed".format(
+                        time_left, days_work
                     )
                 )
 
@@ -5273,11 +5385,10 @@ def get_assignments(adapter, adir, cpu_num, progress, tasks):
             adapter.debug(
                 "{0:n} ≥ {1:n} assignments already in {2!r}, not getting new work".format(num_existing, num_cache, workfile)
             )
-            adapter.info(
-                "Estimated time to complete queued work is {0}, days of work requested is {1}".format(
-                    timedeltastr(time_left), timedeltastr(days_work)
+            if cur_time_left:
+                adapter.info(
+                    "Estimated time to complete queued work is {0}, days of work requested is {1}".format(time_left, days_work)
                 )
-            )
             if not new_tasks:
                 return
             break
@@ -5471,9 +5582,7 @@ def send_progress(adapter, cpu_num, assignment, percent, stage, time_left, now, 
     retry = False
     delta = timedelta(seconds=time_left)
     adapter.info(
-        "Sending expected completion date for {0}: {1:>12} ({2:%c})".format(
-            exponent_to_str(assignment), timedeltastr(delta), now + delta
-        )
+        "Sending expected completion date for {0}: {1!s:>12} ({2:%c})".format(exponent_to_str(assignment), delta, now + delta)
     )
     result = send_request(guid, args)
     if result is None:
@@ -5549,7 +5658,7 @@ def update_progress(adapter, cpu_num, assignment, progress, msec_per_iter, p, no
     else:
         cur_time_left += time_left
         delta = timedelta(seconds=time_left)
-        adapter.debug("Finish estimated in {0} (using {1:n} msec/iter estimation)".format(timedeltastr(delta), msec_per_iter))
+        adapter.debug("Finish estimated in {0} (using {1:n} msec/iter estimation)".format(delta, msec_per_iter))
     if checkin:
         send_progress(adapter, cpu_num, assignment, percent, stage, cur_time_left, now, fftlen)
     return percent, cur_time_left
@@ -5602,6 +5711,11 @@ def update_progress_all(adapter, adir, cpu_num, last_time, tasks, checkin=True):
                 )
             )
             if not config.has_option(section, "stalled"):
+                logfile = (
+                    os.path.join(adir, "mfaktc.log" if options.mfaktc else "mfakto.log")
+                    if options.mfaktc or options.mfakto
+                    else file
+                )
                 send_msg(
                     "⚠️ {0} on {1} has stalled".format(PROGRAM["name"], options.computer_id),
                     """The {0} program on your {1!r} computer (worker #{2}) has not made any progress for {3} ({4:%c}).
@@ -5617,8 +5731,8 @@ This program will alert you when it has resumed.
                         cpu_num + 1,
                         now - date,
                         date,
-                        file,
-                        "N/A" if options.cudalucas or options.mfaktc or options.mfakto else tail(file),
+                        logfile,
+                        "N/A" if options.cudalucas else tail(logfile),
                     ),
                     priority="1 (Highest)",
                 )
@@ -5937,7 +6051,7 @@ def parse_result(adapter, adir, resultsfile, sendline):
     elif worktype == "TF":
         result_type = PRIMENET.AR_TF_FACTOR if ar["status"] == "F" else PRIMENET.AR_TF_NOFACTOR
         # ar["status"] == "NF"
-    elif worktype == "Cert":
+    elif worktype in {"Cert", "CERT"}:
         result_type = PRIMENET.AR_CERT
     else:
         adapter.error("Unsupported worktype {0}".format(worktype))
@@ -6043,10 +6157,11 @@ def parse_result(adapter, adir, resultsfile, sendline):
                     json={"value1": user_name, "value2": buf, "value3": message},
                     timeout=30,
                 )
+                text = r.text
             except RequestException as e:
                 logging.exception("Backup notification failed: {0}".format(e), exc_info=options.debug)
             else:
-                adapter.debug("Backup notification: {0}".format(r.text))
+                adapter.debug("Backup notification: {0}".format(text))
             if result_type == PRIMENET.AR_LL_PRIME:
                 subject = "‼️ New Mersenne Prime!!! {0} is prime!".format(string_rep)
                 temp = "Mersenne"
@@ -6103,8 +6218,9 @@ Attached is a zipped copy of the full log file and last savefile/checkpoint file
 
 Exponent links: https://www.mersenne.org/M{12}, https://www.mersenne.ca/M{12}
 
-PrimeNet program/script version: {13}
-Python version: {14}
+PrimeNet program version: {13}
+Requests/urllib3 library version: {14}/{15}
+Python version: {16}
 """.format(
                     user_name,
                     options.user_id,
@@ -6120,6 +6236,8 @@ Python version: {14}
                     "N/A" if options.cudalucas else tail(file),
                     assignment.n,
                     VERSION,
+                    requests.__version__,
+                    urllib3.__version__,
                     platform.python_version(),
                 ),
                 ([] if options.cudalucas else [file]) + [savefile, logfile],
@@ -6144,7 +6262,7 @@ Python version: {14}
     return ar, message, assignment, result_type, no_report
 
 
-RESULTPATTERN = re.compile(r"Prime95|Program: E|Mlucas|CUDALucas v|CUDAPm1 v|gpuowl|prpll|mfakt[co]")
+RESULTPATTERN = re.compile(r"Prime95|Program: E|Mlucas|CUDALucas v|CUDAPm1 v|gpuowl|prpll|mfakt[co]|cofact")
 
 
 def submit_work(adapter, adir, cpu_num, tasks):
@@ -6272,7 +6390,7 @@ def is_pyinstaller():
 parser = optparse.OptionParser(
     usage="%prog [options]\nUse -h/--help to see all options\nUse --setup to configure this instance of the program",
     version="%prog " + VERSION,
-    description="This program will automatically get and register assignments, report assignment progress and results, upload proof files to and download certification starting values from PrimeNet for the Mlucas, GpuOwl/PRPLL, CUDALucas, mfaktc and mfakto GIMPS programs. It can get assignments and report results to mersenne.ca for exponents above the PrimeNet limit of 1G. It also saves its configuration to a “local.ini” file by default, so it is only necessary to give most of the arguments once. The first time it is run, it will register the current Mlucas/GpuOwl/PRPLL/CUDALucas/mfaktc/mfakto instance with PrimeNet (see the Registering Options below). Then, it will report assignment results, get assignments and upload any proof files to PrimeNet on the --timeout interval, or only once if --timeout is 0. It will additionally report the progress on the --checkin interval.",
+    description="This program will automatically get and register assignments, report assignment progress and results, upload proof files to and download certification starting values from PrimeNet for the Mlucas, GpuOwl/PRPLL, CUDALucas, mfaktc and mfakto GIMPS programs. It can get assignments and report results to mersenne.ca for exponents above the PrimeNet limit of 1G. It also saves its configuration to a 'local.ini' file by default, so it is only necessary to give most of the arguments once. The first time it is run, it will register the current Mlucas/GpuOwl/PRPLL/CUDALucas/mfaktc/mfakto instance with PrimeNet (see the Registering Options below). Then, it will report assignment results, get assignments and upload any proof files to PrimeNet on the --timeout interval, or only once if --timeout is 0. It will additionally report the progress on the --checkin interval.",
 )
 
 # options not saved to local.ini
@@ -6300,16 +6418,16 @@ parser.add_option(
 )
 
 # all other options are saved to local.ini
-parser.add_option("-i", "--work-file", dest="worktodo_file", default="worktodo.txt", help="Work file filename, Default: “%default”")
+parser.add_option("-i", "--work-file", dest="worktodo_file", default="worktodo.txt", help="Work file filename, Default: '%default'")
 parser.add_option(
     "-r",
     "--results-file",
     dest="results_file",
-    help="Results file filename, Default: “results.json.txt” for mfaktc/mfakto or “results.txt” otherwise",
+    help="Results file filename, Default: 'results.json.txt' for mfaktc/mfakto or 'results.txt' otherwise",
 )
-parser.add_option("-L", "--logfile", dest="logfile", default="primenet.log", help="Log file filename, Default: “%default”")
+parser.add_option("-L", "--logfile", dest="logfile", default="primenet.log", help="Log file filename, Default: '%default'")
 parser.add_option(
-    "-l", "--local-file", dest="localfile", default="local.ini", help="Local configuration file filename, Default: “%default”"
+    "-l", "--local-file", dest="localfile", default="local.ini", help="Local configuration file filename, Default: '%default'"
 )
 parser.add_option(
     "--archive-proofs", dest="archive_dir", help="Directory to archive PRP proof files after upload, Default: %default"
@@ -6376,9 +6494,8 @@ parser.add_option("--bit-min", dest="bit_min", type="int", help="Minimum bit lev
 parser.add_option("--bit-max", dest="bit_max", type="int", help="Maximum bit level of TF1G assignments to fetch")
 
 parser.add_option("-m", "--mlucas", action="store_true", help="Get assignments for Mlucas.")
-parser.add_option(
-    "-g", "--gpuowl", "--prpll", action="store_true", help="Get assignments for GpuOwl or PRPLL. PRPLL is not yet fully supported."
-)
+parser.add_option("-g", "--gpuowl", action="store_true", help="Get assignments for GpuOwl. PRPLL is not yet fully supported.")
+parser.add_option("--prpll", action="store_true", help=optparse.SUPPRESS_HELP)
 parser.add_option("--cudalucas", action="store_true", help="Get assignments for CUDALucas.")
 parser.add_option("--mfaktc", action="store_true", help="Get assignments for mfaktc.")
 parser.add_option("--mfakto", action="store_true", help="Get assignments for mfakto.")
@@ -6450,7 +6567,7 @@ parser.add_option(
     "--checkin",
     dest="hours_between_checkins",
     type="int",
-    default=6,
+    default=1,
     help="Hours to wait between sending assignment progress and expected completion dates (1-168 hours), Default: %default hours.",
 )
 parser.add_option(
@@ -6513,6 +6630,7 @@ parser.add_option(
     help="Resume getting new assignments after having previously run the --no-more-work option and exit.",
 )
 parser.add_option("--ping", action="store_true", dest="ping", help="Ping the PrimeNet server, show version information and exit.")
+parser.add_option("--no-color", action="store_false", dest="color", help="Do not use color in output.")
 parser.add_option("--setup", action="store_true", help="Prompt for all the options that are needed to setup this program and exit.")
 
 # TODO: add detection for most parameter, including automatic change of the hardware
@@ -6632,7 +6750,7 @@ logger = logging.getLogger()
 logger.setLevel(max(logging.INFO - options.debug * 10, 0))
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(
-    Formatter(
+    ColorFormatter(
         "%(filename)s: "
         + ("%(funcName)s:\t" if options.debug > 1 else "")
         + "[%(threadName)s%(worker)s %(asctime)s]  %(levelname)s: %(message)s"
@@ -6657,12 +6775,32 @@ if options.debug > 1:
     requests_log.setLevel(logging.DEBUG)
     requests_log.propagate = True
 
+# Adapted from: https://github.com/python/cpython/blob/main/Lib/_colorize.py
+COLOR = True
+if os.name == "nt":  # Windows
+    handle = ctypes.windll.kernel32.GetStdHandle(wintypes.DWORD(-12))  # STD_ERROR_HANDLE
+    mode = wintypes.DWORD()
+    if not ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+        COLOR = False
+        # raise ctypes.WinError()
+    elif not mode.value & 0x0004:  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        COLOR = False
+
+if COLOR:
+    if "NO_COLOR" in os.environ:
+        COLOR = False
+    if options.color is not None and not options.color:
+        COLOR = False
+    if "FORCE_COLOR" in os.environ:
+        COLOR = True
+
 if not opts_no_defaults.__dict__ and not os.path.exists(os.path.join(workdir, options.localfile)):
-    parser.error(
-        "No command line arguments provided or {0!r} file found. Run with the --setup option to configure the program.".format(
+    logging.info(
+        "No command line arguments provided or {0!r} file found, now running --setup to configure the program.".format(
             options.localfile
         )
     )
+    options.setup = True
 
 # load local.ini and update options
 config = config_read()
@@ -6673,6 +6811,8 @@ maxBytes = config.getint(SEC.PrimeNet, "MaxLogFileSize") if config.has_option(SE
 file_handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=maxBytes, backupCount=5, encoding="utf-8")
 file_handler.setFormatter(Formatter("[%(threadName)s%(worker)s %(asctime)s]  %(levelname)s: %(message)s"))
 logger.addHandler(file_handler)
+
+logging.info("PrimeNet automatic assignment handler version {0}, Python {1}".format(VERSION, platform.python_version()))
 
 if not hasattr(opts_no_defaults, "work_preference"):
     for i in range(options.num_workers):
@@ -6712,7 +6852,6 @@ PROGRAM = PROGRAMS[5 if options.mfakto else 4 if options.mfaktc else 3 if option
 # Convert mnemonic-form worktypes to corresponding numeric value, check
 # worktype value vs supported ones:
 worktypes = {
-    "GPUTF": PRIMENET.WP_GPU_FACTOR,
     "Pfactor": PRIMENET.WP_PFACTOR,
     "SmallestAvail": PRIMENET.WP_LL_FIRST,
     "DoubleCheck": PRIMENET.WP_LL_DBLCHK,
@@ -6725,7 +6864,7 @@ worktypes = {
 }
 # {"PRP": 150, "PM1": 4, "LL_DC": 101, "PRP_DC": 151, "PRP_WORLD_RECORD": 152, "PRP_100M": 153, "PRP_P1": 154}
 # this and the above line of code enables us to use words or numbers on the cmdline
-supported = frozenset(
+SUPPORTED = frozenset(
     [PRIMENET.WP_FACTOR, PRIMENET.WP_GPU_FACTOR]
     if options.mfaktc or options.mfakto
     else (
@@ -6754,11 +6893,11 @@ for i, work_preference in enumerate(options.work_preference):
         options.work_preference[i] = work_preference = worktypes[work_preference]
     if not work_preference.isdigit():
         parser.error("Unrecognized work preference = {0}".format(work_preference))
-    if int(work_preference) not in supported:
+    if int(work_preference) not in SUPPORTED:
         parser.error("Unsupported work preference = {0} for {1}".format(work_preference, PROGRAM["name"]))
 
 # Convert first time LL worktypes to PRP
-convert_dict = {
+CONVERT_DICT = {
     PRIMENET.WP_LL_FIRST: PRIMENET.WP_PRP_FIRST,
     PRIMENET.WP_LL_WORLD_RECORD: PRIMENET.WP_PRP_WORLD_RECORD,
     PRIMENET.WP_LL_100M: PRIMENET.WP_PRP_100M,
@@ -6767,8 +6906,8 @@ convert_dict = {
 work_preference = []
 for awork_preference in options.work_preference:
     awork_preference = int(awork_preference)
-    if awork_preference in convert_dict:
-        awork_preference = convert_dict[awork_preference]
+    if awork_preference in CONVERT_DICT:
+        awork_preference = CONVERT_DICT[awork_preference]
     work_preference.append(awork_preference)
 
 if len(options.work_preference) == 1 and options.num_workers > 1:
@@ -6808,6 +6947,9 @@ if options.cert_work:
 
 if not 1 <= options.cert_cpu_limit <= 100:
     parser.error("Proof certification work limit must be between 1 and 100%")
+
+if options.prpll:
+    parser.error("PRPLL is not ready for production use and is not (yet) fully supported.")
 
 if not (options.mlucas or options.cudalucas or options.gpuowl or options.mfaktc or options.mfakto):
     parser.error("Must select at least one GIMPS program to get assignments for")
@@ -6935,6 +7077,8 @@ Run --help for a full list of available options.
             PROGRAM["name"],
         )
     )
+    if is_pyinstaller():
+        ask_ok()
     sys.exit(0)
 
 if options.timeout > options.hours_between_checkins * 60 * 60:
@@ -7015,6 +7159,10 @@ if guid is None:
 elif config_updated:
     register_instance(guid)
 
+logging.info(
+    "Monitoring director{0}: {1}".format("y" if len(dirs) == 1 else "ies", ", ".join(map(repr, map(os.path.abspath, dirs))))
+)
+
 while True:
     start = timeit.default_timer()
     config = config_read()
@@ -7049,9 +7197,6 @@ while True:
     )
     cert_work = current_time >= cert_last_update + cert_freq * 60 * 60
 
-    logging.info(
-        "Monitoring director{0}: {1}".format("y" if len(dirs) == 1 else "ies", ", ".join(map(repr, map(os.path.abspath, dirs))))
-    )
     check_disk_space(dirs)
 
     for i, adir in enumerate(dirs):

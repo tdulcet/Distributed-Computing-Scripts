@@ -48,7 +48,7 @@ wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/g
 
 ### PrimeNet
 
-Automatically gets assignments, reports assignment results, upload proof files and optionally registers assignments and reports assignment progress to PrimeNet for the GpuOwl, CUDALucas, Mlucas, mfaktc, and mfakto GIMPS programs. Supports both Python 2 and 3 and Windows, macOS and Linux. Requires the [Requests library](https://requests.readthedocs.io/en/master/), which is included with most Python 3 installations. The script will automatically install Requests on first run if it is not already installed. GIMPS [discontinued first time LL assignments](https://mersenneforum.org/showthread.php?t=26682) in April 2021, although the script [still supports them](https://mersenneforum.org/showthread.php?p=575260#post575260) for users of CUDALucas or with limited disk space. Our [GpuOwl](#gpuowl), [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by [Loïc Le Loarer](https://github.com/llloic11/primenet) and Ernst W. Mayer, which itself was adapted from primetools by [Mark Rose](https://github.com/MarkRose/primetools) and [teknohog](https://github.com/teknohog/primetools).
+Automatically gets and registers assignments, reports assignment progress and results, uploads proof files to and downloads certification starting values from PrimeNet for the Mlucas, GpuOwl/PRPLL, CUDALucas, mfaktc and mfakto GIMPS programs. Additionally, it can get assignments and report results to mersenne.ca for exponents above the PrimeNet limit of 1G. Supports both Python 2 and 3 and Windows, macOS and Linux. Requires the [Requests library](https://requests.readthedocs.io/en/latest/), which is included with most Python 3 installations. The program will automatically prompt to install Requests on first run if it is not already installed. GIMPS [discontinued first time LL assignments](https://mersenneforum.org/showthread.php?t=26682) in April 2021, although the program [still supports them](https://mersenneforum.org/showthread.php?p=575260#post575260) for users of CUDALucas or with limited disk space. Our [GpuOwl](#gpuowl), [CUDALucas](#cudalucas) and [Mlucas](#mlucas) Linux scripts automatically download, setup and run this. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by [Loïc Le Loarer](https://github.com/llloic11/primenet) and Ernst W. Mayer, which itself was adapted from primetools by [Mark Rose](https://github.com/MarkRose/primetools) and [teknohog](https://github.com/teknohog/primetools).
 
 #### Usage
 
@@ -57,16 +57,17 @@ Usage: primenet.py [options]
 Use -h/--help to see all options
 Use --setup to configure this instance of the program
 
-This program will automatically get assignments, report assignment results,
-upload proof files and optionally register assignments and report assignment
-progress to PrimeNet for the Mlucas, GpuOwl/PRPLL, CUDALucas, mfaktc and
-mfakto GIMPS programs. It also saves its configuration to a “local.ini” file
-by default, so it is only necessary to give most of the arguments once. The
-first time it is run, if a password is NOT provided, it will register the
-current Mlucas/GpuOwl/PRPLL/CUDALucas/mfaktc/mfakto instance with PrimeNet
-(see the Registering Options below). Then, it will report assignment results,
-get assignments and upload any proof files to PrimeNet on the --timeout
-interval, or only once if --timeout is 0. If registered, it will additionally
+This program will automatically get and register assignments, report
+assignment progress and results, upload proof files to and download
+certification starting values from PrimeNet for the Mlucas, GpuOwl/PRPLL,
+CUDALucas, mfaktc and mfakto GIMPS programs. It can get assignments and report
+results to mersenne.ca for exponents above the PrimeNet limit of 1G. It also
+saves its configuration to a 'local.ini' file by default, so it is only
+necessary to give most of the arguments once. The first time it is run, it
+will register the current Mlucas/GpuOwl/PRPLL/CUDALucas/mfaktc/mfakto instance
+with PrimeNet (see the Registering Options below). Then, it will report
+assignment results, get assignments and upload any proof files to PrimeNet on
+the --timeout interval, or only once if --timeout is 0. It will additionally
 report the progress on the --checkin interval.
 
 Options:
@@ -82,15 +83,15 @@ Options:
                         each worker. It automatically sets the --cpu-num
                         option for each directory.
   -i WORKTODO_FILE, --work-file=WORKTODO_FILE
-                        Work file filename, Default: “worktodo.txt”
+                        Work file filename, Default: 'worktodo.txt'
   -r RESULTS_FILE, --results-file=RESULTS_FILE
-                        Results file filename, Default: “results.json.txt” for
-                        mfaktc/mfakto or “results.txt” otherwise
+                        Results file filename, Default: 'results.json.txt' for
+                        mfaktc/mfakto or 'results.txt' otherwise
   -L LOGFILE, --logfile=LOGFILE
-                        Log file filename, Default: “primenet.log”
+                        Log file filename, Default: 'primenet.log'
   -l LOCALFILE, --local-file=LOCALFILE
                         Local configuration file filename, Default:
-                        “local.ini”
+                        'local.ini'
   --archive-proofs=ARCHIVE_DIR
                         Directory to archive PRP proof files after upload,
                         Default: none
@@ -98,11 +99,6 @@ Options:
                         GIMPS/PrimeNet User ID. Create a GIMPS/PrimeNet
                         account: https://www.mersenne.org/update/. If you do
                         not want a PrimeNet account, you can use ANONYMOUS.
-  -p PASSWORD, --password=PASSWORD
-                        Optional GIMPS/PrimeNet Password. Deprecated and not
-                        recommended. Only provide if you want to do manual
-                        testing and not report the progress. This was the
-                        default behavior for old versions of this script.
   -T WORK_PREFERENCE, --worktype=WORK_PREFERENCE
                         Type of work, Default: 150. Supported work
                         preferences: 2 (Trial factoring), 4 (P-1 factoring),
@@ -127,26 +123,27 @@ Options:
                         PRP proof certification work limit in percentage of
                         CPU or GPU time, Default: 10%. Requires the --cert-
                         work option.
-  --min-exp=MIN_EXP     Minimum exponent to get from PrimeNet (2 -
-                        999,999,999)
-  --max-exp=MAX_EXP     Maximum exponent to get from PrimeNet (2 -
-                        999,999,999)
-  -g, --gpuowl, --prpll
-                        Get assignments for GpuOwl or PRPLL instead of Mlucas.
-                        PRPLL is not yet fully supported.
-  --cudalucas           Get assignments for CUDALucas instead of Mlucas.
-  --mfaktc              Get assignments for mfaktc instead of Mlucas.
-  --mfakto              Get assignments for mfakto instead of Mlucas.
+  --min-exp=MIN_EXP     Minimum exponent to get from PrimeNet or TF1G (2 -
+                        9,999,999,999). TF1G assignments are supported by
+                        setting this flag to 1,000,000,000 or above.
+  --max-exp=MAX_EXP     Maximum exponent to get from PrimeNet or TF1G (2 -
+                        9,999,999,999)
+  --bit-min=BIT_MIN     Minimum bit level of TF1G assignments to fetch
+  --bit-max=BIT_MAX     Maximum bit level of TF1G assignments to fetch
+  -m, --mlucas          Get assignments for Mlucas.
+  -g, --gpuowl          Get assignments for GpuOwl. PRPLL is not yet fully
+                        supported.
+  --cudalucas           Get assignments for CUDALucas.
+  --mfaktc              Get assignments for mfaktc.
+  --mfakto              Get assignments for mfakto.
   --num-workers=NUM_WORKERS
                         Number of workers (CPU Cores/GPUs), Default: 1
   -c CPU, --cpu-num=CPU
                         CPU core or GPU number to get assignments for,
                         Default: 0. Deprecated in favor of the --dir option.
   -n NUM_CACHE, --num-cache=NUM_CACHE
-                        Number of assignments to cache, Default: 0
-                        (automatically incremented by 1 when doing manual
-                        testing). Deprecated in favor of the --days-work
-                        option.
+                        Number of assignments to cache, Default: 0. Deprecated
+                        in favor of the --days-work option.
   -W DAYS_OF_WORK, --days-work=DAYS_OF_WORK
                         Days of work to queue ((0-180] days), Default: 1 day
                         for mfaktc/mfakto or 3 days otherwise. Increases
@@ -180,9 +177,8 @@ Options:
                         notification options below.
   --checkin=HOURS_BETWEEN_CHECKINS
                         Hours to wait between sending assignment progress and
-                        expected completion dates (1-168 hours), Default: 6
-                        hours. Requires that the instance is registered with
-                        PrimeNet.
+                        expected completion dates (1-168 hours), Default: 1
+                        hours.
   -t TIMEOUT, --timeout=TIMEOUT
                         Seconds to wait between updates, Default: 3600 seconds
                         (1 hour). Users with slower internet may want to set a
@@ -192,23 +188,26 @@ Options:
                         dates for all assignments and exit.
   --upload-proofs       Report assignment results, upload all PRP proofs and
                         exit. Requires PrimeNet User ID.
-  --recover-all         Recover all assignments and exit. This will overwrite
-                        any existing work files. Requires that the instance is
-                        registered with PrimeNet.
+  --recover             Report assignment results, recover all assignments and
+                        exit. This will overwrite any existing work files.
+  --recover-all         The same as --recover, except for PrimeNet it will
+                        additionally recover expired assignments and for
+                        mersenne.ca it will recover all assignments for all
+                        systems/workers to the first worker. This will
+                        overwrite any existing work files.
   --register-exponents  Prompt for all parameters needed to register one or
                         more specific exponents and exit.
   --unreserve=EXPONENT  Unreserve the exponent and exit. Use this only if you
                         are sure you will not be finishing this exponent.
-                        Requires that the instance is registered with
-                        PrimeNet.
-  --unreserve-all       Unreserve all assignments and exit. Requires that the
-                        instance is registered with PrimeNet.
+  --unreserve-all       Report assignment results, unreserve all assignments
+                        and exit.
   --no-more-work        Prevent this program from getting new assignments and
                         exit.
   --resume-work         Resume getting new assignments after having previously
                         run the --no-more-work option and exit.
   --ping                Ping the PrimeNet server, show version information and
                         exit.
+  --no-color            Do not use color in output.
   --setup               Prompt for all the options that are needed to setup
                         this program and exit.
 
@@ -228,8 +227,7 @@ Options:
                         CPU features, Default: ''
     --frequency=CPU_SPEED
                         CPU frequency/speed (MHz), Default: 1000 MHz
-    -m MEMORY, --memory=MEMORY
-                        Total physical memory (RAM) (MiB), Default: 1024 MiB
+    --memory=MEMORY     Total physical memory (RAM) (MiB), Default: 1024 MiB
     --max-memory=DAY_NIGHT_MEMORY
                         Configured day/night P-1 stage 2 memory (MiB),
                         Default: 921 MiB (90% of physical memory). Required
@@ -336,15 +334,18 @@ PrimeNet program/script:
 * Support more GIMPS programs.
 * Support setting more of the program options.
 * Improve the error handling of PrimeNet API calls.
+* Hide any prompts that are not applicable when using the `--setup` option. (requested by James)
 * Check for new results to submit and proof files to upload when the results file is updated.
 * Improve the performance.
 * Support reporting interim residues.
 * Support downloading certification assignments.
 	* Waiting on support from one of more of the GIMPS programs.
-* Localize the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
+* Add automatic update check and notification.
+* Localize the program and translate the output into other languages (see [here](https://mersenneforum.org/showthread.php?t=27046)).
 * Adapt Loïc Le Loarer's [test suite](https://github.com/llloic11/primenet/tree/main/tests).
 * Add an optional GUI using [Tk](https://en.wikipedia.org/wiki/Tk_(software)) and the [tkinter library](https://docs.python.org/3/library/tkinter.html)
 * Add docstrings to all functions
+* Add an option to show debugging information
 * Support submitting P-1 results for Fermat numbers
 
 General:
@@ -364,3 +365,5 @@ Thanks to [Daniel Connelly](https://github.com/Danc2050) for updating the PrimeN
 Thanks to Ernst W. Mayer for helping test and for providing feedback on the Mlucas install script.
 
 Thanks to Isaac Terrell for providing the needed PRP proof files to test the proof file uploading feature.
+
+Thanks to [Tyler Busby](https://github.com/brubsby) for updating the PrimeNet program to support mfaktc/mfakto and getting assignments and reporting results to mersenne.ca for exponents above the PrimeNet limit of 1G.

@@ -35,8 +35,8 @@ jobs:
       run: |
         python -X dev primenet.py --help
         curl -sSO https://www.mersenne.org/favicon.ico
-        pyinstaller -F -i favicon.ico primenet.py
-        ./dist/primenet --help
+        pyinstaller -F -i favicon.ico --optimize 2 primenet.py
+        .\dist\primenet --help
     - uses: actions/upload-artifact@v4
       with:
         name: PrimeNet_Windows_${{ matrix.architecture }}

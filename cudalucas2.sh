@@ -167,7 +167,7 @@ if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')
 	if [[ -n $TOTAL_GPU_MEM ]]; then
 		total=${TOTAL_GPU_MEM[DEVICE]}
-		ARGS+=(-m "$total" --max-memory="$total")
+		ARGS+=(--memory="$total" --max-memory="$total")
 	fi
 fi
 python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" -i "worktodo$N.txt" -r "results$N.txt" -L "primenet$N.log" -l "local$N.ini" --cudalucas "cudalucas$N.out" -H "$COMPUTER" "${ARGS[@]}"
