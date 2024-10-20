@@ -66,11 +66,11 @@ try:
     import requests
 except ImportError:
     print(
-        """Please run the below command to install the Requests library:
+        f"""Please run the below command to install the Requests library:
 
-	{0} -m pip install requests
+	{os.path.basename(sys.executable) if sys.executable else "python3"} -m pip install requests
 
-Then, run the script again.""".format(os.path.basename(sys.executable) if sys.executable else "python3")
+Then, run the script again."""
     )
     sys.exit(0)
 # ----------------------------#

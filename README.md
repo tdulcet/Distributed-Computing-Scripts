@@ -106,7 +106,7 @@ Pull requests welcome! Ideas for contributions:
 * Update install scripts to support CLI options
 * Add options for setting the maximum CPU time
 * Update CUDALucas to support PRP tests and the Jacobi error check for LL tests
-* Update Mlucas to support the Jacobi error check for LL and P-1 tests
+* Update Mlucas to support the Jacobi error check for LL and P-1 tests, and proof generation for PRP tests
 * Finish and improve the performance of [TensorPrime](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime), the [Tensor Processing Unit](https://en.wikipedia.org/wiki/Tensor_Processing_Unit) (TPU) GIMPS program (see [here](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime/wiki#results-and-next-steps))
 
 Thanks to [Daniel Connelly](https://github.com/Danc2050) for porting the MPrime script to Python and for helping create and test the Google Colab Jupyter Notebooks!

@@ -1,0 +1,87 @@
+[tool.ruff]
+line-length = 132 # 88
+indent-width = 2
+
+target-version = "py310"
+
+preview = true
+
+output-format = "concise"
+
+[tool.ruff.lint]
+select = [
+	"F",
+	"E4",
+	"E7",
+	"E9",
+	"W",
+	"I",
+	"D",
+	"UP",
+	"YTT",
+	"S",
+	"BLE",
+	"B",
+	"A",
+	"COM819",
+	"C4",
+	"T10",
+	"EM",
+	"EXE",
+	"ISC",
+	"ICN",
+	"G",
+	"PIE",
+	"PYI",
+	"Q",
+	"RSE",
+	"RET",
+	"SLF",
+	"SLOT",
+	"SIM",
+	"TID",
+	"TCH",
+	"ARG",
+	"PGH",
+	"PL",
+	"TRY",
+	"FLY",
+	"PERF",
+	"FURB",
+	"LOG",
+	"RUF"
+]
+ignore = [
+	"W191",
+	"D211",
+	"D213",
+	"D300",
+	"D401",
+	"PLR09",
+	"PLR1702",
+	"PLR2004",
+	"S103",
+	"FURB101",
+	"FURB167",
+	"RUF001",
+	"RUF002",
+	"RUF003",
+	"RUF023"
+]
+
+unfixable = ["F841"]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = false
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "single"
+inline-quotes = "single"
+multiline-quotes = "single"
+
+[tool.ruff.format]
+quote-style = "preserve"
+
+indent-style = "space"
+
+skip-magic-trailing-comma = true

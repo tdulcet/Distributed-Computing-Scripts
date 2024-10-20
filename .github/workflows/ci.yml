@@ -104,7 +104,7 @@ jobs:
         set -x
         bash -e -o pipefail -- mlucas.sh ANONYMOUS
         echo -e '## Warnings\n```' >> $GITHUB_STEP_SUMMARY
-        grep 'warning:' Mlucas/obj/build.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?m//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
+        grep 'warning:' Mlucas/obj/build.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?[mK]//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
     - uses: actions/upload-artifact@v4
       if: always()
@@ -141,5 +141,5 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install ruff
     - name: Script
-      run: ruff check --output-format=github --target-version py37 --select F,E4,E7,E9,W,I,D,UP,YTT,S,BLE,B,A,COM819,C4,T10,EM,EXE,ISC,ICN,G,PIE,PYI,Q,RSE,RET,SLF,SLOT,SIM,TID,TCH,ARG,PGH,PL,TRY,PERF,FURB,LOG,RUF --preview --ignore W191,D211,D213,D401,UP004,UP008,UP009,UP010,UP024,UP030,UP032,UP036,PYI024,PLR09,PLR1702,PLR2004,S324,S404,S603,FURB101,FURB167,RUF001,RUF002,RUF003,RUF005,RUF023 .
+      run: ruff check --output-format=github .
       continue-on-error: true
