@@ -15,7 +15,6 @@ authors:
 repository-code: 'https://github.com/tdulcet/Distributed-Computing-Scripts'
 abstract: >-
   Linux install scripts for the Great Internet Mersenne
-  Prime Search (GIMPS), BOINC and Folding@home. PrimeNet
-  automatic assignment script and Google Colaboratory
-  notebooks for GIMPS. 
-license: GPL-3.0
+  Prime Search (GIMPS), BOINC and Folding@home. Google
+  Colaboratory notebooks for GIMPS. 
+license: MIT

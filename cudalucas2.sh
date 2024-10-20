@@ -127,17 +127,17 @@ EOF
 	make clean
 fi
 DIR=$PWD
-if [[ -f "primenet.py" ]]; then
-	echo -e "The PrimeNet program is already downloaded\n"
+if [[ -f "autoprimenet.py" ]]; then
+	echo -e "AutoPrimeNet is already downloaded\n"
 else
-	echo -e "\nDownloading the PrimeNet program\n"
-	if [[ -e ../primenet.py ]]; then
-		cp -v ../primenet.py .
+	echo -e "\nDownloading AutoPrimeNet\n"
+	if [[ -e ../autoprimenet.py ]]; then
+		cp -v ../autoprimenet.py .
 	else
-		wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
+		wget -nv https://raw.github.com/tdulcet/AutoPrimeNet/main/autoprimenet.py
 	fi
-	chmod +x primenet.py
-	python3 -OO -m py_compile primenet.py
+	chmod +x autoprimenet.py
+	python3 -OO -m py_compile autoprimenet.py
 fi
 echo -e "\nInstalling the Requests library\n"
 # python3 -m ensurepip --default-pip || true
@@ -170,9 +170,9 @@ if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=(--memory="$total" --max-memory="$total")
 	fi
 fi
-python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" -i "worktodo$N.txt" -r "results$N.txt" -L "primenet$N.log" -l "local$N.ini" --cudalucas "cudalucas$N.out" -H "$COMPUTER" "${ARGS[@]}"
-echo -e "\nStarting PrimeNet\n"
-nohup python3 -OO primenet.py -l "local$N.ini" >>"primenet$N.out" &
+python3 -OO autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" -i "worktodo$N.txt" -r "results$N.txt" -L "primenet$N.log" -l "prime$N.ini" --cudalucas "cudalucas$N.out" -H "$COMPUTER" "${ARGS[@]}"
+echo -e "\nStarting AutoPrimeNet\n"
+nohup python3 -OO autoprimenet.py -l "prime$N.ini" >>"autoprimenet$N.out" &
 sleep 1
 echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take a while…\n"
 timeout -v 60 ./CUDALucas 2976221 || true
@@ -185,19 +185,19 @@ echo -e "\nStarting CUDALucas\n"
 nohup nice ./CUDALucas -i "CUDALucas$N.ini" >>"cudalucas$N.out" &
 sleep 1
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup nice ./CUDALucas -i 'CUDALucas$N.ini' >> 'cudalucas$N.out' &"; } | crontab -
-#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO primenet.py -l 'local$N.ini' >> 'primenet$N.out' &"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO autoprimenet.py -l 'prime$N.ini' >> 'autoprimenet$N.out' &"; } | crontab -
 cat <<EOF >CUDALucas.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start CUDALucas and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# Start CUDALucas and AutoPrimeNet if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/CUDALucas.sh
 
 NOW=\${EPOCHSECONDS:-\$(date +%s)}
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
 	pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && exec nohup nice ./CUDALucas -i 'CUDALucas$N.ini' >>'cudalucas$N.out' &)
-	pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO primenet.py -l 'local$N.ini' >>'primenet$N.out' &)
+	pgrep -f '^python3 -OO autoprimenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO autoprimenet.py -l 'prime$N.ini' >>'autoprimenet$N.out' &)
 else
 	pgrep -x CUDALucas >/dev/null && killall CUDALucas
 fi

@@ -175,17 +175,17 @@ else
 	make clean
 	cd ..
 fi
-if [[ -f "primenet.py" ]]; then
-	echo -e "\nThe PrimeNet program is already downloaded\n"
+if [[ -f "autoprimenet.py" ]]; then
+	echo -e "\nAutoPrimeNet is already downloaded\n"
 else
 	echo -e "\nDownloading the latest PrimeNet program\n"
-	if [[ -e ../primenet.py ]]; then
-		cp -v ../primenet.py .
+	if [[ -e ../autoprimenet.py ]]; then
+		cp -v ../autoprimenet.py .
 	else
-		wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
+		wget -nv https://raw.github.com/tdulcet/AutoPrimeNet/main/autoprimenet.py
 	fi
-	chmod +x primenet.py
-	python3 -OO -m py_compile primenet.py
+	chmod +x autoprimenet.py
+	python3 -OO -m py_compile autoprimenet.py
 fi
 echo -e "\nInstalling the Requests library\n"
 # python3 -m ensurepip --default-pip || true
@@ -497,7 +497,7 @@ for j in "${!threads[@]}"; do
 done
 echo -e "\nRegistering computer with PrimeNet\n"
 total=$((TOTAL_PHYSICAL_MEM >> 10))
-python3 -OO ../primenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -m -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" --memory=$total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --cores="$CPU_CORES" --hyperthreads="$HP" --l1=$((CPU_CACHE_SIZES[1] ? CPU_CACHE_SIZES[1] >> 10 : 8)) --l2=$((CPU_CACHE_SIZES[2] ? CPU_CACHE_SIZES[2] >> 10 : 512)) --l3=$((CPU_CACHE_SIZES[3] >> 10))
+python3 -OO ../autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -m -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" --memory=$total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --cores="$CPU_CORES" --hyperthreads="$HP" --l1=$((CPU_CACHE_SIZES[1] ? CPU_CACHE_SIZES[1] >> 10 : 8)) --l2=$((CPU_CACHE_SIZES[2] ? CPU_CACHE_SIZES[2] >> 10 : 512)) --l3=$((CPU_CACHE_SIZES[3] >> 10))
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 args=()
 for i in "${!RUNS[@]}"; do
@@ -505,12 +505,12 @@ for i in "${!RUNS[@]}"; do
 	mkdir "$dir"
 	pushd "$dir" >/dev/null
 	ln -s ../mlucas.$((${#threads[*]} == 1 || (threads[0] < threads[1] && i == 0) || (threads[0] > threads[1] && i < ${#RUNS[*]} - 1) ? 0 : 1)).cfg mlucas.cfg
-	ln -s ../local.ini .
+	# ln -s ../prime.ini .
 	args+=(-D "$dir")
 	popd >/dev/null
 done
-echo -e "\nStarting PrimeNet\n"
-nohup python3 -OO ../primenet.py "${args[@]}" >>"primenet.out" &
+echo -e "\nStarting AutoPrimeNet\n"
+nohup python3 -OO ../autoprimenet.py "${args[@]}" >>'autoprimenet.out' &
 sleep $((${#RUNS[*]} * 2))
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-core argument: %s)\n" $((i + 1)) "${RUNS[i]}"
@@ -525,7 +525,7 @@ cat <<EOF >jobs.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start Mlucas and the PrimeNet program
+# Start Mlucas and AutoPrimeNet
 # Run: ./jobs.sh
 
 set -e
@@ -542,10 +542,10 @@ pgrep -x Mlucas >/dev/null || {
 	done)
 }
 
-pgrep -f '^python3 -OO \.\./primenet\.py' >/dev/null || {
-	echo -e "\nStarting PrimeNet\n"
+pgrep -f '^python3 -OO \.\./autoprimenet\.py' >/dev/null || {
+	echo -e "\nStarting AutoPrimeNet\n"
 	set -x
-	exec nohup python3 -OO ../primenet.py ${args[@]} >>'primenet.out' &
+	exec nohup python3 -OO ../autoprimenet.py ${args[@]} >>'autoprimenet.out' &
 }
 EOF
 chmod +x jobs.sh
@@ -554,7 +554,7 @@ cat <<EOF >Mlucas.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start Mlucas and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# Start Mlucas and AutoPrimeNet if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/Mlucas.sh
 
 NOW=\${EPOCHSECONDS:-\$(date +%s)}

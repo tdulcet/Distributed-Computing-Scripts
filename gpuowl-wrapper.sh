@@ -56,7 +56,7 @@ GPUOWL_LL=3
 # Standalone P-1 tests
 GPUOWL_PM1=3
 
-# worktodo and results files for the PrimeNet program/script
+# worktodo and results files for AutoPrimeNet
 WorkFile="worktodo.ini"
 ResultsFile="results.ini"
 
@@ -217,7 +217,7 @@ while true; do
 			printf '%s\n' "${worktodo[0]}" >>"$aWorkFile"
 			mapfile -t aworktodo <"$aWorkFile"
 		else
-			echo "Error: No work to do. Please run the PrimeNet program/script or manually add some work to the ${WorkFile@Q} file." >&2
+			echo "Error: No work to do. Please run AutoPrimeNet or manually add some work to the ${WorkFile@Q} file." >&2
 			exit 1
 		fi
 	else

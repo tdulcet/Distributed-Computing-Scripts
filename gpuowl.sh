@@ -164,14 +164,14 @@ else
 		sed -i 's/`git describe --tags --long --dirty --always`/'"${name}${behind_by:+-${behind_by}${sha:+-g${sha::7}}}"'/' $DIR1/Makefile
 	fi
 fi
-echo -e "\nDownloading the PrimeNet program\n"
-if [[ -e ../primenet.py ]]; then
-	cp -v ../primenet.py .
+echo -e "\nDownloading AutoPrimeNet\n"
+if [[ -e ../autoprimenet.py ]]; then
+	cp -v ../autoprimenet.py .
 else
-	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
+	wget -nv https://raw.github.com/tdulcet/AutoPrimeNet/main/autoprimenet.py
 fi
-chmod +x primenet.py
-python3 -OO -m py_compile primenet.py
+chmod +x autoprimenet.py
+python3 -OO -m py_compile autoprimenet.py
 echo -e "\nInstalling the Requests library\n"
 # python3 -m ensurepip --default-pip || true
 python3 -m pip install --upgrade pip || true
@@ -239,9 +239,9 @@ elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=(--memory="$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 	fi
 fi
-python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" -i 'worktodo.ini' -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
-echo -e "\nStarting PrimeNet\n"
-nohup python3 -OO primenet.py >>"primenet.out" &
+python3 -OO autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" -i 'worktodo.ini' -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
+echo -e "\nStarting AutoPrimeNet\n"
+nohup python3 -OO autoprimenet.py >>'autoprimenet.out' &
 sleep 1
 echo -e "\nDownloading GpuOwl benchmarking script\n"
 if [[ -e ../gpuowl-bench.sh ]]; then
@@ -268,19 +268,19 @@ echo -e "\nStarting GpuOwl\n"
 nohup ./gpuowl >>"gpuowl.out" &
 sleep 1
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./gpuowl >> 'gpuowl.out' &"; } | crontab -
-#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO primenet.py >> 'primenet.out' &"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO autoprimenet.py >> 'autoprimenet.out' &"; } | crontab -
 cat <<EOF >gpuowl.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start GpuOwl and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# Start GpuOwl and AutoPrimeNet if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/gpuowl.sh
 
 NOW=\${EPOCHSECONDS:-\$(date +%s)}
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
 	pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl >>'gpuowl.out' &)
-	pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO primenet.py >>'primenet.out' &)
+	pgrep -f '^python3 -OO autoprimenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO autoprimenet.py >>'autoprimenet.out' &)
 else
 	pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl
 fi

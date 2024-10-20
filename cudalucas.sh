@@ -75,14 +75,14 @@ echo -e "Downloading CUDALucas\n"
 svn checkout https://svn.code.sf.net/p/cudalucas/code/trunk "$DIR"
 cd "$DIR"
 DIR=$PWD
-echo -e "\nDownloading the PrimeNet program\n"
-if [[ -e ../primenet.py ]]; then
-	cp -v ../primenet.py .
+echo -e "\nDownloading AutoPrimeNet\n"
+if [[ -e ../autoprimenet.py ]]; then
+	cp -v ../autoprimenet.py .
 else
-	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/primenet.py
+	wget -nv https://raw.github.com/tdulcet/AutoPrimeNet/main/autoprimenet.py
 fi
-chmod +x primenet.py
-python3 -OO -m py_compile primenet.py
+chmod +x autoprimenet.py
+python3 -OO -m py_compile autoprimenet.py
 echo -e "\nInstalling the Requests library\n"
 # python3 -m ensurepip --default-pip || true
 python3 -m pip install --upgrade pip || true
@@ -157,9 +157,9 @@ if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=(--memory="$total" --max-memory="$total")
 	fi
 fi
-python3 -OO primenet.py -t 0 -T "$TYPE" -u "$USERID" --cudalucas "cudalucas.out" -H "$COMPUTER" "${ARGS[@]}"
-echo -e "\nStarting PrimeNet\n"
-nohup python3 -OO primenet.py >>"primenet.out" &
+python3 -OO autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" --cudalucas "cudalucas.out" -H "$COMPUTER" "${ARGS[@]}"
+echo -e "\nStarting AutoPrimeNet\n"
+nohup python3 -OO autoprimenet.py >>'autoprimenet.out' &
 sleep 1
 echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take a while…\n"
 timeout -v 60 ./CUDALucas 2976221 || true
@@ -172,19 +172,19 @@ echo -e "\nStarting CUDALucas\n"
 nohup nice ./CUDALucas -d $DEVICE >>"cudalucas.out" &
 sleep 1
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >> 'cudalucas.out' &"; } | crontab -
-#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO primenet.py >> 'primenet.out' &"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO autoprimenet.py >> 'autoprimenet.out' &"; } | crontab -
 cat <<EOF >CUDALucas.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start CUDALucas and the PrimeNet program if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# Start CUDALucas and AutoPrimeNet if the computer has not been used in the specified idle time and stop it when someone uses the computer
 # ${DIR@Q}/CUDALucas.sh
 
 NOW=\${EPOCHSECONDS:-\$(date +%s)}
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
 	pgrep -x CUDALucas >/dev/null || (cd ${DIR@Q} && nohup nice ./CUDALucas -d $DEVICE >>'cudalucas.out' &)
-	pgrep -f '^python3 -OO primenet\.py' >/dev/null || (cd ${DIR@Q} && nohup python3 -OO primenet.py >>'primenet.out' &)
+	pgrep -f '^python3 -OO autoprimenet\.py' >/dev/null || (cd ${DIR@Q} && nohup python3 -OO autoprimenet.py >>'autoprimenet.out' &)
 else
 	pgrep -x CUDALucas >/dev/null && killall CUDALucas
 fi

@@ -31,7 +31,7 @@ A user may optionally perform other steps to gain more insight into GIMPS and/or
 
 1. Create a GIMPS/PrimeNet account [here](https://www.mersenne.org/update/) and [join](https://www.mersenne.org/jteam/) the “Portland State University” team!
 
-2. Set the `debug` option to view the last 100 lines of output and the status from the respective GIMPS program. Alternatively, you may access the `cpu1.out`…`cpuN.out`, `1/gpu.out`…`N/gpu.out`, and `1/primenet.out`…`N/primenet.out` files, where `N` is the `computer_number` value, in your Google Drive under the `GIMPS` and `mprime_gpu`/`mprime_cpu` or `gpuowl` folders to see the full MPrime and/or GpuOwl output respectively.
+2. Set the `debug` option to view the last 100 lines of output and the status from the respective GIMPS program. Alternatively, you may access the `cpu1.out`…`cpuN.out`, `1/gpu.out`…`N/gpu.out`, and `1/autoprimenet.out`…`N/autoprimenet.out` files, where `N` is the `computer_number` value, in your Google Drive under the `GIMPS` and `mprime_gpu`/`mprime_cpu` or `gpuowl` folders to see the full MPrime and/or GpuOwl output respectively.
 
 ## Required Tools, Restrictions
 Anyone with an internet connection and a free Google/Gmail account with just [~50 MiB of free space](https://www.google.com/settings/storage) on Google Drive can use both our notebooks to “crunch” primes.
@@ -111,7 +111,7 @@ Though each GPU works well and will complete most assignments in a matter of day
 ## Acknowledgements
 We acknowledge the following projects, which enabled and encouraged us to create these notebooks:
 * [Our Bash install scripts](/../../#organizations), which automatically download, build and setup the respective GIMPS programs on Colab.
-* [Our PrimeNet Python program](/../../#primenet), which automatically gets assignments, reports assignment results and progress for CUDALucas and GpuOwl using the PrimeNet API. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by Loïc Le Loarer and Ernst W. Mayer.
+* [AutoPrimeNet](https://github.com/tdulcet/AutoPrimeNet), which automatically gets assignments, reports assignment results and progress for CUDALucas and GpuOwl using the PrimeNet API. Adapted from the PrimeNet Python script from [Mlucas](https://www.mersenneforum.org/mayer/README.html#download2) by Loïc Le Loarer and Ernst W. Mayer.
 * The [GPU72 notebook](https://github.com/chalsall/GPU72_CoLab), whose work encouraged us to also use the [form](https://colab.research.google.com/notebooks/forms.ipynb) format.
 * The [Linux System Information script](https://github.com/tdulcet/Linux-System-Information), which outputs the system information for the Colab VMs.
 
