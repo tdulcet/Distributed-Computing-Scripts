@@ -163,8 +163,8 @@ nohup python3 -OO autoprimenet.py >>'autoprimenet.out' &
 sleep 1
 echo -e "\nOptimizing CUDALucas for your computer and GPU\nThis may take a while…\n"
 timeout -v 60 ./CUDALucas 2976221 || true
-./CUDALucas -cufftbench 1024 8192 5
-./CUDALucas -threadbench 1024 8192 5 0
+./CUDALucas -cufftbench 1024 12288 5
+./CUDALucas -threadbench 1024 12288 5 0
 echo -e "\nRunning self tests\nThis will take a while…\n"
 ./CUDALucas -r 1
 # ./CUDALucas 6972593

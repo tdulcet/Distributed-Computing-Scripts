@@ -24,7 +24,7 @@ DEVICE=0
 MIN=1024
 # MIN=1
 # Maximum FFT length (in K)
-MAX=10240
+MAX=12288
 # MAX=32768
 
 # GpuOwl -use option to show roundoff error (ROE)

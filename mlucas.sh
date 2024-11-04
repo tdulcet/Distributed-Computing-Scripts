@@ -67,9 +67,14 @@ fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 
 # Adapted from: https://github.com/tdulcet/Linux-System-Information/blob/master/info.sh
-. /etc/os-release
+echo
 
-echo -e "\nLinux Distribution:\t\t${PRETTY_NAME:-$NAME-$VERSION}"
+if [[ -r /etc/os-release ]]; then
+	. /etc/os-release
+elif [[ -r /usr/lib/os-release ]]; then
+	. /usr/lib/os-release
+fi
+echo -e "Linux Distribution:\t\t${PRETTY_NAME:-$NAME-$VERSION}"
 
 KERNEL=$(</proc/sys/kernel/osrelease) # uname -r
 echo -e "Linux Kernel:\t\t\t$KERNEL"
@@ -415,8 +420,8 @@ for i in "${!ITERS[@]}"; do
 done
 RUNS=(${ARGS[MAX]})
 threads=(${THREADS[MAX]})
-echo -e "\nBenchmark Summary\n"
 {
+	echo -e "\nBenchmark Summary\n"
 	echo -e "\tAdjusted msec/iter times (ms/iter) vs Actual iters/sec total throughput (iter/s) for each combination\n"
 	{
 		printf 'FFT\t'
@@ -454,37 +459,37 @@ echo -e "\nBenchmark Summary\n"
 		done
 	} | column -t -s $'\t'
 	echo
-} | tee -a bench.txt
-echo "Fastest combination"
-{
-	echo -e "#\tWorkers/Runs\tThreads\tFirst -core argument"
-	printf "%'d\t%'d\t%s\t%s\n" $((MAX + 1)) ${#RUNS[*]} "${THREADS[MAX]// /, }" "${RUNS[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${RUNS[-1]}"; fi)"
-} | column -t -s $'\t'
-echo
-if [[ ${#ARGS[*]} -gt 1 ]]; then
+	echo "Fastest combination"
 	{
-		echo -e "Mean ± σ std dev faster\t#\tWorkers/Runs\tThreads\tFirst -core argument"
-		for i in "${!ARGS[@]}"; do
-			if [[ $i -ne $MAX ]]; then
-				args=(${ARGS[i]})
-				threads=(${THREADS[i]})
-				mapfile -t ffts <<<"${FFTS[i]}"
-				iters=(${ITERS[i]})
-				if [[ -n $ffts ]]; then
-					# join -o 1.2,2.2 <(paste <(echo "${FFTS[MAX]}") <(echo "${ITERS[MAX]}")) <(paste <(echo "${FFTS[i]}") <(echo "${ITERS[i]}"))
-					array=($(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then
-						printf '%s\t%s\n' "${aiters[k]}" "${iters[j]}"
-						break
-					fi; done; done | awk '{ sum+=$1/$2; sumsq+=($1/$2)^2 } END { mean=sum/NR; variance=sumsq/NR-mean^2; printf "%.15g\t%.15g\t%.15g\n", mean, sqrt(variance<0 ? 0 : variance), (mean * 100) - 100 }'))
-					printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i + 1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${args[-1]}"; fi)"
-				else
-					printf -- "-\t%'d\t%'d\t%s\t%s\n" $((i + 1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${args[-1]}"; fi)"
-				fi
-			fi
-		done
+		echo -e "#\tWorkers/Runs\tThreads\tFirst -core argument"
+		printf "%'d\t%'d\t%s\t%s\n" $((MAX + 1)) ${#RUNS[*]} "${THREADS[MAX]// /, }" "${RUNS[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${RUNS[-1]}"; fi)"
 	} | column -t -s $'\t'
-fi
-echo
+	echo
+	if [[ ${#ARGS[*]} -gt 1 ]]; then
+		{
+			echo -e "Mean ± σ std dev faster\t#\tWorkers/Runs\tThreads\tFirst -core argument"
+			for i in "${!ARGS[@]}"; do
+				if [[ $i -ne $MAX ]]; then
+					args=(${ARGS[i]})
+					threads=(${THREADS[i]})
+					mapfile -t ffts <<<"${FFTS[i]}"
+					iters=(${ITERS[i]})
+					if [[ -n $ffts ]]; then
+						# join -o 1.2,2.2 <(paste <(echo "${FFTS[MAX]}") <(echo "${ITERS[MAX]}")) <(paste <(echo "${FFTS[i]}") <(echo "${ITERS[i]}"))
+						array=($(for k in "${!affts[@]}"; do for j in "${!ffts[@]}"; do if [[ ${affts[k]} -eq ${ffts[j]} ]]; then
+							printf '%s\t%s\n' "${aiters[k]}" "${iters[j]}"
+							break
+						fi; done; done | awk '{ sum+=$1/$2; sumsq+=($1/$2)^2 } END { mean=sum/NR; variance=sumsq/NR-mean^2; printf "%.15g\t%.15g\t%.15g\n", mean, sqrt(variance<0 ? 0 : variance), (mean * 100) - 100 }'))
+						printf "%'.3f ± %'.3f (%'.1f%%)\t%'d\t%'d\t%s\t%s\n" "${array[0]/./$decimal_point}" "${array[1]/./$decimal_point}" "${array[2]/./$decimal_point}" $((i + 1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${args[-1]}"; fi)"
+					else
+						printf -- "-\t%'d\t%'d\t%s\t%s\n" $((i + 1)) ${#args[*]} "${THREADS[i]// /, }" "${args[0]}$(if [[ ${#threads[*]} -gt 1 ]]; then echo "  ${args[-1]}"; fi)"
+					fi
+				fi
+			done
+		} | column -t -s $'\t'
+	fi
+	echo
+} | tee -a bench.txt
 echo "The benchmark data was written to the 'bench.txt' file"
 if [[ -n $COMBO ]]; then
 	printf "\nUsing combination: %'d\n" $((COMBO + 1))
