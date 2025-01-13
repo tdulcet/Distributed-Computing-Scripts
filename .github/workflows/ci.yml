@@ -127,7 +127,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install pylint
     - name: Script
-      run: pylint -f github --py-version 2.6 -d design,C0103,W0311,C0301,C0302,C0209,R1702 --load-plugins pylint.extensions.code_style,pylint.extensions.comparison_placement,pylint.extensions.for_any_all,pylint.extensions.consider_refactoring_into_while_condition,pylint.extensions.consider_ternary_expression,pylint.extensions.dict_init_mutate,pylint.extensions.docstyle,pylint.extensions.check_elif,pylint.extensions.set_membership,pylint.extensions.typing -e R6104,C1804,C1805 -r y *.py mprime-python-port/*.py
+      run: pylint -f github --py-version 2.6 -d design,C0103,W0311,C0301,C0302,C0209,R1702 --load-plugins pylint.extensions.code_style,pylint.extensions.comparison_placement,pylint.extensions.for_any_all,pylint.extensions.consider_refactoring_into_while_condition,pylint.extensions.consider_ternary_expression,pylint.extensions.dict_init_mutate,pylint.extensions.docstyle,pylint.extensions.check_elif,pylint.extensions.set_membership,pylint.extensions.typing -e R6104,C1804,C1805 -r y *.py python/*.py
       continue-on-error: true
 
   Ruff:
