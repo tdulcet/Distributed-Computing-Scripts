@@ -40,7 +40,7 @@ select = [
 	"SLOT",
 	"SIM",
 	"TID",
-	"TCH",
+	"TC",
 	"ARG",
 	"PGH",
 	"PL",
