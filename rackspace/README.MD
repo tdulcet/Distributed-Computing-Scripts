@@ -1,0 +1,1 @@
+Scripts to set up Rackspace's Kubernetes spot instances for computing Distributed Computing projects such as The Greate Mersenne Prime Search (GIMPS) and Berkeley Open Infrastructure for Network Computing (BOINC).

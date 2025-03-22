@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: boinc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: sata
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: boinc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: boinc
+  template:
+    metadata:
+      labels:
+        app: boinc
+    spec:
+      containers:
+      - name: boinc
+        image: ubuntu:latest
+        command: ["/bin/bash", "-c"]
+        env:
+        - name: WCG_ACCOUNT_KEY
+          value: "YOUR_WCG_ACCOUNT_KEY"  # Replace with your actual World Community Grid account key
+        - name: RS_ACCOUNT_KEY
+          value: "YOUR_RS_ACCOUNT_KEY"  # Replace with your actual Rosetta@home account key
+        args:
+          - |
+            set -e  # Exit on error
+
+            BOINC_DIR="/boinc"
+
+            # Ensure script runs as root
+            if [[ $EUID -ne 0 ]]; then
+              echo "This script must be run as root (use sudo)." 
+              exit 1
+            fi  
+
+            # Install dependencies if not present
+            echo "Installing dependencies..."
+            apt-get update && apt-get install -y git build-essential libssl-dev libcurl4-openssl-dev \
+            libboost-all-dev libsqlite3-dev libwxgtk3.2-dev libwxgtk-webview3.2-dev \
+            autoconf automake libtool pkg-config libgtk-3-dev libnotify-dev \
+            vim sudo wget curl
+
+            # Check if BOINC is already installed
+            if [ ! -f "$BOINC_DIR/bin/boinc" ]; then
+              echo "BOINC not found. Compiling and installing in $BOINC_DIR..."
+              cd /usr/local/src
+              git clone https://github.com/BOINC/boinc.git || (cd boinc && git pull)
+              cd boinc
+              ./_autosetup
+              ./configure --prefix="$BOINC_DIR" --disable-server
+              make -j$(nproc)
+              make install
+            else
+              echo "BOINC already installed in $BOINC_DIR."
+            fi  
+
+            # Create the 'boinc' user if it doesn't exist
+            if ! id "boinc" &>/dev/null; then
+              echo "Creating 'boinc' system user..."
+              useradd -r -m -d "$BOINC_DIR" -s /bin/bash boinc
+            fi  
+
+            # Ensure correct ownership
+            echo "Ensuring 'boinc' user owns $BOINC_DIR..."
+            chown -R boinc:boinc "$BOINC_DIR"
+
+            # Create the GUI RPC authentication file
+            echo "Ensuring GUI RPC authentication file exists..."
+            # set your own password if you'd like... this is blank
+            echo "" > "$BOINC_DIR/gui_rpc_auth.cfg"
+            chown boinc:boinc "$BOINC_DIR/gui_rpc_auth.cfg"
+
+            # Start BOINC, in the background, if not already running
+            # This needs to occur to attach projects
+            if ! pgrep -u boinc boinc > /dev/null; then
+              echo "Starting BOINC client..."
+              su - boinc -c "$BOINC_DIR/bin/boinc --dir $BOINC_DIR" &
+              sleep 5
+            else
+              echo "BOINC client is already running."
+            fi  
+
+            # Attach to World Community Grid, if not already attached
+            if [ ! -f "$BOINC_DIR/account_www.worldcommunitygrid.org.xml" ]; then
+              echo "Attaching to World Community Grid using account key..."
+              su - boinc -c "$BOINC_DIR/bin/boinccmd --passwd \"\" --project_attach https://www.worldcommunitygrid.org $WCG_ACCOUNT_KEY"
+            else
+              echo "Already attached to World Community Grid."
+            fi  
+
+            # Attach to Rosetta@home, if not already attached
+            if [ ! -f "$BOINC_DIR/account_boinc.bakerlab.org_rosetta.xml" ]; then
+              echo "Attaching to Rosetta@home using account key..."
+              su - boinc -c "$BOINC_DIR/bin/boinccmd --passwd \"\" --project_attach https://boinc.bakerlab.org/rosetta $RS_ACCOUNT_KEY"
+            else
+              echo "Already attached to Rosetta@home."
+            fi  
+        volumeMounts:
+        - mountPath: /boinc
+          name: boinc-storage
+      volumes:
+      - name: boinc-storage
+        persistentVolumeClaim:
+          claimName: boinc

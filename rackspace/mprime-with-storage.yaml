@@ -1,0 +1,59 @@
+# Provisions the persistant storage as a SATA drive with minimum required 75GB
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mprime-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 75Gi # For Sata storage type, 75GB - 1TB is range
+  storageClassName: sata-large
+---
+
+# Provisions a Deployment for the mprime application, managing its container and volume
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mprime-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mprime
+  template:
+    metadata:
+      labels:
+        app: mprime
+    spec:
+      containers:
+      - name: mprime
+        image: primesearch/mprime:latest
+          #command: ["sh", "-c", "while true; do sleep 3600; done"]
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - mountPath: /kubmprime
+          name: mprime-storage
+        env:
+        - name: PRIME_ID
+          value: "danc2"
+        - name: COMPUTER_NAME
+          value: "baremetal"
+        - name: TYPE_OF_WORK
+          value: "150"
+        - name: PRP_PROOF_POWER
+          value: "5"
+        - name: DIR
+          value: "/kubmprime"
+        - name: PRP_PROOF_POWER_MULT
+          value: "Default"
+        - name: PROOF_CERTIFICATION_WORK
+          value: "1"
+        - name: DEBUG
+          value: "0"
+      volumes:
+      - name: mprime-storage
+        persistentVolumeClaim:
+          claimName: mprime-pvc
