@@ -1,6 +1,6 @@
 #!/usr/bin/expect -f
 
-# Teal Dulcet
+# Copyright © 2020 Teal Dulcet
 # ./mprime.exp <User ID> <Computer name> <Type of work>
 
 set timeout -1

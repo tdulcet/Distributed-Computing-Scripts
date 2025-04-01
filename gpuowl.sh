@@ -179,7 +179,7 @@ if ! python3 -m pip install requests; then
 	if command -v pip3 >/dev/null; then
 		pip3 install requests
 	else
-		echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
+		echo -e "\nWarning: Python pip3 is not installed and the Requests library may also not be installed\n"
 	fi
 fi
 echo -e "\nSetting up GpuOwl\n"

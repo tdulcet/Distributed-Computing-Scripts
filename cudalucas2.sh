@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Teal Dulcet
+# Copyright © 2020 Teal Dulcet
 # wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas2.sh | bash -s --
 # ./cudalucas2.sh <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./cudalucas2.sh <N> "$USER" "$HOSTNAME" 100 10
@@ -146,7 +146,7 @@ if ! python3 -m pip install requests; then
 	if command -v pip3 >/dev/null; then
 		pip3 install requests
 	else
-		echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
+		echo -e "\nWarning: Python pip3 is not installed and the Requests library may also not be installed\n"
 	fi
 fi
 cp CUDALucas.ini "CUDALucas$N.ini"

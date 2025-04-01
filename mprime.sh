@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Teal Dulcet
+# Copyright © 2020 Teal Dulcet
 # wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mprime.sh | bash -s --
 # ./mprime.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./mprime.sh "$USER" "$HOSTNAME" 150 10

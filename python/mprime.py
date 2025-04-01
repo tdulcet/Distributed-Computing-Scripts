@@ -43,9 +43,11 @@ def sha256sum(filename):
     The hash sum string in hexidecimal digits.
     """
     h = sha256()
+    buf = bytearray(h.block_size * 4096)
+    view = memoryview(buf)
     with open(filename, "rb") as f:
-        for chunk in iter(lambda: f.read(256 * h.block_size), b""):
-            h.update(chunk)
+        for size in iter(lambda: f.readinto(buf), 0):
+            h.update(view[:size])
     return h.hexdigest()
 
 
@@ -92,6 +94,7 @@ DIR = os.getcwd()
 print("\nDownloading MPrime\n")
 with requests.get(f"https://www.mersenne.org/download/software/v30/30.19/{FILE}", stream=True) as r:
     r.raise_for_status()
+    # r.headers.get('Content-Disposition', '')
     with open(FILE, "wb") as f:
         os.posix_fallocate(f.fileno(), 0, int(r.headers["Content-Length"]))
         for chunk in r.iter_content(chunk_size=None):

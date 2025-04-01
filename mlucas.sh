@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Teal Dulcet
+# Copyright © 2020 Teal Dulcet
 # wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh | bash -s --
 # ./mlucas.sh [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 # ./mlucas.sh "$USER" "$HOSTNAME" 150 10
@@ -162,7 +162,7 @@ if [[ -d $DIR ]]; then
 		exit 1
 	fi
 else
-	echo -e "\nDownloading Mlucas v21\n"
+	echo -e "\nDownloading Mlucas\n"
 	if command -v git >/dev/null; then
 		git clone https://github.com/primesearch/Mlucas.git
 	else
@@ -183,7 +183,7 @@ fi
 if [[ -f "autoprimenet.py" ]]; then
 	echo -e "\nAutoPrimeNet is already downloaded\n"
 else
-	echo -e "\nDownloading the latest PrimeNet program\n"
+	echo -e "\nDownloading AutoPrimeNet\n"
 	if [[ -e ../autoprimenet.py ]]; then
 		cp -v ../autoprimenet.py .
 	else
@@ -199,7 +199,7 @@ if ! python3 -m pip install requests; then
 	if command -v pip3 >/dev/null; then
 		pip3 install requests
 	else
-		echo -e "\nWarning: pip3 is not installed and the Requests library may also not be installed\n"
+		echo -e "\nWarning: Python pip3 is not installed and the Requests library may also not be installed\n"
 	fi
 fi
 cd obj
@@ -422,7 +422,7 @@ RUNS=(${ARGS[MAX]})
 threads=(${THREADS[MAX]})
 {
 	echo -e "\nBenchmark Summary\n"
-	echo -e "\tAdjusted msec/iter times (ms/iter) vs Actual iters/sec total throughput (iter/s) for each combination\n"
+	echo -e "\tAdjusted ms/iter times vs Actual iters/s total throughput for each combination\n"
 	{
 		printf 'FFT\t'
 		for i in "${!ARGS[@]}"; do
@@ -516,7 +516,7 @@ for i in "${!RUNS[@]}"; do
 done
 echo -e "\nStarting AutoPrimeNet\n"
 nohup python3 -OO ../autoprimenet.py "${args[@]}" >>'autoprimenet.out' &
-sleep $((${#RUNS[*]} * 2))
+sleep $((${#RUNS[*]} * 4))
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-core argument: %s)\n" $((i + 1)) "${RUNS[i]}"
 	pushd "run$i" >/dev/null
@@ -538,20 +538,20 @@ set -e
 # Mlucas maximum memory usage precentage per worker
 maxalloc=$maxalloc
 
-pgrep -x Mlucas >/dev/null || {
+pgrep -x Mlucas >/dev/null || (
 	echo -e "\nStarting Mlucas\n"
 	set -x
 	$(for i in "${!RUNS[@]}"; do
 		((i)) && printf '\t'
 		echo "(cd 'run$i' && exec nohup nice ../Mlucas -core ${RUNS[i]} -maxalloc \$maxalloc >>'Mlucas.out' &) "
 	done)
-}
+)
 
-pgrep -f '^python3 -OO \.\./autoprimenet\.py' >/dev/null || {
+pgrep -f '^python3 -OO \.\./autoprimenet\.py' >/dev/null || (
 	echo -e "\nStarting AutoPrimeNet\n"
 	set -x
 	exec nohup python3 -OO ../autoprimenet.py ${args[@]} >>'autoprimenet.out' &
-}
+)
 EOF
 chmod +x jobs.sh
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && ./jobs.sh"; } | crontab -

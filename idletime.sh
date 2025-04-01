@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Teal Dulcet
+# Copyright © Teal Dulcet
 # Outputs system idle time
 # wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/idletime.sh | bash -s --
 # ./idletime.sh
@@ -11,21 +11,21 @@ if [[ $# -ne 0 ]]; then
 fi
 
 # Adapted from: https://github.com/tdulcet/Remote-Servers-Status/blob/master/status.sh
-# getSecondsAsDigitalClock <seconds>
-getSecondsAsDigitalClock() {
-	local sec_num=$1
-	local d=$((sec_num / 86400))
-	local h=$(((sec_num % 86400) / 3600))
-	local m=$(((sec_num % 3600) / 60))
-	local s=$((sec_num % 60))
+# outputduration <seconds>
+outputduration() {
+	local sec=$1
+	local d=$((sec / 86400))
+	local h=$(((sec % 86400) / 3600))
+	local m=$(((sec % 3600) / 60))
+	local s=$((sec % 60))
 	local text=''
-	if [[ $d -ne 0 ]]; then
+	if ((d)); then
 		text+="$(printf "%'d" "$d") days "
 	fi
-	if [[ $d -ne 0 || $h -ne 0 ]]; then
+	if ((d || h)); then
 		text+="$h hours "
 	fi
-	if [[ $d -ne 0 || $h -ne 0 || $m -ne 0 ]]; then
+	if ((d || h || m)); then
 		text+="$m minutes "
 	fi
 	text+="$s seconds"
@@ -33,4 +33,4 @@ getSecondsAsDigitalClock() {
 }
 
 IDLETIME=$(awk '{ print int($2) }' /proc/uptime)
-echo -e "System idle time for all processor (CPU) threads since the last boot:\t$(getSecondsAsDigitalClock "$IDLETIME")\n"
+echo -e "System idle time for all processor (CPU) threads since the last boot:\t$(outputduration "$IDLETIME")\n"

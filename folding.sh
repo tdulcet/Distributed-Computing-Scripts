@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Teal Dulcet
+# Copyright © 2020 Teal Dulcet
 # wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh | bash -s --
 # ./folding.sh [Username] [Team number] [Passkey] [Power]
 # ./folding.sh "$USER" 0 "" medium

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Teal Dulcet
+# Copyright © 2020 Teal Dulcet
 # wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/boinc.sh | bash -s --
 # ./boinc.sh <URL> <E-mail> <Password>
 # ./boinc.sh <URL> <Account Key>
