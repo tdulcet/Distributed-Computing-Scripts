@@ -501,9 +501,6 @@ for j in "${!threads[@]}"; do
 	ln -s "mlucas.${CORES:+${CORES[MAX]}c.}${threads[j]}t.$j.cfg" "mlucas.$j.cfg"
 done
 echo -e "\nRegistering computer with PrimeNet\n"
-total=$((TOTAL_PHYSICAL_MEM >> 10))
-python3 -OO ../autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} -m -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" --memory=$total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --cores="$CPU_CORES" --hyperthreads="$HP" --l1=$((CPU_CACHE_SIZES[1] ? CPU_CACHE_SIZES[1] >> 10 : 8)) --l2=$((CPU_CACHE_SIZES[2] ? CPU_CACHE_SIZES[2] >> 10 : 512)) --l3=$((CPU_CACHE_SIZES[3] >> 10))
-maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 args=()
 for i in "${!RUNS[@]}"; do
 	dir="run$i"
@@ -514,8 +511,11 @@ for i in "${!RUNS[@]}"; do
 	args+=(-D "$dir")
 	popd >/dev/null
 done
+total=$((TOTAL_PHYSICAL_MEM >> 10))
+python3 -OO ../autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} "${args[@]}" -m -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" --memory=$total --max-memory="$(echo $total | awk '{ printf "%d", $1 * 0.9 }')" --cores="$CPU_CORES" --hyperthreads="$HP" --l1=$((CPU_CACHE_SIZES[1] ? CPU_CACHE_SIZES[1] >> 10 : 8)) --l2=$((CPU_CACHE_SIZES[2] ? CPU_CACHE_SIZES[2] >> 10 : 512)) --l3=$((CPU_CACHE_SIZES[3] >> 10))
+maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 echo -e "\nStarting AutoPrimeNet\n"
-nohup python3 -OO ../autoprimenet.py "${args[@]}" >>'autoprimenet.out' &
+nohup python3 -OO ../autoprimenet.py >>'autoprimenet.out' &
 sleep $((${#RUNS[*]} * 4))
 for i in "${!RUNS[@]}"; do
 	printf "\nWorker/CPU Core %'d: (-core argument: %s)\n" $((i + 1)) "${RUNS[i]}"
@@ -550,7 +550,7 @@ pgrep -x Mlucas >/dev/null || (
 pgrep -f '^python3 -OO \.\./autoprimenet\.py' >/dev/null || (
 	echo -e "\nStarting AutoPrimeNet\n"
 	set -x
-	exec nohup python3 -OO ../autoprimenet.py ${args[@]} >>'autoprimenet.out' &
+	exec nohup python3 -OO ../autoprimenet.py >>'autoprimenet.out' &
 )
 EOF
 chmod +x jobs.sh
