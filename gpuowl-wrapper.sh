@@ -213,15 +213,15 @@ while true; do
 
 	if ! [[ -r $aWorkFile ]] || ! mapfile -t aworktodo <"$aWorkFile" || ! ((${#worktodo[*]})); then
 		if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && ((${#worktodo[*]})); then
-			printf "Found %'d work to do(s) in the %s file. Copying the first one to %s.\n" ${#worktodo[*]} "${WorkFile@Q}" "${aWorkFile@Q}"
+			printf "Found %'d assignment(s) in the %s file. Copying the first one to %s.\n" ${#worktodo[*]} "${WorkFile@Q}" "${aWorkFile@Q}"
 			printf '%s\n' "${worktodo[0]}" >>"$aWorkFile"
 			mapfile -t aworktodo <"$aWorkFile"
 		else
-			echo "Error: No work to do. Please run AutoPrimeNet or manually add some work to the ${WorkFile@Q} file." >&2
+			echo "Error: No assignments. Please run AutoPrimeNet or manually add some work to the ${WorkFile@Q} file." >&2
 			exit 1
 		fi
 	else
-		printf "Found %'d work to do(s) in the %s file.\n" ${#aworktodo[*]} "${aWorkFile@Q}"
+		printf "Found %'d assignment(s) in the %s file.\n" ${#aworktodo[*]} "${aWorkFile@Q}"
 	fi
 
 	for work in "${aworktodo[@]}"; do
