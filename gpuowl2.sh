@@ -131,7 +131,7 @@ else
 		wget https://github.com/preda/gpuowl/archive/$BRANCH3.tar.gz
 		echo -e "\nDecompressing the files\n"
 		tar -xzvf $BRANCH3.tar.gz
-		if output=$(curl -s "https://api.github.com/repos/preda/gpuowl/compare/v6.11...$BRANCH3"); then
+		if output=$(curl -sf "https://api.github.com/repos/preda/gpuowl/compare/v6.11...$BRANCH3"); then
 			if command -v jq >/dev/null; then
 				behind_by=$(echo "$output" | jq '.behind_by')
 				sha=$(echo "$output" | jq -r '.base_commit.sha')
@@ -151,13 +151,13 @@ else
 		wget https://github.com/preda/gpuowl/archive/$BRANCH1.tar.gz
 		echo -e "\nDecompressing the files\n"
 		tar -xzvf $BRANCH1.tar.gz
-		if output=$(curl -s 'https://api.github.com/repos/preda/gpuowl/tags?per_page=1'); then
+		if output=$(curl -sf 'https://api.github.com/repos/preda/gpuowl/tags?per_page=1'); then
 			if command -v jq >/dev/null; then
 				name=$(echo "$output" | jq -r '.[0].name')
 			else
 				name=$(echo "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)[0]["name"])')
 			fi
-			if output=$(curl -s "https://api.github.com/repos/preda/gpuowl/compare/$BRANCH1...$name"); then
+			if output=$(curl -sf "https://api.github.com/repos/preda/gpuowl/compare/$BRANCH1...$name"); then
 				if command -v jq >/dev/null; then
 					behind_by=$(echo "$output" | jq '.behind_by')
 					sha=$(echo "$output" | jq -r '.base_commit.sha')
