@@ -2,7 +2,7 @@
 line-length = 132 # 88
 indent-width = 2
 
-target-version = "py310"
+target-version = "py312"
 
 preview = true
 

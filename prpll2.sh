@@ -1,18 +1,15 @@
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl2.sh | bash -s --
-# ./gpuowl2.sh <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
-# ./gpuowl2.sh <N> "$USER" "$HOSTNAME" 150 10
-# ./gpuowl2.sh <N> ANONYMOUS
+# wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/prpll2.sh | bash -s --
+# ./prpll2.sh <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
+# ./prpll2.sh <N> "$USER" "$HOSTNAME" 150 10
+# ./prpll2.sh <N> ANONYMOUS
 
-DIR="gpuowl"
-DIR1="gpuowl-master"
-DIR2="gpuowl-7.2"
-DIR3="gpuowl-6"
-BRANCH1=gpuowl # master
-BRANCH2=d6ad1e0cf5a323fc4e0ee67e79884448a503a818
-BRANCH3=v6
+set -e
+
+DIR="prpll"
+BRANCH=master
 if [[ $# -lt 1 || $# -gt 5 ]]; then
 	echo "Usage: $0 <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
 	exit 1
@@ -28,7 +25,7 @@ if ! [[ $N =~ $RE ]]; then
 	echo "Usage: <Computer number> must be a number" >&2
 	exit 1
 fi
-RE='^([4]|1(0[01246]|5[012345]))$'
+RE='^1(0[01246]|5[01235])$'
 if ! [[ $TYPE =~ $RE ]]; then
 	echo "Usage: [Type of work] must be a number" >&2
 	exit 1
@@ -79,19 +76,12 @@ CXX=${CXX:-g++}
 VERSION=$("$CXX" -dumpversion)
 RE='^g\+\+'
 if [[ $CXX =~ $RE && ${VERSION%%.*} -lt 8 ]]; then
-	echo "Error: GpuOwl requires at least the GNU C++ compiler 8 and you have $VERSION" >&2
+	echo "Error: PRPLL requires at least the GNU C++ compiler 8 and you have $VERSION" >&2
 	exit 1
 fi
 if ! command -v python3 >/dev/null; then
 	echo "Error: Python 3 is not installed." >&2
 	exit 1
-fi
-files=(/usr/include/gmp*.h)
-if ! ldconfig -p | grep -iq 'libgmp\.' || ! ldconfig -p | grep -iq 'libgmpxx\.' || ! [[ -f ${files[0]} ]]; then
-	echo -e "Installing the GNU Multiple Precision (GMP) library"
-	echo -e "Please enter your password if prompted.\n"
-	sudo apt-get update -y
-	sudo apt-get install -y libgmp-dev
 fi
 if ! ldconfig -p | grep -iq 'libOpenCL\.'; then
 	echo -e "Installing the OpenCL library"
@@ -101,65 +91,32 @@ if ! ldconfig -p | grep -iq 'libOpenCL\.'; then
 	sudo apt-get install -y ocl-icd-opencl-dev clinfo
 fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
-if [[ -d $DIR && -x "$DIR/$DIR1/gpuowl" && -x "$DIR/$DIR2/gpuowl" && -x "$DIR/$DIR3/gpuowl" ]]; then
-	echo -e "GpuOwl is already downloaded\n"
+if [[ -d $DIR && -x "$DIR/prpll" ]]; then
+	echo -e "PRPLL is already downloaded\n"
 	cd "$DIR"
 else
-	mkdir "$DIR"
-	cd "$DIR"
 	if command -v git >/dev/null; then
-		echo -e "Downloading GpuOwl\n"
-		git clone https://github.com/preda/gpuowl.git $DIR1
-		cp -r $DIR1/ $DIR2/
-		cp -r $DIR1/ $DIR3/
-		pushd $DIR1 >/dev/null
-		git checkout -f $BRANCH1
+		echo -e "Downloading PRPLL\n"
+		git clone https://github.com/gwoltman/gpuowl.git "$DIR"
+		cd "$DIR"
+		git remote add upstream https://github.com/preda/gpuowl.git
+		git fetch upstream
 		sed -i 's/--dirty //' Makefile
-		popd >/dev/null
-		echo
-		pushd $DIR2 >/dev/null
-		git checkout -f -b v7.2-112 $BRANCH2
-		sed -i 's/--dirty //' Makefile
-		popd >/dev/null
-		echo
-		pushd $DIR3 >/dev/null
-		git checkout -f $BRANCH3
-		sed -i 's/--dirty //' Makefile
-		popd >/dev/null
+		sed -i 's/ --match v\/prpll\/\*//' Makefile
 	else
-		echo -e "Downloading GpuOwl v6.11\n"
-		wget https://github.com/preda/gpuowl/archive/$BRANCH3.tar.gz
+		echo -e "Downloading PRPLL\n"
+		wget https://github.com/gwoltman/gpuowl/archive/$BRANCH.tar.gz
 		echo -e "\nDecompressing the files\n"
-		tar -xzvf $BRANCH3.tar.gz
-		mv -v gpuowl-$BRANCH3/ $DIR3/
-		if output=$(curl -sf "https://api.github.com/repos/preda/gpuowl/compare/v6.11...$BRANCH3"); then
-			if command -v jq >/dev/null; then
-				behind_by=$(echo "$output" | jq '.behind_by')
-				sha=$(echo "$output" | jq -r '.base_commit.sha')
-			else
-				behind_by=$(echo "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)["behind_by"])')
-				sha=$(echo "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)["base_commit"]["sha"])')
-			fi
-			sed -i 's/`git describe --long --dirty --always`/v6.11'"-${behind_by}-g${sha::7}"'/' $DIR3/Makefile
-		fi
-		echo -e "Downloading GpuOwl v7.2-112\n"
-		wget https://github.com/preda/gpuowl/archive/$BRANCH2.tar.gz
-		echo -e "\nDecompressing the files\n"
-		tar -xzvf $BRANCH2.tar.gz
-		mv -v gpuowl-$BRANCH2/ $DIR2/
-		sed -i 's/`git describe --long --dirty --always`/v7.2-112-gd6ad1e0/' $DIR2/Makefile
-		echo -e "\nDownloading the current version of GpuOwl\n"
-		wget https://github.com/preda/gpuowl/archive/$BRANCH1.tar.gz
-		echo -e "\nDecompressing the files\n"
-		tar -xzvf $BRANCH1.tar.gz
-		mv -v gpuowl-$BRANCH1/ $DIR2/
-		if output=$(curl -sf 'https://api.github.com/repos/preda/gpuowl/tags?per_page=1'); then
+		tar -xzvf $BRANCH.tar.gz
+		mv -v gpuowl-$BRANCH/ "$DIR"/
+		cd "$DIR"
+		if output=$(curl -sf 'https://api.github.com/repos/gwoltman/gpuowl/tags?per_page=1'); then
 			if command -v jq >/dev/null; then
 				name=$(echo "$output" | jq -r '.[0].name')
 			else
 				name=$(echo "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)[0]["name"])')
 			fi
-			if output=$(curl -sf "https://api.github.com/repos/preda/gpuowl/compare/$BRANCH1...$name"); then
+			if output=$(curl -sf "https://api.github.com/repos/gwoltman/gpuowl/compare/$BRANCH...$name"); then
 				if command -v jq >/dev/null; then
 					behind_by=$(echo "$output" | jq '.behind_by')
 					sha=$(echo "$output" | jq -r '.base_commit.sha')
@@ -168,36 +125,17 @@ else
 					sha=$(echo "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)["base_commit"]["sha"])')
 				fi
 			fi
-			sed -i 's/`git describe --tags --long --dirty --always`/'"${name}${behind_by:+-${behind_by}${sha:+-g${sha::7}}}"'/' $DIR1/Makefile
+			sed -i 's/\\`git describe --tags --long --dirty --always --match v\/prpll\/\*\\`/'"${name}${behind_by:+-${behind_by}${sha:+-g${sha::7}}}"'/' Makefile
 		fi
 	fi
-	echo -e "\nSetting up GpuOwl\n"
-	sed -i 's/ -flto//' $DIR1/Makefile
-	sed -i 's/power <= 10/power <= 12/' $DIR2/Proof.cpp
-	sed -i 's/power > 10/power > 12/' $DIR2/Args.cpp
-	pushd $DIR3 >/dev/null
-	sed -i 's/"DoubleCheck"/"Test"/' Task.h
-	sed -i 's/power >= 6 && power <= 10/power > 0 and power <= 12/' ProofSet.h
-	sed -i 's/proofPow >= 6 && proofPow <= 10/proofPow > 0 and proofPow <= 12/' Args.cpp
-	sed -i 's/< 6 || power > 10/< 1 || power > 12/' Args.cpp
-	sed -i '/^#include <cassert>/a #include <array>' Pm1Plan.h
-	sed -i '/^#pragma once/a #include <array>' Sha3Hash.h
-	sed -i '/^#include <vector>/a #include <array>' clwrap.cpp
-	popd >/dev/null
-	for dir in $DIR1 $DIR2 $DIR3; do
-		echo
-		pushd "$dir" >/dev/null
-		sed -i 's/-Wall -O2/-Wall -g -O3/' Makefile
-		# -funsafe-math-optimizations
-		sed -i 's/-O3/-O3 -flto -ffinite-math-only/' Makefile
-		make -j "$(nproc)"
-		# make clean
-		rm -f -- *.o
-		popd >/dev/null
-	done
-	pushd $DIR1/build-release >/dev/null
+	echo -e "\nSetting up PRPLL\n"
+	sed -i 's/^CXX =/CXX ?=/' Makefile
+	# -funsafe-math-optimizations
+	sed -i 's/-O2/-Wall -g -O3 -flto -ffinite-math-only/' Makefile
+	make -j "$(nproc)"
+	pushd build-release >/dev/null
 	rm -- *.o
-	mv -v gpuowl ..
+	mv -v prpll ..
 	popd >/dev/null
 fi
 if [[ -f "autoprimenet.py" ]]; then
@@ -225,7 +163,7 @@ fi
 mkdir "$N"
 cd "$N"
 DIR=$PWD
-echo "-user $USERID -cpu ${COMPUTER//[[:space:]]/_}" >config.txt
+echo "-user $USERID -unsafeMath" >config.txt
 echo -e "\nRegistering computer with PrimeNet\n"
 ARGS=()
 if command -v clinfo >/dev/null; then
@@ -254,54 +192,35 @@ elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 		ARGS+=(--memory="$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 	fi
 fi
-python3 -OO ../autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" -i 'worktodo.ini' -r 'results.ini' -g -H "$COMPUTER" "${ARGS[@]}"
+python3 -OO ../autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" --prpll -H "$COMPUTER" "${ARGS[@]}"
 echo -e "\nStarting AutoPrimeNet\n"
 nohup python3 -OO ../autoprimenet.py >>'autoprimenet.out' &
 sleep 1
-echo -e "\nDownloading GpuOwl benchmarking script\n"
-if [[ -e ../../gpuowl-bench.sh ]]; then
-	cp -v ../../gpuowl-bench.sh .
-else
-	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-bench.sh
-fi
-sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl-bench.sh
-chmod +x gpuowl-bench.sh
-echo -e "\nRunning self tests\nThis may take a while…\n"
-time ./gpuowl-bench.sh ../$DIR3/gpuowl 10000 STATS
-time ./gpuowl-bench.sh ../$DIR1/gpuowl 20000 STATS
-echo "The benchmark data was written to the 'bench.txt' file"
-echo -e "\nDownloading GpuOwl wrapper script\n"
-if [[ -e ../../gpuowl-wrapper.sh ]]; then
-	cp -v ../../gpuowl-wrapper.sh .
-else
-	wget -nv https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl-wrapper.sh
-fi
-mv -v gpuowl{-wrapper.sh,}
-sed -i "s/^DEVICE=0/DEVICE=$DEVICE/" gpuowl
-sed -i "s/gpuowl-/..\/gpuowl-/" gpuowl
-chmod +x gpuowl
-echo -e "\nStarting GpuOwl\n"
-nohup ./gpuowl >>"gpuowl.out" &
+echo -e "\nTuning PRPLL for your computer and GPU\nThis may take a while…\n"
+time ../prpll -device $DEVICE -tune minexp=0
+sed -i '/-log/ s/^/# /' config.txt
+echo -e "\nStarting PRPLL\n"
+nohup ../prpll -device $DEVICE >>"prpll.out" &
 sleep 1
-#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ./gpuowl >> 'gpuowl.out' &"; } | crontab -
+#crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup ../prpll -device $DEVICE >> 'prpll.out' &"; } | crontab -
 #crontab -l | { cat; echo "@reboot cd ${DIR@Q} && nohup python3 -OO ../autoprimenet.py >> 'autoprimenet.out' &"; } | crontab -
-cat <<EOF >gpuowl.sh
+cat <<EOF >prpll.sh
 #!/bin/bash
 
 # Copyright © 2020 Teal Dulcet
-# Start GpuOwl and AutoPrimeNet if the computer has not been used in the specified idle time and stop it when someone uses the computer
-# ${DIR@Q}/gpuowl.sh
+# Start PRPLL and AutoPrimeNet if the computer has not been used in the specified idle time and stop it when someone uses the computer
+# ${DIR@Q}/prpll.sh
 
 NOW=\${EPOCHSECONDS:-\$(date +%s)}
 
 if who -s | awk '{ print \$2 }' | (cd /dev && xargs -r stat -c '%U %X') | awk '{if ('"\$NOW"'-\$2<$TIME) { print \$1"\t"'"\$NOW"'-\$2; ++count }} END{if (count>0) { exit 1 }}' >/dev/null; then
-	pgrep -x gpuowl >/dev/null || (cd ${DIR@Q} && exec nohup ./gpuowl >>'gpuowl.out' &)
+	pgrep -x prpll >/dev/null || (cd ${DIR@Q} && exec nohup ../prpll -device $DEVICE >>'prpll.out' &)
 	pgrep -f '^python3 -OO \.\./autoprimenet\.py' >/dev/null || (cd ${DIR@Q} && exec nohup python3 -OO ../autoprimenet.py >>'autoprimenet.out' &)
 else
-	pgrep -x gpuowl >/dev/null && killall -g -INT gpuowl
+	pgrep -x prpll >/dev/null && killall -g -INT prpll
 fi
 EOF
-chmod +x gpuowl.sh
+chmod +x prpll.sh
 echo -e "\nRun this command for it to start if the computer has not been used in the specified idle time and stop it when someone uses the computer:\n"
-echo "crontab -l | { cat; echo \"* * * * * ${DIR@Q}/gpuowl.sh\"; } | crontab -"
+echo "crontab -l | { cat; echo \"* * * * * ${DIR@Q}/prpll.sh\"; } | crontab -"
 echo -e "\nTo edit the crontab, run \"crontab -e\""

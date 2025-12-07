@@ -57,12 +57,12 @@ GPUOWL_LL=3
 GPUOWL_PM1=3
 
 # worktodo and results files for AutoPrimeNet
-WorkFile="worktodo.ini"
-ResultsFile="results.ini"
+WORK_FILE="worktodo.ini"
+RESULTS_FILE="results.ini"
 
 # worktodo and results files for GpuOwl
-aWorkFile="worktodo.txt"
-aResultsFile="results.txt"
+AWORK_FILE="worktodo.txt"
+ARESULTS_FILE="results.txt"
 
 # Limit GpuOwl GPU memory usage (MiB)
 # maxAlloc=1024
@@ -77,7 +77,7 @@ DEVICE=0
 ARGS=(
 	-device $DEVICE
 	# -block 1000
-	# -results "$aResultsFile"
+	# -results "$ARESULTS_FILE"
 
 )
 
@@ -155,11 +155,11 @@ trap 'trap - INT; kill -INT "$$"' INT
 while true; do
 	date
 
-	if [[ -r $aResultsFile ]] && mapfile -t aresults <"$aResultsFile" && ((${#aresults[*]})); then
-		printf "Found %'d new result(s) in %s. Moving to %s.\n" ${#aresults[*]} "${aResultsFile@Q}" "${ResultsFile@Q}"
+	if [[ -r $ARESULTS_FILE ]] && mapfile -t aresults <"$ARESULTS_FILE" && ((${#aresults[*]})); then
+		printf "Found %'d new result(s) in %s. Moving to %s.\n" ${#aresults[*]} "${ARESULTS_FILE@Q}" "${RESULTS_FILE@Q}"
 		for result in "${aresults[@]}"; do
 			if echo "$result" | grep -q 'gpuowl'; then
-				if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && ((${#worktodo[*]})); then
+				if [[ -r $WORK_FILE ]] && mapfile -t worktodo <"$WORK_FILE" && ((${#worktodo[*]})); then
 					if command -v jq >/dev/null; then
 						exponent=$(echo "$result" | jq -r '.exponent')
 						worktype=$(echo "$result" | jq -r '.worktype')
@@ -199,29 +199,29 @@ while true; do
 							fi
 						fi
 					done
-					printf '%s\n' "${worktodo[@]}" >"$WorkFile"
+					printf '%s\n' "${worktodo[@]}" >"$WORK_FILE"
 				fi
 			else
 				echo "Warning: Unknown result: $result"
 			fi
 		done
-		printf '%s\n' "${aresults[@]}" >>"$ResultsFile"
-		>"$aResultsFile"
+		printf '%s\n' "${aresults[@]}" >>"$RESULTS_FILE"
+		>"$ARESULTS_FILE"
 	else
 		echo "No results found."
 	fi
 
-	if ! [[ -r $aWorkFile ]] || ! mapfile -t aworktodo <"$aWorkFile" || ! ((${#worktodo[*]})); then
-		if [[ -r $WorkFile ]] && mapfile -t worktodo <"$WorkFile" && ((${#worktodo[*]})); then
-			printf "Found %'d assignment(s) in the %s file. Copying the first one to %s.\n" ${#worktodo[*]} "${WorkFile@Q}" "${aWorkFile@Q}"
-			printf '%s\n' "${worktodo[0]}" >>"$aWorkFile"
-			mapfile -t aworktodo <"$aWorkFile"
+	if ! [[ -r $AWORK_FILE ]] || ! mapfile -t aworktodo <"$AWORK_FILE" || ! ((${#worktodo[*]})); then
+		if [[ -r $WORK_FILE ]] && mapfile -t worktodo <"$WORK_FILE" && ((${#worktodo[*]})); then
+			printf "Found %'d assignment(s) in the %s file. Copying the first one to %s.\n" ${#worktodo[*]} "${WORK_FILE@Q}" "${AWORK_FILE@Q}"
+			printf '%s\n' "${worktodo[0]}" >>"$AWORK_FILE"
+			mapfile -t aworktodo <"$AWORK_FILE"
 		else
-			echo "Error: No assignments. Please run AutoPrimeNet or manually add some work to the ${WorkFile@Q} file." >&2
+			echo "Error: No assignments. Please run AutoPrimeNet or manually add some work to the ${WORK_FILE@Q} file." >&2
 			exit 1
 		fi
 	else
-		printf "Found %'d assignment(s) in the %s file.\n" ${#aworktodo[*]} "${aWorkFile@Q}"
+		printf "Found %'d assignment(s) in the %s file.\n" ${#aworktodo[*]} "${AWORK_FILE@Q}"
 	fi
 
 	for work in "${aworktodo[@]}"; do
