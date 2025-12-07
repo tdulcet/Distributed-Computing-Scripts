@@ -65,7 +65,6 @@ jobs:
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' gpuowl.sh
-        [[ $CXX == clang* ]] && sed -i 's/-O3 -flto/-O3/' gpuowl.sh
         sed -i '/^nohup / s/^/# /' gpuowl.sh
         sed -i '/^python3 -OO / s/^/# /' gpuowl.sh
         $CXX --version
@@ -77,6 +76,41 @@ jobs:
         name: ${{ matrix.os }}_${{ matrix.cxx }}_gpuowl
         path: |
           gpuowl/
+    - name: ShellCheck
+      run: shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh
+      continue-on-error: true
+
+  PRPLL:
+    name: PRPLL
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        cxx: [g++, clang++]
+      fail-fast: false
+    env:
+      CXX: ${{ matrix.cxx }}
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y ocl-icd-opencl-dev pocl-opencl-icd
+    - name: Before script
+      run: |
+        sed -i '/^GPU=/,/^fi/ s/^/# /' prpll.sh
+        sed -i '/^nohup / s/^/# /' prpll.sh
+        sed -i '/^python3 -OO / s/^/# /' prpll.sh
+        $CXX --version
+    - name: Script
+      run: bash -e -o pipefail -- prpll.sh ANONYMOUS
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ${{ matrix.os }}_${{ matrix.cxx }}_prpll
+        path: |
+          prpll/
     - name: ShellCheck
       run: shopt -s globstar; shellcheck -o avoid-nullary-conditions,check-extra-masked-returns,check-set-e-suppressed,deprecate-which,quote-safe-variables,require-double-brackets -s bash **/*.sh
       continue-on-error: true

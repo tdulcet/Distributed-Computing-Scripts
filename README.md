@@ -38,9 +38,17 @@ This script follows the recommended instructions on the [Mlucas README](https://
 wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/mlucas.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
 ```
 
+### PRPLL
+
+Downloads, builds, sets up and runs [PRPLL-NTT](https://github.com/gwoltman/gpuowl). PRPLL is the successor of GpuOwl and should be much faster. Downloads, sets up and runs [AutoPrimeNet](https://github.com/tdulcet/AutoPrimeNet) for automated PrimeNet assignments. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that PRPLL uses C++20 and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
+
+```
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/prpll.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
+```
+
 ### GpuOwl
 
-Downloads, builds, sets up and runs the latest version of [GpuOwl](https://github.com/preda/gpuowl) for PRP tests, version 7.2-112 for PRP tests with combined P-1 and the [v6 branch](https://github.com/preda/gpuowl/tree/v6) for LL and standalone P-1 tests. Downloads, sets up and runs [AutoPrimeNet](https://github.com/tdulcet/AutoPrimeNet) for automated PrimeNet assignments. Creates wrapper script to run the correct version of GpuOwl based on the next assignment. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that [GpuOwl uses C++20](https://github.com/preda/gpuowl#build) and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
+Downloads, builds, sets up and runs the latest version of [GpuOwl](https://github.com/preda/gpuowl/tree/gpuowl) for PRP tests, version 7.2-112 for PRP tests with combined P-1 and the [v6 branch](https://github.com/preda/gpuowl/tree/v6) for LL and standalone P-1 tests. Downloads, sets up and runs [AutoPrimeNet](https://github.com/tdulcet/AutoPrimeNet) for automated PrimeNet assignments. Creates wrapper script to run the correct version of GpuOwl based on the next assignment. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that [GpuOwl uses C++20](https://github.com/preda/gpuowl/tree/gpuowl#build) and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
 
 ```
 wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/gpuowl.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
@@ -64,6 +72,12 @@ wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/m
 
 ```
 wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/cudalucas2.sh | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
+```
+
+#### PRPLL
+
+```
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/prpll2.sh | bash -s -- <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run]
 ```
 
 #### GpuOwl
