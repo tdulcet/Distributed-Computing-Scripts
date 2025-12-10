@@ -43,6 +43,7 @@ if [[ -z $TOKEN ]]; then
 	echo "AccountToken is not set, using default settings"
 else
 	echo "AccountToken:\t\t$TOKEN"
+fi
 if [[ -e idletime.sh ]]; then
 	bash -- idletime.sh
 else
@@ -84,12 +85,11 @@ EOF
 if [[ $? -ne 0 ]]; then
 	echo "Error: Failed to write configuration file" >&2
 	exit 1
-fi
-sudo dpkg -i --force-depends fahclient_8.4.9_amd64.deb
+sudo dpkg -i --force-depends fah-client_8.4.9_amd64.deb
 sudo systemctl restart fah-client
 
 if [[ -z $TOKEN ]]; then
 	echo -e "Account Token is not set, edit /etc/fah-client/config.xml to add your token."
-	echo -e "You can find your token here: https://v8-4.foldingathome.org/account/settings"
+fi
 	
 # sudo apt-get install -f
