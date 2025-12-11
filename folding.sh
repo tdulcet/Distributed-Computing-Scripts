@@ -2,8 +2,8 @@
 
 # Copyright © 2020 Teal Dulcet
 # wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh | bash -s --
-# ./folding.sh [Username] [Team number] [Passkey] [Power] [AccountToken]
-# ./folding.sh "$USER" 0 "" medium "YOUR_TOKEN_HERE"
+# ./folding.sh [Username] [Team number] [Passkey] [Power] [Account Token]
+# ./folding.sh "$USER" 0 "" medium ""
 # ./folding.sh anonymous
 
 # sudo dpkg -P fahclient
@@ -12,7 +12,7 @@
 
 DIR="folding"
 if [[ $# -gt 5 ]]; then
-	echo "Usage: $0 [Username] [Team number] [Passkey] [Power] [AccountToken]" >&2
+	echo "Usage: $0 [Username] [Team number] [Passkey] [Power] [Account Token]" >&2
 	exit 1
 fi
 USERID=${1:-$USER}
@@ -38,11 +38,11 @@ fi
 echo -e "Username:\t$USERID"
 echo -e "Team number:\t$TEAM"
 echo -e "Passkey:\t$PASSKEY"
-echo -e "Power:\t\t$POWER\n"
+echo -e "Power:\t\t$POWER"
 if [[ -z $TOKEN ]]; then
-	echo "AccountToken is not set, using default settings"
+	echo -e "\nAccount Token is not set, using default settings\n"
 else
-	echo "AccountToken:\t\t$TOKEN"
+	echo -e "Account Token:\t\t$TOKEN\n"
 fi
 if [[ -e idletime.sh ]]; then
 	bash -- idletime.sh
@@ -64,14 +64,14 @@ wget https://download.foldingathome.org/releases/public/fah-client/debian-10-64b
 echo -e "\nInstalling Folding@home"
 echo -e "Please enter your password if prompted.\n"
 if ! sudo mkdir -p /etc/fah-client; then
-    echo "Error: Failed to create config directory" >&2
-    exit 1
+	echo "Error: Failed to create config directory" >&2
+	exit 1
 fi
 
-MACHINE_NAME=$(hostname)
+MACHINE_NAME=$HOSTNAME
 
-echo -e "Generating configuration file..."
-sudo bash -c "cat > /etc/fah-client/config.xml" <<EOF
+echo "Generating configuration file..."
+if ! sudo bash -c 'cat > /etc/fah-client/config.xml' <<EOF; then
 <config>
   <user v='$USERID'/>
   <team v='$TEAM'/>
@@ -81,15 +81,14 @@ sudo bash -c "cat > /etc/fah-client/config.xml" <<EOF
   <machine-name v='$MACHINE_NAME'/>
 </config>
 EOF
-
-if [[ $? -ne 0 ]]; then
 	echo "Error: Failed to write configuration file" >&2
 	exit 1
+fi
 sudo dpkg -i --force-depends fah-client_8.4.9_amd64.deb
 sudo systemctl restart fah-client
 
 if [[ -z $TOKEN ]]; then
-	echo -e "Account Token is not set, edit /etc/fah-client/config.xml to add your token."
+	echo "Account Token is not set, edit '/etc/fah-client/config.xml' to add your token."
 fi
-	
+
 # sudo apt-get install -f
