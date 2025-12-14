@@ -40,7 +40,7 @@ wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/m
 
 ### PRPLL
 
-Downloads, builds, sets up and runs [PRPLL-NTT](https://github.com/gwoltman/gpuowl). PRPLL is the successor of GpuOwl and should be much faster. Downloads, sets up and runs [AutoPrimeNet](https://github.com/tdulcet/AutoPrimeNet) for automated PrimeNet assignments. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that PRPLL uses C++20 and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
+Downloads, builds, sets up and runs [PRPLL NTT](https://github.com/preda/gpuowl). PRPLL is the successor of GpuOwl and should be much faster. Downloads, sets up and runs [AutoPrimeNet](https://github.com/tdulcet/AutoPrimeNet) for automated PrimeNet assignments. Supports Nvidia, AMD and Intel GPUs supporting OpenCL. Note that PRPLL uses C++20 and thus requires at least the GNU C++ compiler 8. Run: `g++ --version` to output your version.
 
 ```
 wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/prpll.sh | bash -s -- [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]
@@ -107,7 +107,7 @@ This script can be used with any [project that uses BOINC](https://boinc.berkele
 Downloads, installs and sets up [Folding@home](https://foldingathome.org/start-folding/).
 
 ```
-wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh | bash -s -- [Username] [Team number] [Passkey] [Power]
+wget -qO - https://raw.github.com/tdulcet/Distributed-Computing-Scripts/master/folding.sh | bash -s -- [Username] [Team number] [Passkey] [Power] [Account Token]
 ```
 
 These scripts should work on Ubuntu, Debian and any Linux distribution that can use the apt package manager.

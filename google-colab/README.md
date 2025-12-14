@@ -1,7 +1,7 @@
 # Google Colaboratory and GIMPS
 Google offers a service known as [Colaboratory](https://research.google.com/colaboratory/faq.html) (Colab), which allows anyone with an internet connection free access to high-performance TPU, GPU and CPU-powered [Jupyter Notebooks](https://en.wikipedia.org/wiki/Project_Jupyter#Jupyter_Notebook).
 This service can be used to run Distributed Computing projects such as the [Great Internet Mersenne Prime Search](https://www.mersenne.org/) (GIMPS) for free.
-GIMPS can be run on some Nvidia, AMD and Intel GPUs using the [PRPLL](https://github.com/gwoltman/gpuowl) program or a CPU using the [Prime95/MPrime](https://www.mersenne.org/download/) program.
+GIMPS can be run on some Nvidia, AMD and Intel GPUs using the [PRPLL](https://github.com/preda/gpuowl) program or a CPU using the [Prime95/MPrime](https://www.mersenne.org/download/) program.
 
 This repository contains two Jupyter Notebooks, a “CPU” only notebook (`Colab CPU MPrime.ipynb`) and a “GPU and CPU” notebook (`Colab GPU PRPLL.ipynb`). The “CPU” only notebook runs MPrime, while the “GPU and CPU” notebook runs both PRPLL and MPrime since they can run simultaneously to “crunch” more prime numbers. Previous versions of the GPU notebook ran GpuOwl and CUDALucas.
 Each notebook makes use of Google Drive storage, which is provided to all Google accounts. See here for a [“TPU” only notebook](https://github.com/TPU-Mersenne-Prime-Search/TensorPrime/wiki/Usage-and-Arguments) which runs TensorPrime.

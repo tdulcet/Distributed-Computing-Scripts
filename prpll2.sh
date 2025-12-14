@@ -97,26 +97,24 @@ if [[ -d $DIR && -x "$DIR/prpll" ]]; then
 else
 	if command -v git >/dev/null; then
 		echo -e "Downloading PRPLL\n"
-		git clone https://github.com/gwoltman/gpuowl.git "$DIR"
+		git clone https://github.com/preda/gpuowl.git "$DIR"
 		cd "$DIR"
-		git remote add upstream https://github.com/preda/gpuowl.git
-		git fetch upstream
 		sed -i 's/--dirty //' Makefile
 		sed -i 's/ --match v\/prpll\/\*//' Makefile
 	else
 		echo -e "Downloading PRPLL\n"
-		wget https://github.com/gwoltman/gpuowl/archive/$BRANCH.tar.gz
+		wget https://github.com/preda/gpuowl/archive/$BRANCH.tar.gz
 		echo -e "\nDecompressing the files\n"
 		tar -xzvf $BRANCH.tar.gz
 		mv -v gpuowl-$BRANCH/ "$DIR"/
 		cd "$DIR"
-		if output=$(curl -sf 'https://api.github.com/repos/gwoltman/gpuowl/tags?per_page=1'); then
+		if output=$(curl -sf 'https://api.github.com/repos/preda/gpuowl/tags?per_page=1'); then
 			if command -v jq >/dev/null; then
 				name=$(echo "$output" | jq -r '.[0].name')
 			else
 				name=$(echo "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)[0]["name"])')
 			fi
-			if output=$(curl -sf "https://api.github.com/repos/gwoltman/gpuowl/compare/$BRANCH...$name"); then
+			if output=$(curl -sf "https://api.github.com/repos/preda/gpuowl/compare/$BRANCH...$name"); then
 				if command -v jq >/dev/null; then
 					behind_by=$(echo "$output" | jq '.behind_by')
 					sha=$(echo "$output" | jq -r '.base_commit.sha')
