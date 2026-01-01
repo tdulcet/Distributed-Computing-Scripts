@@ -33,7 +33,7 @@ jobs:
         gcc --version
     - name: Script
       run: bash -e -o pipefail -- cudalucas.sh ANONYMOUS
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       if: always()
       with:
         name: ${{ matrix.os }}_cudalucas
@@ -70,7 +70,7 @@ jobs:
         $CXX --version
     - name: Script
       run: bash -e -o pipefail -- gpuowl.sh ANONYMOUS
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       if: always()
       with:
         name: ${{ matrix.os }}_${{ matrix.cxx }}_gpuowl
@@ -105,7 +105,7 @@ jobs:
         $CXX --version
     - name: Script
       run: bash -e -o pipefail -- prpll.sh ANONYMOUS
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       if: always()
       with:
         name: ${{ matrix.os }}_${{ matrix.cxx }}_prpll
@@ -140,7 +140,7 @@ jobs:
         echo -e '## Warnings\n```' >> $GITHUB_STEP_SUMMARY
         grep 'warning:' Mlucas/obj/build.log | sed 's/\x1B\[\([0-9]\+\(;[0-9]\+\)*\)\?[mK]//g' | awk '{ print $NF }' | sort | uniq -c | sort -nr >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       if: always()
       with:
         name: ${{ matrix.os }}_${{ matrix.cc }}_mlucas
