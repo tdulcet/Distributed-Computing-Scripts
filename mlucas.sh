@@ -299,7 +299,7 @@ for i in "${!ARGS[@]}"; do
 		fi
 		times+=("$(awk 'BEGIN { fact='$(((${#CORES[*]} == 0 ? threads[j] : threads[j] / CORES[i]) * (${#threads[*]} == 1 ? ${#args[*]} : ((threads[0] < threads[1] && j == 0) || (threads[0] > threads[1] && j == 1) ? 1 : ${#args[*]} - 1))))'/'${#args[*]}' } /^[[:space:]]*#/ || NF<4 { next } { printf "%.15g\n", $4*fact }' "$file")")
 		ffts+=("$(awk '/^[[:space:]]*#/ || NF<4 { next } { print $1 }' "$file")")
-		radices+=("$(awk '/^[[:space:]]*#/ || NF<4 { next } { for(i=11;i<=NF && $i!=0;++i) printf "%s%s", $i, i==NF || $(i+1)==0 ? RS : OFS }' "$file")")
+		radices+=("$(awk '/^[[:space:]]*#/ || NF<4 { next } { for(i=11; i<=NF && $i!=0; ++i) printf "%s%s", $i, i==NF || $(i+1)==0 ? RS : OFS }' "$file")")
 	done
 	if [[ ${#threads[*]} -eq 1 ]]; then
 		TIMES+=("${times[0]}")

@@ -72,13 +72,6 @@ if [[ -n $CXX ]] && ! command -v "$CXX" >/dev/null; then
 	echo "Error: $CXX is not installed." >&2
 	exit 1
 fi
-CXX=${CXX:-g++}
-VERSION=$("$CXX" -dumpversion)
-RE='^g\+\+'
-if [[ $CXX =~ $RE && ${VERSION%%.*} -lt 8 ]]; then
-	echo "Error: PRPLL requires at least the GNU C++ compiler 8 and you have $VERSION" >&2
-	exit 1
-fi
 if ! command -v python3 >/dev/null; then
 	echo "Error: Python 3 is not installed." >&2
 	exit 1
@@ -97,24 +90,26 @@ if [[ -d $DIR && -x "$DIR/prpll" ]]; then
 else
 	if command -v git >/dev/null; then
 		echo -e "Downloading PRPLL\n"
-		git clone https://github.com/preda/gpuowl.git "$DIR"
+		git clone https://github.com/gwoltman/gpuowl.git "$DIR"
 		cd "$DIR"
+		git remote add upstream https://github.com/preda/gpuowl.git
+		git fetch upstream
 		sed -i 's/--dirty //' Makefile
 		sed -i 's/ --match v\/prpll\/\*//' Makefile
 	else
 		echo -e "Downloading PRPLL\n"
-		wget https://github.com/preda/gpuowl/archive/$BRANCH.tar.gz
+		wget https://github.com/gwoltman/gpuowl/archive/$BRANCH.tar.gz
 		echo -e "\nDecompressing the files\n"
 		tar -xzvf $BRANCH.tar.gz
 		mv -v gpuowl-$BRANCH/ "$DIR"/
 		cd "$DIR"
-		if output=$(curl -sf 'https://api.github.com/repos/preda/gpuowl/tags?per_page=1'); then
+		if output=$(curl -sf 'https://api.github.com/repos/gwoltman/gpuowl/tags?per_page=1'); then
 			if command -v jq >/dev/null; then
 				name=$(echo "$output" | jq -r '.[0].name')
 			else
 				name=$(echo "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)[0]["name"])')
 			fi
-			if output=$(curl -sf "https://api.github.com/repos/preda/gpuowl/compare/$BRANCH...$name"); then
+			if output=$(curl -sf "https://api.github.com/repos/gwoltman/gpuowl/compare/$BRANCH...$name"); then
 				if command -v jq >/dev/null; then
 					behind_by=$(echo "$output" | jq '.behind_by')
 					sha=$(echo "$output" | jq -r '.base_commit.sha')
@@ -130,7 +125,7 @@ else
 	sed -i 's/^CXX =/CXX ?=/' Makefile
 	sed -i 's/\.\/genbundle\.sh/bash genbundle.sh/' Makefile
 	# -funsafe-math-optimizations
-	sed -i 's/-O2/-Wall -g -O3 -flto -ffinite-math-only/' Makefile
+	sed -i 's/-O2/-Wall -Wextra -g -O3 -flto -ffinite-math-only/' Makefile
 	make -j "$(nproc)"
 	pushd build-release >/dev/null
 	rm -- *.o

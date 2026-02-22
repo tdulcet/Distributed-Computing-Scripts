@@ -98,7 +98,7 @@ sed -i 's/\r//g' Makefile
 sed -i 's/^OptLevel = 1/OptLevel = 3/' Makefile
 CUDA=$(command -v nvcc | sed 's/\/bin\/nvcc$//')
 sed -i "s/^CUDA = \/usr\/local\/cuda/CUDA = ${CUDA//\//\\/}/" Makefile
-sed -i 's/--compiler-options=-Wall/-use_fast_math --compiler-options="-O$(OptLevel) -flto -Wall"/' Makefile
+sed -i 's/--compiler-options=-Wall/-use_fast_math --compiler-options="-O$(OptLevel) -flto -Wall -Wextra"/' Makefile
 CC=$(command -v "${CC:-gcc}")
 # sed -i "/^CUFLAGS / s/\$/ -ccbin ${CC//\//\\/}/" Makefile # -dlto
 sed -i '/^CFLAGS / s/$/ -flto/' Makefile
@@ -123,7 +123,7 @@ int main()
 EOF
 
 trap 'rm /tmp/cudaComputeVersion{.cu,}' EXIT
-nvcc /tmp/cudaComputeVersion.cu -O3 --compiler-options='-O3 -Wall' -o /tmp/cudaComputeVersion
+nvcc /tmp/cudaComputeVersion.cu -O3 --compiler-options='-O3 -Wall -Wextra' -o /tmp/cudaComputeVersion
 if ! COMPUTE=$(/tmp/cudaComputeVersion); then
 	echo "$COMPUTE"
 	echo "Error: CUDA compute capability not found" >&2

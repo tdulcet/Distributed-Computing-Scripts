@@ -73,13 +73,6 @@ if [[ -n $CXX ]] && ! command -v "$CXX" >/dev/null; then
 	echo "Error: $CXX is not installed." >&2
 	exit 1
 fi
-CXX=${CXX:-g++}
-VERSION=$("$CXX" -dumpversion)
-RE='^g\+\+'
-if [[ $CXX =~ $RE && ${VERSION%%.*} -lt 8 ]]; then
-	echo "Error: GpuOwl requires at least the GNU C++ compiler 8 and you have $VERSION" >&2
-	exit 1
-fi
 if ! command -v python3 >/dev/null; then
 	echo "Error: Python 3 is not installed." >&2
 	exit 1
@@ -201,7 +194,7 @@ popd >/dev/null
 for dir in $DIR1 $DIR2 $DIR3; do
 	echo
 	pushd "$dir" >/dev/null
-	sed -i 's/-Wall -O2/-Wall -g -O3/' Makefile
+	sed -i 's/-Wall -O2/-Wall -Wextra -g -O3/' Makefile
 	# -funsafe-math-optimizations
 	sed -i 's/-O3/-O3 -flto -ffinite-math-only/' Makefile
 	make -j "$(nproc)"
