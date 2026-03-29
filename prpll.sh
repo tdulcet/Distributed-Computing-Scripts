@@ -135,6 +135,7 @@ if ! python3 -m pip install requests; then
 	fi
 fi
 echo -e "\nSetting up PRPLL\n"
+echo "-user $USERID -unsafeMath" >config.txt
 sed -i 's/^CXX =/CXX ?=/' Makefile
 sed -i 's/\.\/genbundle\.sh/bash genbundle.sh/' Makefile
 # -funsafe-math-optimizations
