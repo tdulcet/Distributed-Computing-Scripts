@@ -126,8 +126,17 @@ else
 	sed -i 's/\.\/genbundle\.sh/bash genbundle.sh/' Makefile
 	# -funsafe-math-optimizations
 	sed -i 's/-O2/-Wall -Wextra -g -O3 -flto -ffinite-math-only/' Makefile
-	make -j "$(nproc)"
-	pushd build-release >/dev/null
+	
+	if command -v nvidia-smi >/dev/null && command -v nvcc >/dev/null; then
+	echo -e "Nvidia GPU and CUDA Toolkit (nvcc) detected. Compiling PRPLL with CUDA support...\n"
+	make CUDA=1 -j "$(nproc)"
+	pushd build-cuda >/dev/null
+	else
+		echo -e "Defaulting to OpenCL build...\n"
+		make -j "$(nproc)"
+		pushd build-release >/dev/null
+	fi
+	
 	rm -- *.o
 	mv -v prpll ..
 	popd >/dev/null
