@@ -128,7 +128,7 @@ else
 	sed -i 's/-O2/-Wall -Wextra -g -O3 -flto -ffinite-math-only/' Makefile
 	
 	if command -v nvcc >/dev/null; then
-	echo -e "CUDA Toolkit found. Compiling PRPLL with CUDA support...\n"
+	echo -e "CUDA Toolkit found. Adding CUDA support...\n"
 	make CUDA=1 -j "$(nproc)"
 	pushd build-cuda >/dev/null
 	else
