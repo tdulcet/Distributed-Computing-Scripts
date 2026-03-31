@@ -140,16 +140,14 @@ sed -i 's/^CXX =/CXX ?=/' Makefile
 sed -i 's/\.\/genbundle\.sh/bash genbundle.sh/' Makefile
 # -funsafe-math-optimizations
 sed -i 's/-O2/-Wall -Wextra -g -O3 -flto -ffinite-math-only/' Makefile
-
 if command -v nvcc >/dev/null; then
-	echo -e "CUDA Toolkit found. Adding CUDA support...\n"
+	echo -e "CUDA Toolkit found. Building PRPLL with CUDA...\n"
 	make CUDA=1 -j "$(nproc)"
 	pushd build-cuda >/dev/null
 else
 	make -j "$(nproc)"
 	pushd build-release >/dev/null
 fi
-
 rm -- *.o
 mv -v prpll ..
 popd >/dev/null
