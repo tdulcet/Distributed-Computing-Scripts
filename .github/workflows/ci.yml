@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
       fail-fast: false
     steps:
     - uses: actions/checkout@v6
@@ -51,7 +51,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
         cxx: [g++, clang++]
       fail-fast: false
     env:
@@ -86,7 +86,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
         cxx: [g++, clang++]
       fail-fast: false
     env:
@@ -119,9 +119,10 @@ jobs:
     name: Mlucas
 
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'ubuntu-26.04' && matrix.cc == 'gcc' }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-22.04-arm, ubuntu-24.04-arm]
+        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04, ubuntu-22.04-arm, ubuntu-24.04-arm, ubuntu-26.04-arm]
         cc: [gcc, clang]
       fail-fast: false
     env:
