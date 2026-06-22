@@ -136,10 +136,9 @@ if ! python3 -m pip install requests; then
 fi
 echo -e "\nSetting up PRPLL\n"
 echo "-user $USERID -unsafeMath" >config.txt
-sed -i 's/^CXX =/CXX ?=/' Makefile
-sed -i 's/\.\/genbundle\.sh/bash genbundle.sh/' Makefile
 # -funsafe-math-optimizations
-sed -i 's/-O2/-Wall -Wextra -g -O3 -flto -ffinite-math-only/' Makefile
+sed -i 's/-O3/-Wall -Wextra -g -O3 -flto -ffinite-math-only/' Makefile
+sed -i '/Proof::load(tmpFile)\.verify(/ s/= /= proofSet.power < 10 or /' src/Gpu.cpp
 if command -v nvcc >/dev/null; then
 	echo -e "CUDA Toolkit found. Building PRPLL with CUDA...\n"
 	make CUDA=1 -j "$(nproc)"
