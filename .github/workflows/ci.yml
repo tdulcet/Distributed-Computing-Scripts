@@ -19,7 +19,7 @@ jobs:
         os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
       fail-fast: false
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Before script
       run: |
         sed -i '/^GPU=/,/^fi/ s/^/# /' cudalucas.sh
@@ -57,7 +57,7 @@ jobs:
     env:
       CXX: ${{ matrix.cxx }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install
       run: |
         sudo apt-get update -y
@@ -92,7 +92,7 @@ jobs:
     env:
       CXX: ${{ matrix.cxx }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install
       run: |
         sudo apt-get update -y
@@ -128,7 +128,7 @@ jobs:
     env:
       CC: ${{ matrix.cc }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Before script
       run: |
         sed -i '/^[[:blank:]]*nohup / s/^/# /' mlucas.sh
@@ -156,7 +156,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
@@ -170,7 +170,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
