@@ -70,6 +70,17 @@ if ! command -v python3 >/dev/null; then
 	echo "Error: Python 3 is not installed." >&2
 	exit 1
 fi
+# python3 -m ensurepip --default-pip
+if ! python3 -c 'import sys; from importlib.util import find_spec; sys.exit(find_spec("requests") is None)'; then
+	if python3 -c 'import sys; from importlib.util import find_spec; sys.exit(find_spec("pip") is None)'; then
+		echo -e "\nInstalling the Requests library\n"
+		python3 -m pip install --upgrade pip
+		python3 -m pip install requests
+	else
+		echo "Error: The Requests library is not installed and Python pip is not installed." >&2
+		exit 1
+	fi
+fi
 TIME=$(echo "$TIME" | awk '{ printf "%g", $1 * 60 }')
 echo -e "Downloading CUDALucas\n"
 svn checkout https://svn.code.sf.net/p/cudalucas/code/trunk "$DIR"
@@ -83,16 +94,6 @@ else
 fi
 chmod +x autoprimenet.py
 python3 -OO -m py_compile autoprimenet.py
-echo -e "\nInstalling the Requests library\n"
-# python3 -m ensurepip --default-pip || true
-python3 -m pip install --upgrade pip || true
-if ! python3 -m pip install requests; then
-	if command -v pip3 >/dev/null; then
-		pip3 install requests
-	else
-		echo -e "\nWarning: Python pip3 is not installed and the Requests library may also not be installed\n"
-	fi
-fi
 echo -e "\nSetting up CUDALucas\n"
 sed -i 's/\r//g' Makefile
 sed -i 's/^OptLevel = 1/OptLevel = 3/' Makefile
@@ -144,11 +145,11 @@ echo -e "\nRegistering computer with PrimeNet\n"
 ARGS=()
 if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
-	ARGS+=(--cpu-model="${GPU[DEVICE]}")
+	ARGS+=(--processor-model="${GPU[DEVICE]}")
 
 	mapfile -t GPU_FREQ < <(nvidia-smi --query-gpu=clocks.max.gr --format=csv,noheader,nounits | grep -iv 'not supported')
 	if ((${#GPU_FREQ[@]})); then
-		ARGS+=(--frequency="${GPU_FREQ[DEVICE]}")
+		ARGS+=(--processor-frequency="${GPU_FREQ[DEVICE]}")
 	fi
 
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')

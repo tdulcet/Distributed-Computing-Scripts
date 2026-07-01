@@ -76,6 +76,17 @@ if ! command -v python3 >/dev/null; then
 	echo "Error: Python 3 is not installed." >&2
 	exit 1
 fi
+# python3 -m ensurepip --default-pip
+if ! python3 -c 'import sys; from importlib.util import find_spec; sys.exit(find_spec("requests") is None)'; then
+	if python3 -c 'import sys; from importlib.util import find_spec; sys.exit(find_spec("pip") is None)'; then
+		echo -e "\nInstalling the Requests library\n"
+		python3 -m pip install --upgrade pip
+		python3 -m pip install requests
+	else
+		echo "Error: The Requests library is not installed and Python pip is not installed." >&2
+		exit 1
+	fi
+fi
 if ! ldconfig -p | grep -iq 'libOpenCL\.'; then
 	echo -e "Installing the OpenCL library"
 	echo -e "Please enter your password if prompted.\n"
@@ -149,16 +160,6 @@ else
 	chmod +x autoprimenet.py
 	python3 -OO -m py_compile autoprimenet.py
 fi
-echo -e "\nInstalling the Requests library\n"
-# python3 -m ensurepip --default-pip || true
-python3 -m pip install --upgrade pip || true
-if ! python3 -m pip install requests; then
-	if command -v pip3 >/dev/null; then
-		pip3 install requests
-	else
-		echo -e "\nWarning: Python pip3 is not installed and the Requests library may also not be installed\n"
-	fi
-fi
 mkdir "worker-$N"
 cd "worker-$N"
 DIR=$PWD
@@ -168,21 +169,21 @@ ARGS=()
 if command -v clinfo >/dev/null; then
 	clinfo=$(clinfo --raw)
 	mapfile -t GPU < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_NAME *//p')
-	ARGS+=(--cpu-model="${GPU[DEVICE]//\[*\]/}")
+	ARGS+=(--processor-model="${GPU[DEVICE]//\[*\]/}")
 
 	mapfile -t GPU_FREQ < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_MAX_CLOCK_FREQUENCY *//p')
-	ARGS+=(--frequency="${GPU_FREQ[DEVICE]}")
+	ARGS+=(--processor-frequency="${GPU_FREQ[DEVICE]}")
 
 	mapfile -t TOTAL_GPU_MEM < <(echo "$clinfo" | sed -n 's/.*CL_DEVICE_GLOBAL_MEM_SIZE *//p')
 	maxAlloc=$((TOTAL_GPU_MEM[DEVICE] >> 20))
 	ARGS+=(--memory="$maxAlloc" --max-memory="$(echo "$maxAlloc" | awk '{ printf "%d", $1 * 0.9 }')")
 elif command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null; then
 	mapfile -t GPU < <(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
-	ARGS+=(--cpu-model="${GPU[DEVICE]}")
+	ARGS+=(--processor-model="${GPU[DEVICE]}")
 
 	mapfile -t GPU_FREQ < <(nvidia-smi --query-gpu=clocks.max.gr --format=csv,noheader,nounits | grep -iv 'not supported')
 	if ((${#GPU_FREQ[@]})); then
-		ARGS+=(--frequency="${GPU_FREQ[DEVICE]}")
+		ARGS+=(--processor-frequency="${GPU_FREQ[DEVICE]}")
 	fi
 
 	mapfile -t TOTAL_GPU_MEM < <(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | grep -iv 'not supported')

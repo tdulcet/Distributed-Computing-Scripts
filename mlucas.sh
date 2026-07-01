@@ -51,6 +51,17 @@ if ! command -v python3 >/dev/null; then
 	echo "Error: Python 3 is not installed." >&2
 	exit 1
 fi
+# python3 -m ensurepip --default-pip
+if ! python3 -c 'import sys; from importlib.util import find_spec; sys.exit(find_spec("requests") is None)'; then
+	if python3 -c 'import sys; from importlib.util import find_spec; sys.exit(find_spec("pip") is None)'; then
+		echo -e "\nInstalling the Requests library\n"
+		python3 -m pip install --upgrade pip
+		python3 -m pip install requests
+	else
+		echo "Error: The Requests library is not installed and Python pip is not installed." >&2
+		exit 1
+	fi
+fi
 files=(/usr/include/gmp*.h)
 if ! ldconfig -p | grep -iq 'libgmp\.' || ! [[ -f ${files[0]} ]]; then
 	echo -e "Installing the GNU Multiple Precision (GMP) library"
@@ -202,16 +213,6 @@ else
 	fi
 	chmod +x autoprimenet.py
 	python3 -OO -m py_compile autoprimenet.py
-fi
-echo -e "\nInstalling the Requests library\n"
-# python3 -m ensurepip --default-pip || true
-python3 -m pip install --upgrade pip || true
-if ! python3 -m pip install requests; then
-	if command -v pip3 >/dev/null; then
-		pip3 install requests
-	else
-		echo -e "\nWarning: Python pip3 is not installed and the Requests library may also not be installed\n"
-	fi
 fi
 cd obj
 DIR=$PWD
@@ -523,7 +524,7 @@ for i in "${!RUNS[@]}"; do
 	popd >/dev/null
 done
 total=$((TOTAL_PHYSICAL_MEM >> 10))
-python3 -OO ../autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} "${args[@]}" -m -H "$COMPUTER" --cpu-model="${CPU[0]}" --frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" --memory="$total" --max-memory="$(echo "$total" | awk '{ printf "%d", $1 * 0.9 }')" --cores="$CPU_CORES" --hyperthreads="$HP" --l1=$((CPU_CACHE_SIZES[1] ? CPU_CACHE_SIZES[1] >> 10 : 8)) --l2=$((CPU_CACHE_SIZES[2] ? CPU_CACHE_SIZES[2] >> 10 : 512)) --l3=$((CPU_CACHE_SIZES[3] >> 10))
+python3 -OO ../autoprimenet.py -t 0 -T "$TYPE" -u "$USERID" --num-workers ${#RUNS[*]} "${args[@]}" -m -H "$COMPUTER" --processor-model="${CPU[0]}" --processor-frequency="$(if [[ -n $CPU_FREQ ]]; then printf "%.0f" "${CPU_FREQ/./$decimal_point}"; else echo "1000"; fi)" --memory="$total" --max-memory="$(echo "$total" | awk '{ printf "%d", $1 * 0.9 }')" --processor-cores="$CPU_CORES" --processor-hyperthreads="$HP" --processor-l1-size=$((CPU_CACHE_SIZES[1] ? CPU_CACHE_SIZES[1] >> 10 : 8)) --processor-l2-size=$((CPU_CACHE_SIZES[2] ? CPU_CACHE_SIZES[2] >> 10 : 512)) --processor-l3-size=$((CPU_CACHE_SIZES[3] >> 10))
 maxalloc=$(echo ${#RUNS[*]} | awk '{ printf "%g", 90 / $1 }')
 echo -e "\nStarting AutoPrimeNet\n"
 nohup python3 -OO ../autoprimenet.py >>'autoprimenet.out' &
