@@ -6,6 +6,8 @@
 # ./mprime.sh "$USER" "$HOSTNAME" 150 10
 # ./mprime.sh ANONYMOUS
 
+set -e
+
 DIR="mprime"
 FILE32=p95v3019b20.linux32.tar.gz
 SUM32=2b7e5d8447246cbb4fabebfd8599cee16a407e659b3bb5142314023e9f0d11e1

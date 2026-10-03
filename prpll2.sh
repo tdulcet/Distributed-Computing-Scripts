@@ -138,7 +138,7 @@ else
 	sed -i '/Proof::load(tmpFile)\.verify(/ s/= /= proofSet.power < 10 or /' src/Gpu.cpp
 	if command -v nvcc >/dev/null; then
 		echo -e "CUDA Toolkit found. Building PRPLL with CUDA...\n"
-		make CUDA=1 -j "$(nproc)"
+		make CUDA=1 STATIC_CUDA=1 -j "$(nproc)"
 		pushd build-cuda >/dev/null
 	else
 		make -j "$(nproc)"

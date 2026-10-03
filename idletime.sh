@@ -18,7 +18,7 @@ outputduration() {
 	local h=$(((sec % 86400) / 3600))
 	local m=$(((sec % 3600) / 60))
 	local s=$((sec % 60))
-	local text=''
+	local text=
 	if ((d)); then
 		text+="$(printf "%'d" "$d") days "
 	fi

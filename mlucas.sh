@@ -6,6 +6,8 @@
 # ./mlucas.sh "$USER" "$HOSTNAME" 150 10
 # ./mlucas.sh ANONYMOUS
 
+set -e
+
 DIR="Mlucas"
 if [[ $# -gt 4 ]]; then
 	echo "Usage: $0 [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2

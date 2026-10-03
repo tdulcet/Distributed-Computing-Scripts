@@ -6,6 +6,8 @@
 # ./gpuowl.sh "$USER" "$HOSTNAME" 150 10
 # ./gpuowl.sh ANONYMOUS
 
+set -e
+
 DIR="gpuowl"
 DIR1="gpuowl-master"
 DIR2="gpuowl-7.2"
@@ -109,22 +111,12 @@ DIR=$PWD
 if command -v git >/dev/null; then
 	echo -e "Downloading GpuOwl\n"
 	git clone https://github.com/preda/gpuowl.git "$DIR1"
-	cp -r "$DIR1"/ "$DIR2"/
-	cp -r "$DIR1"/ "$DIR3"/
-	pushd "$DIR1" >/dev/null
-	git checkout -f "$BRANCH1"
-	sed -i 's/--dirty //' Makefile
-	popd >/dev/null
-	echo
-	pushd "$DIR2" >/dev/null
-	git checkout -f -b v7.2-112 "$BRANCH2"
-	sed -i 's/--dirty //' Makefile
-	popd >/dev/null
-	echo
-	pushd "$DIR3" >/dev/null
-	git checkout -f "$BRANCH3"
-	sed -i 's/--dirty //' Makefile
-	popd >/dev/null
+	git -C "$DIR1" switch -f "$BRANCH1"
+	git -C "$DIR1" worktree add -b v7.2-112 "../$DIR2" "$BRANCH2"
+	git -C "$DIR1" worktree add "../$DIR3" "$BRANCH3"
+	for dir in "$DIR1" "$DIR2" "$DIR3"; do
+		sed -i 's/--dirty //' "$dir/Makefile"
+	done
 else
 	echo -e "Downloading GpuOwl v6.11\n"
 	wget "https://github.com/preda/gpuowl/archive/$BRANCH3.tar.gz"

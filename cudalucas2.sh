@@ -6,6 +6,8 @@
 # ./cudalucas2.sh <N> "$USER" "$HOSTNAME" 100 10
 # ./cudalucas2.sh <N> ANONYMOUS
 
+set -e
+
 DIR="cudalucas"
 if [[ $# -lt 1 || $# -gt 5 ]]; then
 	echo "Usage: $0 <Computer number> [PrimeNet User ID] [Computer name] [Type of work] [Idle time to run (mins)]" >&2
@@ -102,7 +104,9 @@ else
 	sed -i '/^CFLAGS / s/$/ -flto/' Makefile
 
 	# Adapted from: https://stackoverflow.com/a/37757606
-	cat <<EOF >/tmp/cudaComputeVersion.cu
+	tmpdir=$(mktemp -d)
+	trap 'rm -r "$tmpdir"' EXIT
+	cat <<EOF >"$tmpdir/cudaComputeVersion.cu"
 #include <stdio.h>
 int main()
 {
@@ -119,9 +123,8 @@ int main()
 }
 EOF
 
-	trap 'rm /tmp/cudaComputeVersion{.cu,}' EXIT
-	nvcc /tmp/cudaComputeVersion.cu -O3 --compiler-options='-O3 -Wall -Wextra' -o /tmp/cudaComputeVersion
-	if ! COMPUTE=$(/tmp/cudaComputeVersion); then
+	nvcc -O3 --compiler-options='-O3 -Wall -Wextra' -o "$tmpdir/cudaComputeVersion" "$tmpdir/cudaComputeVersion.cu" 
+	if ! COMPUTE=$("$tmpdir/cudaComputeVersion"); then
 		echo "$COMPUTE"
 		echo "Error: CUDA compute capability not found" >&2
 		exit 1

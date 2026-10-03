@@ -116,4 +116,4 @@ We acknowledge the following projects, which enabled and encouraged us to create
 * The [Linux System Information script](https://github.com/tdulcet/Linux-System-Information), which outputs the system information for the Colab VMs.
 
 ## ❤️ Donate
-To support this endeavor, please consider making a [donation](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=NJ4PULABRVNCC).
+To support this endeavor, please consider making a [donation](https://tealdulcet.com/#donate).

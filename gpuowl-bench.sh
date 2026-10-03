@@ -113,18 +113,18 @@ for i in "${!MAX_EXPS[@]}"; do
 		for j in "${!variants[@]}"; do
 			printf "\n\t%'d Variant: %s\n\n" $((j + 1)) "${variants[j]}"
 			"$DIR/$GPUOWL" -prp "$exp" -iters "$ITERS" -fft "${variants[j]}" "${ARGS[@]}" | grep -i 'gpuowl\|loaded\|on-load\|[[:digit:]]\{6,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{4,\}\|check\|jacobi\|roundoff\|ROE\|error\| E :\|exception\|exiting'
-			time=''
+			time=
 			if output=$(grep '[[:digit:]]\{7,\} \(LL\|P1\|OK\|EE\)\? \+[[:digit:]]\{5,\}' gpuowl.log | grep "$ITERS"); then
 				RE='([[:digit:]]+) us/it'
 				if [[ $output =~ $RE ]]; then
 					time=${BASH_REMATCH[1]}
 				fi
 			fi
-			mean=''
-			max=''
-			stddev=''
-			z=''
-			N=''
+			mean=
+			max=
+			stddev=
+			z=
+			N=
 			if output=$(grep -i 'roundoff\|ROE ' gpuowl.log); then
 				output=$(echo "$output" | tail -n 1)
 				RE='mean ([[:digit:]]+(\.[[:digit:]]+)?)'

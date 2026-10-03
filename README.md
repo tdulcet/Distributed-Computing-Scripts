@@ -5,7 +5,7 @@ Distributed Computing Scripts for GIMPS, BOINC and Folding@home
 
 Copyright © 2018 Teal Dulcet and Daniel Connelly
 
-❤️ Please visit [tealdulcet.com](https://www.tealdulcet.com/) to support these scripts and my other software development.
+❤️ Please visit [tealdulcet.com](https://tealdulcet.com/) to support these scripts and my other open source software development.
 
 ## Great Internet Mersenne Prime Search (GIMPS)
 
